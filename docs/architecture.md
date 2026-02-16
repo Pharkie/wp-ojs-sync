@@ -1,176 +1,216 @@
-# Architecture Options
+# Architecture Decision
 
 Last updated: 2026-02-16
 
-## Context
+## Decision trail
 
-The OJS REST API has no subscription endpoints (see `phase0-findings.md`). This rules out the original plan of "WP calls OJS API to create subscriptions" and leaves four viable approaches.
+This document records what we investigated, what we found, and why options were eliminated. The goal is to make the reasoning traceable so future decisions don't re-cover the same ground.
 
-## Decision status: PENDING
+### Step 1: Original plan — WP pushes subscriptions to OJS via REST API
 
-Blocked on answers from SEA — see "blocking questions" at bottom.
+The initial idea was simple: when someone becomes a SEA member on WordPress, a WP plugin calls the OJS REST API to create a matching subscription. OJS paywall sees the subscription and grants access. Non-member purchases through OJS are unaffected.
+
+**Result: Dead.** The OJS REST API has no subscription endpoints. Not in 3.4, not in 3.5, not on the main branch. Zero. Confirmed via the [swagger spec](https://github.com/pkp/ojs/blob/main/docs/dev/swagger-source.json), [PKP community forums](https://forum.pkp.sfu.ca/t/are-there-api-or-other-options-for-subscription-management-available-in-ojs-3-3/86106), and GitHub issues. PKP has said this is "not a development priority."
+
+The user creation API is also questionable — the swagger spec shows read-only endpoints (GET only, no POST). Some older docs suggest POST /users exists but this is unconfirmed on current versions.
+
+See `phase0-findings.md` for full research.
+
+### Step 2: Subscription SSO plugin — could OJS ask WP instead?
+
+Since we can't push subscriptions TO OJS, we considered flipping the model: instead of WP pushing data, OJS pulls verification FROM WP at access time. The [Subscription SSO plugin](https://github.com/asmecher/subscriptionSSO) (maintained by PKP's lead developer) does exactly this.
+
+We initially rejected this as part of a category ("SSO plugins are fragile"). But this plugin is not OIDC/OpenID — it's a simpler redirect-and-verify flow. So we read the actual source code to evaluate it properly.
+
+**What it actually does (from source code):**
+
+1. User hits a paywalled article on OJS
+2. OJS checks its own subscriptions first — if the user already has one, the plugin does nothing
+3. If not subscribed AND no valid SSO session → plugin **redirects the user's browser** to WordPress
+4. WordPress authenticates them, confirms membership, generates a token
+5. WordPress redirects them back to OJS with that token in the URL
+6. OJS makes a server-side cURL call to a WP verification endpoint with the token
+7. If WP's response matches a configured regex → OJS stores a timestamp in the PHP session
+8. User can browse paywalled content for N hours (configurable) without re-verification
+9. After the session expires, the cycle repeats
+
+**Result: Dead.** The plugin hijacks the purchase flow. Here's the critical code path:
+
+```
+User hits paywalled content
+  → OJS checks own subscriptions → not subscribed
+  → Plugin checks SSO session → no valid session
+  → Plugin IMMEDIATELY REDIRECTS to WordPress
+  → OJS never shows its purchase/paywall page
+```
+
+If a non-member wants to buy a single article for £3, they get bounced to WordPress instead of seeing OJS's "buy this article" page. The plugin assumes WordPress IS the only subscription system. There is no fallback to "show OJS purchase options if SSO also says no."
+
+This breaks a hard requirement: non-members must be able to buy individual articles (£3), current issues (£25), and back issues (£18) through OJS. The Subscription SSO plugin makes that impossible.
+
+See `phase0-sso-plugin-audit.md` for the full source code analysis.
+
+### Step 3: What's left
+
+With the REST API approach dead and the SSO plugin incompatible with OJS purchases, three options remain:
 
 ---
 
-## Option A: Subscription SSO Plugin (FASTEST — days not weeks)
+## Option B: Custom OJS Plugin + WP Plugin (RECOMMENDED)
 
-Previously rejected as a category ("SSO plugins are fragile"), but this specific plugin is simpler than originally understood and is maintained by PKP's lead developer.
+**Status: Recommended.** This is the cleanest viable approach.
+
+### The idea
+
+OJS has complete internal PHP classes for subscription management (`IndividualSubscriptionDAO` with full CRUD). The problem is just that these classes have no HTTP interface. So we build a small OJS plugin that exposes them as REST API endpoints, and a WP plugin that calls those endpoints.
 
 ### How it works
 
 ```
-Member hits paywall
-  → OJS Subscription SSO plugin fires
-  → Calls WP verification endpoint with user identifier
-  → WP checks membership status
-  → Returns match/no-match
-  → OJS grants or denies access
-  → Result cached for N hours
-
-Non-member hits paywall
-  → SSO plugin fires, WP says "not a member"
-  → OJS falls through to normal purchase flow (£3 article / £25 issue / £18 back issue)
-```
-
-### Components
-
-1. **OJS side:** Install + configure [Subscription SSO plugin](https://github.com/asmecher/subscriptionSSO)
-   - Set verification URL → WP endpoint
-   - Set incoming parameter name
-   - Set verification regex (pattern for "yes, this is a member")
-   - Set cache duration (hours)
-2. **WP side:** Small plugin or REST endpoint (`/wp-json/sea-ojs/v1/verify`)
-   - Receives user identifier
-   - Looks up membership status
-   - Returns response matching the regex
-
-### Pros
-- Minimal custom code (~100 lines on WP side, zero on OJS side)
-- No subscription records to manage in OJS
-- No user sync needed
-- No password sync needed
-- WP stays sole source of truth
-- Ships in 3-5 days
-
-### Cons
-- **Must verify:** does the plugin coexist with OJS purchases for non-members?
-- No subscription records visible in OJS admin (members are invisible to OJS)
-- Single point of failure: WP down = no member access (mitigated by cache)
-- Members don't have OJS accounts (no reading history, preferences — likely fine for SEA)
-
-### Critical blocker
-> Does the Subscription SSO plugin allow non-members to still purchase content through OJS's normal paywall?
-
-If yes → ship this. If no → Option B.
-
----
-
-## Option B: Custom OJS Plugin + WP Plugin (CLEANEST — 2-4 weeks)
-
-Build a small OJS plugin that exposes subscription CRUD as REST endpoints. WP plugin calls those endpoints on membership changes.
-
-### How it works
-
-```
-Member signs up / renews in WP
+Member signs up / renews on WordPress
   → WP plugin fires on membership status change
-  → Calls OJS custom API: find-or-create user by email
-  → Calls OJS custom API: create/renew subscription
-  → OJS paywall sees valid subscription, grants access normally
+  → Calls OJS custom endpoint: find-or-create user by email
+  → Calls OJS custom endpoint: create/renew subscription
+  → OJS paywall sees valid subscription → grants access normally
 
-Member lapses
+Member lapses / cancels
   → WP plugin fires
-  → Calls OJS custom API: expire/delete subscription
-  → OJS paywall denies access, shows purchase options
+  → Calls OJS custom endpoint: expire/delete subscription
+  → OJS paywall denies access → shows normal purchase options
+
+Non-member visits paywalled content
+  → No subscription exists
+  → OJS shows standard purchase page (£3 / £25 / £18)
+  → Completely unaffected by the integration
 ```
 
-### Components
+### What gets built
 
-1. **OJS plugin** (`sea-subscription-api`):
-   - Registers REST endpoints under `/api/v1/plugin/sea/subscriptions`
-   - Uses `IndividualSubscriptionDAO` internally for all CRUD
-   - Authenticated via OJS API key
-   - OJS 3.5+ required for clean plugin API ([pkp-lib #9434](https://github.com/pkp/pkp-lib/issues/9434))
+**OJS plugin** (`sea-subscription-api`) — installed in `plugins/generic/seaSubscriptionApi/`:
+- Registers REST endpoints for subscription CRUD
+- Uses OJS's own `IndividualSubscriptionDAO` internally (the classes already exist and are well-tested)
+- Authenticated via OJS API key (Bearer token)
+- No modifications to OJS core code — standard plugin, dropped into a folder
+- Requires OJS 3.5+ for the clean plugin API pattern ([pkp-lib #9434](https://github.com/pkp/pkp-lib/issues/9434))
 
-2. **WP plugin** (`sea-ojs-sync`):
-   - Settings page: OJS URL, API key, subscription type ID
-   - Hooks into WP membership status changes
-   - Calls OJS plugin endpoints
-   - Bulk sync command (WP-CLI or admin button)
-   - Error logging
+**WP plugin** (`sea-ojs-sync`) — installed like any WP plugin:
+- Settings page: OJS URL, API key, subscription type ID mapping
+- Hooks into WP membership plugin events (signup, renewal, lapse, cancellation)
+- Calls OJS plugin endpoints on each event
+- Bulk sync command (WP-CLI or admin button) for initial population and drift correction
+- Error logging visible in WP admin
+- Retry logic for failed API calls
 
-### Pros
-- Clean architecture, proper separation of concerns
-- Subscriptions exist in OJS properly — visible in admin UI
-- OJS paywall works completely normally
-- Non-member purchases unaffected
-- Uses OJS's own validated DAO layer
+### Why this works
 
-### Cons
-- Two plugins to build and maintain
-- Requires OJS 3.5+ (3.4 plugin API is much harder)
-- Need OJS development + deployment capability
-- OJS upgrades could break the plugin
-- Members need separate OJS accounts (two logins)
+- OJS paywall operates completely normally — subscriptions are real OJS subscription records
+- Non-member purchases are completely unaffected
+- WP remains source of truth — OJS subscriptions are a downstream projection
+- Uses OJS's own validated DAO layer — no raw SQL, no bypassed validation
+- Both sides are standard plugins — no core code changes on either platform
+- Subscriptions visible in OJS admin UI for troubleshooting
+
+### Trade-offs
+
+- **Two plugins to build and maintain.** More initial work than a simpler approach.
+- **Requires OJS 3.5+** for clean plugin API. On 3.4, plugin endpoint registration is much harder (older `LoadHandler` hook pattern). If SEA is on 3.4, consider Option C as a stopgap.
+- **Members need separate OJS accounts.** Two logins. Matched by email address. Need clear onboarding to explain this.
+- **OJS upgrades could break the OJS plugin.** Mitigated by using the DAO layer (more stable than raw SQL), but still needs testing on each OJS upgrade.
+- **Effort:** 2-4 weeks for both plugins.
+
+### Blocking questions
+
+| Question | Why it matters |
+|---|---|
+| OJS version (3.4.x vs 3.5.x)? | 3.5+ required for clean plugin API |
+| Can we install OJS plugins? | Required — the OJS plugin is half the solution |
+| Which WP membership plugin? | Determines WP hook points |
+| Which membership tiers grant journal access? | Scope of the sync logic |
+| OJS admin access available? | Needed for plugin install and API key setup |
 
 ---
 
-## Option C: Direct DB Writes (FAST but fragile — 1-2 weeks)
+## Option C: Direct DB Writes (FALLBACK)
 
-WP plugin writes directly to OJS database tables. No OJS plugin needed.
+**Status: Fallback.** Use only if OJS plugins can't be installed, or as a stopgap while building Option B.
+
+### The idea
+
+Skip the API layer entirely. WP plugin connects directly to the OJS database and writes subscription records.
 
 ### How it works
 
 ```
 WP membership change
   → WP plugin connects to OJS database
+  → Finds or creates user in `users` table
   → INSERT/UPDATE/DELETE on `subscriptions` table
-  → OJS reads subscriptions normally
+  → OJS reads subscriptions normally — doesn't know they were created externally
 ```
 
-### Pros
-- No OJS plugin needed
-- Works on any OJS version
-- Fast to implement
+### What gets built
 
-### Cons
-- Bypasses OJS validation, hooks, event system
-- Schema changes between OJS versions silently break it
-- No audit trail
-- Requires same DB server or cross-database access
-- Hard to debug
+**WP plugin only** — nothing on OJS side:
+- Same membership hooks as Option B
+- Direct database connection to OJS (PDO or wpdb with external connection)
+- Writes to `users`, `subscriptions`, `subscription_types` tables
+- Must match exact OJS schema expectations
+
+### Why you might use this
+
+- No OJS plugin installation required
+- Works on any OJS version (3.4, 3.5, whatever)
+- Faster to build (1-2 weeks)
+- Only one plugin to maintain
+
+### Why it's risky
+
+- **Bypasses OJS validation, hooks, and event system.** If OJS expects certain things to happen when a subscription is created (notifications, cache invalidation, etc.), they won't.
+- **Schema changes between OJS versions break it silently.** An OJS upgrade could change column names, add required fields, or restructure tables. The plugin won't know until things fail.
+- **No audit trail.** OJS won't log subscription creation events because they didn't go through OJS.
+- **Requires database access.** WP server must be able to connect to the OJS database. If they're on different servers, this means cross-server DB access or SSH tunnels.
+- **Hard to debug.** When something goes wrong, neither OJS logs nor WP logs will have the full picture.
 
 ### When to use
-Only if: same server, can't install OJS plugins, need it immediately. Treat as a stopgap.
+
+- OJS is on 3.4 and can't be upgraded (Option B won't work cleanly)
+- Can't install OJS plugins for some reason
+- Need something shipping immediately while Option B is being built
+- WP and OJS share a database server
 
 ---
 
-## Option D: Janeway Migration (NUCLEAR — weeks to months)
+## Option D: Janeway Migration (NUCLEAR)
 
-Abandon OJS. Migrate to Janeway (Python/Django, proper OAuth, better APIs). Build a custom paywall since Janeway refuses to support them.
+**Status: Last resort.** Only if all OJS options prove unworkable.
 
-### When to consider
-Only if all OJS options prove unworkable or more expensive than a platform migration.
+Abandon OJS entirely. Migrate to [Janeway](https://janeway.systems/) (Python/Django, proper OAuth, good APIs). Build a custom paywall since Janeway ideologically refuses to support them.
+
+**Only consider if:**
+- OJS plugin development proves impossible or disproportionately expensive
+- OJS version is locked to 3.4 with no upgrade path AND direct DB writes are unacceptable
+- The total cost of OJS integration exceeds the cost of platform migration + custom paywall
+
+**Effort:** Weeks to months. Content migration, paywall development, new hosting, staff retraining.
+
+---
+
+## Eliminated options
+
+| Option | Why eliminated |
+|---|---|
+| **OJS REST API sync** | API doesn't exist. No subscription endpoints in any OJS version. |
+| **Subscription SSO plugin** | Hijacks OJS purchase flow. Non-members can't buy articles/issues. Incompatible with SEA's requirement for per-item sales. |
+| **OIDC / OpenID SSO** | Only solves authentication, not authorization. OJS plugin poorly maintained against 3.5 breaking changes. If it fails, nobody can log into OJS. |
 
 ---
 
 ## Recommendation
 
-1. **First:** Answer the SSO coexistence question (test the plugin)
-2. **If SSO works with purchases:** Ship Option A. Done in days.
-3. **If not, and OJS is 3.5+:** Ship Option B. Done in 2-4 weeks.
-4. **If OJS is 3.4 and can't upgrade:** Ship Option C as stopgap, plan Option B for after OJS upgrade.
-5. **If everything fails:** Consider Option D, but this is a last resort.
+**Ship Option B** (custom OJS plugin + WP plugin). It's more work than we'd like, but it's the only approach that:
+- Keeps OJS purchases working for non-members
+- Creates proper subscription records in OJS
+- Doesn't bypass OJS's validation layer
+- Uses standard plugin architecture on both sides
 
----
-
-## Blocking questions (need from SEA)
-
-| Question | Why it matters |
-|---|---|
-| OJS version (3.4.x vs 3.5.x)? | Determines if Option B is viable |
-| Can we install OJS plugins? | Required for Option A and B |
-| Which WP membership plugin? | Determines WP hook points |
-| Which membership tiers grant journal access? | Scope of the verification logic |
-| Same server / network? | Determines if Option C is even possible |
-| OJS admin access available? | Needed for any option |
+If OJS is stuck on 3.4 and can't upgrade, start with **Option C** (direct DB) as a stopgap, and plan to migrate to Option B when OJS is upgraded to 3.5+.
