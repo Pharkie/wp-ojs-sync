@@ -21,13 +21,13 @@
 
 ---
 
-## Decision: Architecture
+## Decision: Plan C (push model — plugins on each side)
 
-**Custom OJS plugin + WP plugin.** See `docs/architecture.md` for full reasoning and decision trail.
+**Plan C: Custom OJS plugin + WP plugin.** See `docs/architecture.md` for full reasoning and decision trail.
 
-This is the same approach the previous developer identified as "Plan C" — sync accounts and subscriptions from WP to OJS, no SSO plugins, no OIDC, no password sync. The key difference from their original description: the OJS REST API doesn't have subscription endpoints out of the box, so we need a small OJS plugin to expose them. The WP side is the same.
+WP pushes subscription changes to OJS. A plugin on each side: WP plugin detects membership changes and pushes them; OJS plugin receives the calls and creates/updates/expires subscription records. No SSO, no OIDC, no password sync. The key addition over the previous developer's original Plan C: the OJS REST API doesn't have subscription endpoints, so we build a small OJS plugin to expose them.
 
-**OJS 3.5+ is required.** The clean plugin API pattern was restored in 3.5 ([pkp-lib #9434](https://github.com/pkp/pkp-lib/issues/9434)). If SEA is on 3.4, upgrade first.
+**OJS 3.5+ is required.** The clean plugin API pattern was restored in 3.5 ([pkp-lib #9434](https://github.com/pkp/pkp-lib/issues/9434)). SEA is on 3.4.0-9, so upgrade first.
 
 ---
 

@@ -19,9 +19,9 @@ WordPress ↔ OJS integration for the Society for Existential Analysis (SEA). WP
 
 ## Architecture decision
 
-**Custom OJS plugin + WP plugin.** OJS has subscription management classes internally but no HTTP API for them. We build a small OJS plugin to expose subscription CRUD as REST endpoints, and a WP plugin to call them on membership changes. See `docs/architecture.md` for the full decision trail.
+**Plan C: Custom OJS plugin + WP plugin (push model).** OJS has subscription management classes internally but no HTTP API for them. We build a small OJS plugin to expose subscription CRUD as REST endpoints, and a WP plugin to call them on membership changes. See `docs/architecture.md` for the full decision trail.
 
-This aligns with the previous developer's "Plan C" — the main addition is that we need a small OJS plugin because the REST API doesn't cover subscriptions natively.
+This is the previous developer's "Plan C" — the main addition is a small OJS plugin because the REST API doesn't cover subscriptions natively.
 
 ## Hard constraints
 
@@ -32,9 +32,9 @@ This aligns with the previous developer's "Plan C" — the main addition is that
 
 ## Eliminated approaches (don't revisit)
 
-- **OIDC/OpenID SSO** — only solves login not access; OJS plugin has unresolved bugs, no production-ready 3.5 release, breaks multi-journal setups. Previous developer confirmed independently.
-- **Subscription SSO plugin** — source code audit confirmed it hijacks OJS purchase flow. Non-members can't buy content while it's active. See `docs/phase0-sso-plugin-audit.md`.
-- **OJS REST API sync (native)** — subscription endpoints don't exist in any OJS version.
+- **Plan A** (OIDC/OpenID SSO) — only solves login not access; OJS plugin has unresolved bugs, no 3.5 release, breaks multi-journal. Previous developer confirmed.
+- **Plan B** (Subscription SSO plugin) — source code audit confirmed it hijacks OJS purchase flow. Non-members can't buy content. See `docs/phase0-sso-plugin-audit.md`.
+- **Native REST API sync** — subscription endpoints don't exist in any OJS version. Plan C works around this with a custom OJS plugin.
 
 ## Gotchas
 
