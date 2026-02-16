@@ -23,15 +23,41 @@
 
 ## Decision: Architecture
 
-**Option B: Custom OJS Plugin + WP Plugin.** See `docs/architecture.md` for full reasoning and decision trail.
+**Custom OJS plugin + WP plugin.** See `docs/architecture.md` for full reasoning and decision trail.
 
-This is essentially the same approach the previous developer identified as "Plan C" — sync accounts and subscriptions from WP to OJS using OJS's built-in mechanisms, no SSO plugins, no OIDC, no password sync. The key difference from their original description: the OJS REST API doesn't have subscription endpoints out of the box, so we need a small OJS plugin to expose them. The WP side is the same.
+This is the same approach the previous developer identified as "Plan C" — sync accounts and subscriptions from WP to OJS, no SSO plugins, no OIDC, no password sync. The key difference from their original description: the OJS REST API doesn't have subscription endpoints out of the box, so we need a small OJS plugin to expose them. The WP side is the same.
 
-Fallback: Option C (direct DB writes) if OJS plugins can't be installed or OJS is stuck on 3.4.
+**OJS 3.5+ is required.** The clean plugin API pattern was restored in 3.5 ([pkp-lib #9434](https://github.com/pkp/pkp-lib/issues/9434)). If SEA is on 3.4, upgrade first.
 
 ---
 
-## Phase 1: Build it (unblocked once we have SEA answers above)
+## Phase 0.5: Upgrade OJS to 3.5 (if not already on 3.5+)
+
+OJS 3.5.0 was released June 2025 (LTS). Required for the custom plugin API. This must happen before any plugin development.
+
+- [ ] **Confirm current OJS version** (need from SEA)
+- [ ] **If on 3.4:** plan and execute upgrade to 3.5
+  - [ ] Read [OJS 3.5 upgrade guide](https://docs.pkp.sfu.ca/dev/upgrade-guide/en/)
+  - [ ] Read [OJS 3.5 release notes / breaking changes](https://github.com/pkp/pkp-lib/issues/9276)
+  - [ ] Back up OJS database and files
+  - [ ] Set up staging environment for upgrade testing
+  - [ ] Run upgrade on staging, verify journal content intact
+  - [ ] Verify existing subscriptions and user accounts survived
+  - [ ] Verify paywall and purchase flow still work
+  - [ ] Run upgrade on production
+- [ ] **If already on 3.5+:** skip this phase, proceed to Phase 1
+
+### Key 3.5 breaking changes to watch for
+- Slim → Laravel routing (affects any existing custom code)
+- `.inc.php` file suffixes no longer supported
+- Non-namespaced plugins no longer supported
+- Vue 2 → Vue 3 on frontend
+- New `app_key` config required
+- Locales now part of URLs
+
+---
+
+## Phase 1: Build it (unblocked after OJS is on 3.5+ and SEA answers above)
 
 ### OJS plugin (`sea-subscription-api`)
 
@@ -95,7 +121,7 @@ Fallback: Option C (direct DB writes) if OJS plugins can't be installed or OJS i
 |---|---|---|---|
 | ~~OJS API lacks subscription endpoints~~ | — | — | **Confirmed.** Custom OJS plugin exposes them. |
 | ~~SSO plugin conflicts with purchases~~ | — | — | **Confirmed.** Eliminated. |
-| OJS version is 3.4 (no clean plugin API) | Medium | High | Fall back to Option C (direct DB) |
+| OJS version is 3.4 (no clean plugin API) | Medium | High | Upgrade to 3.5 first (Phase 0.5) |
 | User creation API doesn't exist | Medium | Medium | Custom OJS plugin handles this too |
 | Sync failures silently drop members | Medium | High | Logging, nightly reconciliation, admin alerts |
 | Members confused by two logins | High | Medium | Clear onboarding, strategic "set password" prompts |
