@@ -2,7 +2,7 @@
 
 Research conducted 2026-02-16 via OJS source code, swagger specs, PKP forums, and GitHub issues.
 
-> **Note:** The architectural conclusions from this research are recorded in `architecture.md`. This file preserves the raw findings for reference.
+> **Note:** The architectural conclusions from this research are recorded in `discovery.md` and `plan.md`. This file preserves the raw findings for reference.
 
 ## Key finding: No subscription REST API
 
@@ -11,7 +11,7 @@ Research conducted 2026-02-16 via OJS source code, swagger specs, PKP forums, an
 - [PKP forum confirmation](https://forum.pkp.sfu.ca/t/are-there-api-or-other-options-for-subscription-management-available-in-ojs-3-3/86106) — PKP devs acknowledge the gap
 - [Bulk subscription import request](https://forum.pkp.sfu.ca/t/ojs3-bulk-import-subscriptions/62294) was told it's "not a development priority"
 
-This means subscription management requires either a custom OJS plugin (recommended) or direct DB writes (fallback). See `architecture.md` for the full analysis.
+This means subscription management requires either a custom OJS plugin (recommended) or direct DB writes (fallback). See `plan.md` for the implementation plan.
 
 ## User API: exists but with caveats
 

@@ -11,20 +11,20 @@ WordPress ↔ OJS integration for the Society for Existential Analysis (SEA). WP
 
 ## Key docs (read these first)
 
-- `docs/architecture.md` — decision trail: what was tried, what was eliminated, and why
+- `docs/plan.md` — the implementation plan: what we're building, how it works, launch sequence
+- `docs/discovery.md` — decision trail: what was tried, what was eliminated, and why
 - `docs/ojs-api.md` — OJS REST API capabilities, DB schema, PHP internals
 - `docs/wp-integration.md` — WP membership stack (Ultimate Member + WooCommerce Subscriptions), hooks, code patterns
-- `docs/phase0-sso-plugin-audit.md` — source code audit of Subscription SSO plugin (why Pull-verify was eliminated)
 - `docs/janeway-paywall-investigation.md` — concrete technical plan for Janeway backup path
-- `TODO.md` — task list with blocking questions and phased implementation plan
+- `TODO.md` — task checklist with phased implementation steps
 
 ## Architecture decision
 
-**Push-sync** (custom OJS plugin + WP plugin). WP pushes subscription changes to OJS on membership events. A plugin on each side: WP detects changes, OJS receives them and creates subscription records using its own internal DAO classes. See `docs/architecture.md` for the full decision trail.
+**Push-sync** (custom OJS plugin + WP plugin). WP pushes subscription changes to OJS on membership events. A plugin on each side: WP detects changes, OJS receives them and creates subscription records using its own internal DAO classes. See `docs/plan.md` for full details, `docs/discovery.md` for how we got here.
 
 Previous developer called this "Plan C". Key addition: OJS REST API has no subscription endpoints, so we build a small OJS plugin to expose them.
 
-**Janeway migration** is a genuine backup (not a nuclear option) if the OJS 3.5 upgrade proves too costly. Comparable total effort, different trade-offs. See architecture doc for the full comparison.
+**Janeway migration** is a genuine backup (not a nuclear option) if the OJS 3.5 upgrade proves too costly. See `docs/discovery.md` for the comparison.
 
 ## Plan naming
 

@@ -13,7 +13,7 @@ Integration between the Society for Existential Analysis (SEA) WordPress members
 
 **Push-sync:** custom OJS plugin + WP plugin. WP pushes subscription changes to OJS on membership events. A small OJS plugin exposes subscription CRUD as REST endpoints (using OJS's own internal classes). A WP plugin calls those endpoints when membership status changes.
 
-This was reached after systematically eliminating alternatives — see [docs/architecture.md](./docs/architecture.md) for the full decision trail, including an honest evaluation of Janeway as a genuine backup.
+See [docs/plan.md](./docs/plan.md) for the full implementation plan. See [docs/discovery.md](./docs/discovery.md) for the decision trail and why alternatives were eliminated.
 
 ### What was eliminated and why
 
@@ -76,7 +76,8 @@ WP OJS/
 ├── CLAUDE.md                          # AI assistant instructions and gotchas
 ├── TODO.md                            # Task list and phased plan
 ├── docs/
-│   ├── architecture.md                # Decision trail and architecture options
+│   ├── plan.md                        # Implementation plan: what we're building
+│   ├── discovery.md                   # Decision trail: what was tried, eliminated, and why
 │   ├── ojs-api.md                     # OJS REST API reference, DB schema, PHP internals
 │   ├── wp-integration.md              # WP membership stack, hooks, code patterns
 │   ├── phase0-findings.md             # Raw research from API audit
@@ -89,7 +90,8 @@ WP OJS/
 
 ## Quick Links
 
-- [Architecture decision trail](./docs/architecture.md)
+- [Implementation plan](./docs/plan.md)
+- [Discovery / decision trail](./docs/discovery.md)
 - [WP integration details](./docs/wp-integration.md)
 - [Janeway backup plan](./docs/janeway-paywall-investigation.md)
 - [TODO list](./TODO.md)

@@ -23,7 +23,7 @@
 
 ## Decision: Push-sync (plugins on each side)
 
-**Push-sync: Custom OJS plugin + WP plugin.** See `docs/architecture.md` for full reasoning and decision trail.
+**Push-sync: Custom OJS plugin + WP plugin.** See `docs/plan.md` for the implementation plan, `docs/discovery.md` for the decision trail.
 
 WP pushes subscription changes to OJS. A plugin on each side: WP plugin detects membership changes and pushes them; OJS plugin receives the calls and creates/updates/expires subscription records. No SSO, no OIDC, no password sync. The key addition over the previous developer's original Plan C: the OJS REST API doesn't have subscription endpoints, so we build a small OJS plugin to expose them.
 
