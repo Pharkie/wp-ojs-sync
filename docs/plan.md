@@ -77,9 +77,11 @@ Installed like any WP plugin:
 
 All endpoints require Bearer token auth. All are idempotent.
 
+**Fragility note:** These endpoints use OJS internal PHP classes (Repo facade, DAOs, Validation), not a stable public API. OJS could rename, merge, or remove any of these in a future release without notice — every OJS plugin has this risk. Mitigation: the `/ping` endpoint includes a compatibility check that verifies every class and method the plugin depends on. The WP "Test connection" button calls it. **Run this after any OJS upgrade.**
+
 | Method | Path | Request body | Response | PHP backing (see [ojs-api.md](./ojs-api.md)) |
 |---|---|---|---|---|
-| `GET` | `/ping` | — | `200 {status: "ok"}` | None (returns static response) |
+| `GET` | `/ping` | — | `200 {status: "ok", compatible: bool, checks: [...]}` | Compatibility check: verifies every PHP class and method the plugin depends on still exists. Returns `compatible: true` if all pass, or `compatible: false` with a list of failures. Checks: `Repo::user()` methods (`getByEmail`, `newDataObject`, `add`, `edit`, `get`, `delete`), `Repo::userGroup()` methods (`getByRoleIds`, `assignUserToGroup`), `DAORegistry::getDAO('IndividualSubscriptionDAO')` methods (`insertObject`, `updateObject`, `getById`, `getByUserIdForJournal`, `deleteById`), `Validation` methods (`suggestUsername`, `encryptCredentials`, `generatePasswordResetHash`), `PasswordResetRequested` class, `Core::getCurrentDate()`. Uses `method_exists()` / `class_exists()` — no data is read or written. |
 | `POST` | `/users/find-or-create` | `{email, firstName, lastName, sendWelcomeEmail?}` | `200 {userId, created: bool}` | `Repo::user()->getByEmail()` to find; `Repo::user()->newDataObject()` + `add()` to create; `Repo::userGroup()->assignUserToGroup()` for Reader role |
 | `PUT` | `/users/{userId}/email` | `{newEmail}` | `200 {userId}` | `Repo::user()->get($userId)` + `Repo::user()->edit($user, ['email' => $newEmail])`. Plugin must check `getByEmail($newEmail)` first — OJS doesn't enforce uniqueness in `edit()`. |
 | `DELETE` | `/users/{userId}` | — | `200` or `204` | `Repo::user()->edit($user, [...])` to blank PII (safest for sync-created accounts). `Repo::user()->delete($user)` also safe if no submission history. |
@@ -159,7 +161,7 @@ When a member has **multiple active WCS subscriptions**, the plugin resolves to 
 | `wp sea-ojs send-welcome-emails` | Send welcome emails in batches (50/hour), skip already-sent |
 | `wp sea-ojs reconcile` | Run reconciliation now (compare WCS ↔ OJS, retry drift) |
 | `wp sea-ojs status` | Show sync stats: total synced, pending, failed, last reconciliation |
-| `wp sea-ojs test-connection` | Hit OJS `/ping` endpoint and report result |
+| `wp sea-ojs test-connection` | Hit OJS `/ping` endpoint, report connection status and OJS compatibility check results |
 
 ### WP Cron schedule
 

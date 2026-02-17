@@ -213,7 +213,7 @@ Must complete before writing any plugin code. These are the critical unknowns th
 | OJS 3.5 upgrade fails or causes data corruption | Medium | Critical | Staging first, rollback runbook, go/no-go threshold |
 | Sync failures silently drop members | Medium | High | Async queue with retries, daily reconciliation, admin alerts |
 | Members confused by two logins | High | Medium | Welcome email, permanent login prompt, cross-links between systems, support runbook |
-| OJS upgrade breaks custom plugin | Medium | High | Use DAO layer (stable), test upgrades in staging, annual maintenance budget |
+| OJS upgrade breaks custom plugin | Medium | High | `/ping` endpoint runs a compatibility check verifying every PHP class/method the plugin depends on (see plan.md endpoint spec). WP "Test connection" button calls it. Run after any OJS upgrade. Also: test upgrades in staging first, annual maintenance budget. |
 | WP membership plugin changes | Low | Medium | Abstract hooks behind adapter |
 | Bulk sync failures | Low | Medium | Dry-run mode, batched execution, per-user log, resume capability |
 | Members don't set OJS password | High | Medium | Welcome email + permanent login prompt + 30-day follow-up (Phase 2) |
