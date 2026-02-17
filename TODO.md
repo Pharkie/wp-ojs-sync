@@ -70,6 +70,8 @@ OJS 3.5.0 was released June 2025 (LTS). Required for the custom plugin API. This
 - [ ] Endpoint: create/renew individual subscription
 - [ ] Endpoint: expire/delete subscription
 - [ ] Endpoint: list subscriptions (for bulk sync verification)
+- [ ] Endpoint: trigger "set your password" email for a user (generates reset token, sends welcome email)
+- [ ] Custom login page message: "SEA member? First time here? Set your password" with direct link
 - [ ] Authentication via OJS API key
 - [ ] Test against real OJS instance
 
@@ -100,11 +102,16 @@ Approximately 500 members already have active WP/UM subscriptions. They need OJS
 - [ ] **Verification**: After sync, compare counts — active WCS subscriptions vs OJS subscriptions created. Log any failures (invalid email, API errors, etc.)
 - [ ] **Dry-run mode**: Bulk sync should support a dry-run that reports what it would do without making changes
 
-**The password problem:**
-OJS users created by the sync won't have a password (the sync creates the account but can't set a password from WP). Members need to use OJS "forgot password" to set one up on first visit.
+**Password setup (two channels):**
+OJS accounts created by the sync have no password. We avoid the confusing "forgot password?" flow with two complementary approaches:
 
-- [ ] "First time here from SEA? Set your password" message on OJS login page (prominent, not buried)
-- [ ] Launch email to all ~500 members: "You now have journal access. Go to [OJS URL]. Click 'Forgot password' to set up your login. Use the same email as your SEA membership. If you want a different email on the journal site, update it on your SEA account first."
+1. **"Set your password" email** — After creating each OJS account, the bulk sync generates a password reset token and sends a welcome email: "Your SEA membership now includes access to Existential Analysis. Click here to set your password." Clear wording — "set", not "forgot". This is the primary path.
+2. **Login page prompt** — OJS plugin adds a prominent message on the login page: "SEA member? First time here? **Set your password**" with a direct link to the password reset form. Catches anyone who missed the email.
+
+- [ ] OJS plugin: endpoint or hook to generate password reset token + send welcome email per user
+- [ ] OJS plugin: custom login page message with "Set your password" link (not "Forgot password")
+- [ ] Bulk sync: after creating each user, trigger the welcome email (with option to suppress for dry-run)
+- [ ] Welcome email copy: include OJS URL, "set your password" link, note about using same email as SEA membership, note about updating WP email first if they want a different one
 
 **Edge case:**
 - Members with multiple WCS subscriptions → should result in one OJS subscription (the longest-running)

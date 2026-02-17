@@ -261,8 +261,8 @@ Sequence:
 1. Upgrade OJS to 3.5
 2. Build and deploy OJS plugin (`sea-subscription-api`)
 3. Build and deploy WP plugin (`sea-ojs-sync`)
-4. **Bulk sync ~500 existing members** — all current WP/UM members need OJS subscriptions from day one. Run bulk sync with dry-run first, verify counts, resolve email mismatches. New OJS accounts won't have passwords — members use "forgot password" on first visit.
-5. **Launch email** to all members: "You now have journal access. Go to [OJS URL], use 'forgot password' to set up your login."
-6. Add OJS template changes ("set your password" prompt on login, "subscribe via SEA" link on paywall)
+4. **Bulk sync ~500 existing members** — creates OJS user accounts + subscriptions for all current WP/UM members. Run with dry-run first, verify counts.
+5. **"Set your password" emails** — bulk sync triggers a welcome email per member with a direct password-set link (not "forgot password"). This is the primary onboarding path.
+6. Add OJS template changes ("SEA member? Set your password" prompt on login page, "subscribe via SEA" link on paywall)
 
 **If the OJS 3.5 upgrade hits serious problems**, re-evaluate Janeway migration as a genuine alternative rather than a last resort. The total effort is comparable — the risks are just different.
