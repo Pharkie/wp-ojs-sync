@@ -109,9 +109,9 @@ $next_payment = $subscription->get_date('next_payment');
 
 ## Mapping membership tiers to OJS subscription types
 
-**All membership tiers grant journal access.** Any active WCS subscription triggers an OJS subscription. This simplifies the mapping — no need to filter by product/tier.
+**All membership tiers grant journal access**, but there are **multiple WooCommerce Subscription products** (e.g. different tiers like student, full, etc.). Any active subscription triggers OJS access regardless of tier.
 
-The WP plugin settings page will still have a mapping table (WooCommerce Product ID → OJS Subscription Type ID) in case SEA adds tiers that shouldn't grant access in future, but the default is "all active = access".
+The WP plugin settings page needs a mapping table: WooCommerce Product ID → OJS Subscription Type ID. Even though all tiers grant access, different products may have different durations, and the mapping keeps things explicit. The bulk sync and ongoing hooks both use this mapping to set the correct OJS subscription type and end date.
 
 ```php
 // Check which product the subscription is for:

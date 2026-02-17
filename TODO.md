@@ -88,7 +88,7 @@ OJS 3.5.0 was released June 2025 (LTS). Required for the custom plugin API. This
 
 Approximately 500 members already have active WP/UM subscriptions. They need OJS access from day one — not just new signups going forward.
 
-**OJS is essentially a fresh install** — a handful of admin logins and ~60 test articles across 2 recent journals. No existing member accounts, no existing subscriptions, no dedup problem.
+**OJS is essentially a fresh install** — a handful of admin logins and ~60 test articles across 2 recent journals. No existing member accounts, no existing subscriptions, no dedup problem. Back issues will be loaded gradually after launch (launch with recent content, backfill over time).
 
 **The bulk sync process:**
 - [ ] Run bulk sync command: iterate all active WCS subscriptions, for each create OJS user + subscription
