@@ -96,6 +96,10 @@ WP OJS/
 │   ├── phase0-findings.md             # Raw research from API audit
 │   ├── phase0-sso-plugin-audit.md     # Source code audit of Subscription SSO plugin
 │   └── janeway-paywall-investigation.md  # Janeway backup: concrete Stripe paywall plan
+├── launch/                            # Pre-launch deliverables (drafts)
+│   ├── welcome-email.md              # "Set your password" email copy
+│   ├── support-runbook.md            # Staff guide for member queries
+│   └── member-faq.md                 # Member-facing FAQ
 └── plugins/                           # Plugin source (Phase 1)
     ├── sea-subscription-api/          # OJS plugin (TBD)
     └── sea-ojs-sync/                  # WP plugin (TBD)

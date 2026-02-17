@@ -135,14 +135,14 @@ Must complete before writing any plugin code. These are the critical unknowns th
 
 ### Pre-launch deliverables (not code)
 
-- [ ] **Draft welcome email copy** — open with "Your SEA membership now includes access to Existential Analysis", single CTA ("Set your password"), show which email address was used, include OJS URL as plain text. No email-change instructions (put in FAQ). Send from recognisable SEA address.
-- [ ] **Staff support runbook** — 1 page:
+- [x] **Draft welcome email copy** — see `launch/welcome-email.md`. Starting point for SEA to review and refine.
+- [x] **Staff support runbook** — see `launch/support-runbook.md`. Starting point. 1 page:
   1. How to check WP subscription status for a member
   2. How to check OJS user account and subscription status (OJS admin UI, Users page)
   3. How to manually trigger a single-member sync (WP-CLI)
   4. How to handle email mismatch (update WP email, re-trigger sync)
   5. How to read the WP sync error log
-- [ ] **Member FAQ** — for common questions:
+- [x] **Member FAQ** — see `launch/member-faq.md`. Starting point. Covers:
   - "I already have an OJS account with a different email"
   - "I didn't receive the setup email"
   - "I'm paying but can't access the journal"
