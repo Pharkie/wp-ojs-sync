@@ -77,16 +77,16 @@ Installed like any WP plugin:
 
 All endpoints require Bearer token auth. All are idempotent.
 
-| Method | Path | Request body | Response | Notes |
+| Method | Path | Request body | Response | PHP backing (see [ojs-api.md](./ojs-api.md)) |
 |---|---|---|---|---|
-| `GET` | `/ping` | — | `200 {status: "ok"}` | Health check / connection test |
-| `POST` | `/users/find-or-create` | `{email, firstName, lastName, sendWelcomeEmail?}` | `200 {userId, created: bool}` | Atomic: lookup + insert in transaction. Returns existing user if email exists. |
-| `PUT` | `/users/{userId}/email` | `{newEmail}` | `200 {userId}` | For WP email change propagation |
-| `DELETE` | `/users/{userId}` | — | `200` or `204` | GDPR erasure. Blanks PII via `Repo::user()->edit()` (sync-created accounts have no submission history, so hard delete is also safe). |
-| `POST` | `/subscriptions` | `{userId, journalId, typeId, dateStart, dateEnd}` | `200 {subscriptionId}` | Upsert: if subscription exists for `(userId, journalId)`, extends `dateEnd` if later. |
-| `PUT` | `/subscriptions/{id}/expire` | — | `200` | Sets status to expired. |
-| `GET` | `/subscriptions` | `?email=` or `?userId=` | `200 [{...}]` | For verification / reconciliation. |
-| `POST` | `/welcome-email` | `{userId}` | `200` | Sends "set your password" email via `PasswordResetRequested` mailable. Skips if already sent (dedup flag). Requires `security.reset_seconds = 604800` in OJS `config.inc.php` (7 days, default is 2 hours). |
+| `GET` | `/ping` | — | `200 {status: "ok"}` | None (returns static response) |
+| `POST` | `/users/find-or-create` | `{email, firstName, lastName, sendWelcomeEmail?}` | `200 {userId, created: bool}` | `Repo::user()->getByEmail()` to find; `Repo::user()->newDataObject()` + `add()` to create; `Repo::userGroup()->assignUserToGroup()` for Reader role |
+| `PUT` | `/users/{userId}/email` | `{newEmail}` | `200 {userId}` | `Repo::user()->get($userId)` + `Repo::user()->edit($user, ['email' => $newEmail])`. Plugin must check `getByEmail($newEmail)` first — OJS doesn't enforce uniqueness in `edit()`. |
+| `DELETE` | `/users/{userId}` | — | `200` or `204` | `Repo::user()->edit($user, [...])` to blank PII (safest for sync-created accounts). `Repo::user()->delete($user)` also safe if no submission history. |
+| `POST` | `/subscriptions` | `{userId, journalId, typeId, dateStart, dateEnd}` | `200 {subscriptionId}` | `DAORegistry::getDAO('IndividualSubscriptionDAO')` → `getByUserIdForJournal()` to check existing; `insertObject()` to create or `updateObject()` to extend `dateEnd`. |
+| `PUT` | `/subscriptions/{id}/expire` | — | `200` | `IndividualSubscriptionDAO::getById()` + `setStatus(SUBSCRIPTION_STATUS_OTHER)` + `updateObject()` |
+| `GET` | `/subscriptions` | `?email=` or `?userId=` | `200 [{...}]` | `IndividualSubscriptionDAO::getByUserIdForJournal()` or `Repo::user()->getByEmail()` then DAO lookup |
+| `POST` | `/welcome-email` | `{userId}` | `200` | `Validation::generatePasswordResetHash($userId)` + `PasswordResetRequested` mailable via `Mail::send()`. Requires `security.reset_seconds = 604800` in `config.inc.php`. |
 
 Error responses: `400` (invalid input), `401` (bad/missing auth), `403` (IP not allowed), `404` (not found), `409` (conflict), `500` (server error). All errors return `{error: "message"}`.
 
