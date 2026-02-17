@@ -2,16 +2,26 @@
 
 Integration between the Society for Existential Analysis (SEA) WordPress membership system and Open Journal Systems (OJS) hosting the journal *Existential Analysis*.
 
+## The two systems
+
+**WordPress** is SEA's membership site. Members sign up, pay, and manage their accounts here. The membership stack is:
+
+- **Ultimate Member (UM)** — handles user registration, profiles, and roles
+- **WooCommerce Subscriptions (WCS)** — handles subscription billing and lifecycle (renewals, cancellations, payment failures)
+
+UM and WCS work together: WCS processes the payment, then the member gets a WP role that UM manages. WCS is the authority on "is this subscription active?"
+
+**OJS (Open Journal Systems)** hosts the journal *Existential Analysis* with a built-in paywall. Non-members can buy individual articles (£3), current issues (£25), or back issues (£18). It's a separate system on a separate server.
+
 ## Problem
 
-- **OJS** hosts the journal with built-in paywall and access control
-- **WordPress** is the SEA membership system (source of truth for members)
-- SEA members should get journal access without buying separately
+- SEA members should get journal access automatically — without buying separately on OJS
 - Non-members must still be able to buy individual articles/issues via OJS
+- The two systems don't talk to each other
 
 ## Architecture Decision
 
-**Push-sync:** custom OJS plugin + WP plugin. WP pushes subscription changes to OJS on membership events. A small OJS plugin exposes subscription CRUD as REST endpoints (using OJS's own internal classes). A WP plugin calls those endpoints when membership status changes.
+**Push-sync:** custom OJS plugin + WP plugin. When a WCS subscription status changes (activated, expired, cancelled), the WP plugin queues a sync to OJS. A small OJS plugin exposes subscription CRUD as REST endpoints (using OJS's own internal classes). WP Cron processes the queue asynchronously with retries and a daily reconciliation safety net.
 
 See [docs/plan.md](./docs/plan.md) for the full implementation plan. See [docs/discovery.md](./docs/discovery.md) for the decision trail and why alternatives were eliminated.
 
@@ -27,11 +37,13 @@ See [docs/plan.md](./docs/plan.md) for the full implementation plan. See [docs/d
 
 ```
 Member signs up / renews on WordPress
-  → WP plugin calls OJS custom endpoint → subscription created
+  → WCS status changes to active → WP plugin queues sync
+  → WP Cron calls OJS: find-or-create user + create subscription
   → OJS paywall sees subscription → access granted
 
-Member lapses
-  → WP plugin calls OJS custom endpoint → subscription expired
+Member lapses / cancels / payment fails
+  → WCS status changes → WP plugin queues expire
+  → WP Cron calls OJS: expire subscription
   → OJS paywall denies access → shows purchase options
 
 Non-member visits paywalled content
@@ -78,6 +90,7 @@ WP OJS/
 ├── docs/
 │   ├── plan.md                        # Implementation plan: what we're building
 │   ├── discovery.md                   # Decision trail: what was tried, eliminated, and why
+│   ├── review-findings.md            # Six-perspective plan review and how findings were resolved
 │   ├── ojs-api.md                     # OJS REST API reference, DB schema, PHP internals
 │   ├── wp-integration.md              # WP membership stack, hooks, code patterns
 │   ├── phase0-findings.md             # Raw research from API audit
@@ -92,6 +105,7 @@ WP OJS/
 
 - [Implementation plan](./docs/plan.md)
 - [Discovery / decision trail](./docs/discovery.md)
+- [Plan review findings](./docs/review-findings.md)
 - [WP integration details](./docs/wp-integration.md)
 - [Janeway backup plan](./docs/janeway-paywall-investigation.md)
 - [TODO list](./TODO.md)
