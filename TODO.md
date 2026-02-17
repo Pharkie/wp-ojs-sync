@@ -107,7 +107,7 @@ Must complete before writing any plugin code. These are the critical unknowns th
 ### WP plugin (`sea-ojs-sync`)
 
 - [ ] Plugin skeleton
-- [ ] **Settings page**: OJS URL (HTTPS enforced, reject non-HTTPS), subscription type ID mapping, journal ID(s), "Test connection" button (calls `/status`)
+- [ ] **Settings page**: OJS URL (HTTPS enforced, reject non-HTTPS), subscription type ID mapping, journal ID(s), "Test connection" button (calls `/ping` then `/preflight`)
 - [ ] **API key**: read from `wp-config.php` constant `SEA_OJS_API_KEY`, not stored in database
 - [ ] **Sync queue table**: custom DB table for async dispatch. Columns: `id`, `wp_user_id`, `email`, `action`, `payload`, `status`, `attempts`, `next_retry_at`, `created_at`, `completed_at`
 - [ ] **Structured sync log table**: `id`, `wp_user_id`, `email`, `action` (activate/expire/create_user/email_change), `status` (success/fail), `ojs_response_code`, `ojs_response_body`, `attempt_count`, `created_at`

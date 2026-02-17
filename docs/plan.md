@@ -314,4 +314,4 @@ The smoke test checklist in TODO.md covers the full integration path. These run 
 - **Two plugins to build and maintain.** Both can be written in 1-2 Claude Code sessions. Real time is in testing, deployment, and the OJS upgrade.
 - **Requires OJS 3.5+.** The upgrade has significant breaking changes. This is the biggest risk in the whole plan.
 - **Members need separate OJS accounts.** Two logins, matched by email. Mitigated by welcome email, permanent login page prompt, and cross-links between systems.
-- **OJS upgrades could break the OJS plugin.** Mitigated by using the DAO layer (more stable than raw SQL), but still needs testing on each OJS upgrade.
+- **OJS upgrades could break the OJS plugin.** Uses internal PHP classes, not a stable public API. Mitigated by `/preflight` endpoint (verifies all dependencies after upgrade) and using the DAO layer (more stable than raw SQL). Still needs testing on each OJS upgrade.
