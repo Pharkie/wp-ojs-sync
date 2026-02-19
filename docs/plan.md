@@ -1,6 +1,6 @@
 # Implementation Plan: Push-sync
 
-Last updated: 2026-02-17
+Last updated: 2026-02-19
 
 WP pushes subscription changes to OJS via a custom plugin on each side. For how we arrived at this decision, see [`discovery.md`](./discovery.md). For the full review that shaped this plan, see [`review-findings.md`](./review-findings.md).
 
@@ -10,7 +10,7 @@ WP pushes subscription changes to OJS via a custom plugin on each side. For how 
 
 ```
 Bulk sync (~500 existing members at launch)
-  → WP-CLI command reads all active WCS subscriptions
+  → WP-CLI command reads all active WCS subscriptions + users with manual member roles
   → For each member: calls OJS endpoint to find-or-create user by email
   → Calls OJS endpoint: create subscription
   → "Set your password" welcome email sent to member
@@ -68,7 +68,7 @@ Installed like any WP plugin:
 - Bulk sync command (**WP-CLI only**) for initial population and drift correction, with batching and resume
 - **Structured sync log**: custom DB table with per-user success/fail records, searchable in WP admin
 - **Admin email alerts**: immediate notification on sync failure after retries exhausted; daily digest of failure count
-- **Daily reconciliation**: WP Cron job comparing active WCS subscriptions vs OJS, retrying any drift
+- **Daily reconciliation**: WP Cron job comparing active WCS subscriptions + manual member roles vs OJS, retrying any drift
 - See [`wp-integration.md`](./wp-integration.md) for full hook details and code patterns
 
 ---
@@ -188,7 +188,7 @@ When a member has **multiple active WCS subscriptions**, the plugin resolves to 
 | **Bulk push creates accounts** | Don't wait for members to self-register. Push user accounts + subscriptions from WP upfront (~500 existing members at launch). |
 | **All tiers grant access** | Any active WCS subscription → OJS access. Multiple WooCommerce products exist but all grant journal access. If a member has multiple subscriptions, use the latest `date_end` across all of them. |
 | **Password via welcome email** | Bulk sync triggers "set your password" email per member (not "forgot password"). Login page prompt as permanent fallback. |
-| **Content loaded gradually** | Launch with ~60 recent articles across 2 journals. Back issues loaded over time. |
+| **Content loaded gradually** | Launch with ~60 recent articles. Back issues loaded over time. |
 | **Non-expiring subs** | WCS subscriptions with no end date → OJS subscription with `date_end = NULL` and `non_expiring` subscription type. |
 | **Async sync dispatch** | WCS hooks log intent to a queue table. WP Cron processes the queue. No inline HTTP calls on checkout. |
 | **Daily reconciliation at launch** | Not deferred. A daily WP Cron job compares WCS ↔ OJS and retries any drift. |
@@ -200,21 +200,24 @@ When a member has **multiple active WCS subscriptions**, the plugin resolves to 
 
 | Fact | Detail |
 |---|---|
-| OJS version | Live: 3.4.0-9. Staging: **3.5.0.3** (upgraded 2026-02-19). |
+| OJS version | Live: 3.4.0-9. Staging: 3.5.0.3 (upgraded 2026-02-19). |
 | OJS admin access | Yes. Site Administrator level. Can install plugins. |
-| WP membership plugin | Ultimate Member + WooCommerce + WooCommerce Subscriptions. |
-| Membership tiers | All nine roles grant journal access (six standard, three manual/admin-assigned). |
+| WP membership stack | Ultimate Member (profiles) + WooCommerce Subscriptions (payments). WCS is authority on subscription status. |
+| Membership tiers | All nine WP roles grant journal access (six standard, three manual/admin-assigned). |
+| Manual member roles | Admin-assigned (Exco/life members). Bypass WCS checkout — bulk sync and reconciliation must detect these via WP roles directly. |
+| Non-standard access | Editorial board, reviewers, etc. managed manually in OJS admin UI. Not part of WP sync. |
 | Hosting | Different servers. WP and OJS communicate over HTTP. |
 | OJS state | Fresh install. Admin logins only, ~60 test articles, no existing member accounts. |
 | OJS journals | One journal (*Existential Analysis*). Sync targets one journal ID. |
 | OJS self-registration | Enabled. Non-members need it for paywall purchases. |
+| OJS email | Assumed raw SMTP. Transactional relay (Mailgun or similar) needed before bulk welcome email send. |
 | WP email uniqueness | Enforced at DB level. UM email changes require confirmation. |
 
 ---
 
 ## Launch sequence
 
-1. **Upgrade OJS 3.4 → 3.5** — the biggest risk. Significant breaking changes (Slim→Laravel, Vue 2→3). Back up everything first. Test on staging. Written rollback runbook. Acceptance criteria: paywall works, purchases work, content intact. Go/no-go threshold agreed with SEA.
+1. **Upgrade OJS 3.4 → 3.5** — the biggest risk. Significant breaking changes (Slim→Laravel, Vue 2→3). Staging upgraded to 3.5.0.3 (2026-02-19). Still need: verify acceptance criteria on staging, write rollback runbook, agree go/no-go threshold with SEA, then upgrade production.
 2. **Verify OJS API prerequisites** — test Bearer token auth from WP server IP (`CGIPassAuth on`), test user creation API, confirm email config (SPF/DKIM/DMARC), document OJS server specs.
 3. **Build and deploy OJS plugin** (`sea-subscription-api`) — code review + PHPStan before production.
 4. **Build and deploy WP plugin** (`sea-ojs-sync`) — code review before production.
