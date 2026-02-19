@@ -22,6 +22,9 @@ Confirmed during Phase 0 research (2026-02-16). Details in `docs/phase0-findings
 | Subscription SSO plugin | Eliminated. Hijacks purchase flow. See `docs/phase0-sso-plugin-audit.md`. |
 | XML user import | Eliminated. Creates accounts only, not subscriptions. See `docs/xml-import-evaluation.md`. |
 | Manual member roles | Admin-assigned (Exco/life members). Grant OJS access but bypass WCS checkout — bulk sync must detect these directly. |
+| Non-standard access | Editorial board, reviewers, etc. managed manually in OJS admin UI (Subscriptions > Individual Subscriptions). Not part of WP sync. |
+| UM ↔ WCS relationship | UM handles profiles, WCS handles payments. Standard integration (assumed UM WooCommerce extension). WCS is the authority on subscription status. |
+| OJS email | Assumed raw SMTP. Must set up transactional relay (Mailgun or similar) before bulk welcome email send. |
 
 ## Decision: Push-sync (plugins on each side)
 
@@ -95,10 +98,9 @@ Must complete before writing any plugin code. Answered items have been moved to 
 
 - [ ] **Test user creation API** — send `POST /api/v1/users` with a Bearer token on OJS 3.5 staging. Record result in `docs/ojs-api.md`. If it doesn't exist, the OJS plugin must implement full user creation via internal PHP classes.
 - [ ] **Test Bearer token auth from WP server** — `curl` the OJS API with a Bearer token from the WP staging server's IP. Confirm 200 response. If 401, add `CGIPassAuth on` to `.htaccess` and retest.
-- [ ] **Confirm OJS email config** — check SPF, DKIM, DMARC records on the OJS mail domain. Check whether OJS uses a transactional email service or raw SMTP. If raw SMTP, set up a transactional relay (SES/Mailgun/Postmark) before bulk send.
+- [ ] **Set up transactional email relay** — OJS is assumed to be using raw SMTP. Set up Mailgun or similar before bulk welcome email send. Check SPF/DKIM/DMARC records on the OJS mail domain.
 - [ ] **Document OJS server specs** — RAM, CPU, PHP memory limit, PHP max execution time, web server type, shared or dedicated hosting.
 - [ ] **Create dedicated OJS service account** — purpose-built account with minimum required role for sync operations. Generate API key. Do not use a human admin account.
-- [ ] **Clarify UM ↔ WCS relationship** — is UM purely the registration/profile layer while WCS is the sole authority on active subscriptions? Or does UM have its own membership state that could diverge from WCS? Is there a bridge plugin (e.g. "UM WooCommerce" extension)?
 
 ---
 
@@ -220,9 +222,7 @@ Must complete before writing any plugin code. Answered items have been moved to 
 
 ## Open questions
 
-1. Are there members who need OJS access outside the standard membership? (editorial board, reviewers) — only admin logins exist currently.
-2. Does the OJS user creation API (POST /users) work on 3.5? Must verify on staging — Phase 0.75.
-3. How are UM and WCS connected on the live site? Is there a bridge plugin? — Phase 0.75.
+1. Does the OJS user creation API (POST /users) work on 3.5? Must verify on staging — Phase 0.75.
 
 ## Risk register
 
