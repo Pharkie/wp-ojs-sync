@@ -21,9 +21,12 @@ WordPress ↔ OJS integration for the Society for Existential Analysis (SEA). WP
 
 ## Architecture decision
 
-**Push-sync** (custom OJS plugin + WP plugin). WP pushes subscription changes to OJS on membership events. A plugin on each side: WP detects changes, OJS receives them and creates subscription records using its own internal DAO classes. See `docs/plan.md` for full details, `docs/discovery.md` for how we got here.
+**Push-sync** (custom OJS plugin + WP plugin). A plugin on each side: the OJS plugin exposes REST endpoints for user and subscription CRUD (OJS has no native subscription API). The WP plugin calls those endpoints. Two modes of operation:
 
-Previous developer called this "Plan C". Key addition: OJS REST API has no subscription endpoints, so we build a small OJS plugin to expose them.
+1. **Initial bulk sync (~500 existing members):** WP-CLI command reads all active WooCommerce Subscriptions, creates OJS user accounts and subscription records for each member via the OJS plugin endpoints, then sends "set your password" welcome emails. This is how existing members get access at launch.
+2. **Ongoing sync (after launch):** WP plugin hooks into WooCommerce Subscription lifecycle events (active, expired, cancelled, on-hold) and pushes changes to OJS automatically via an async queue.
+
+Previous developer called this "Plan C". See `docs/plan.md` for full details, `docs/discovery.md` for how we got here.
 
 **Janeway migration** is a genuine backup (not a nuclear option) if the OJS 3.5 upgrade proves too costly. See `docs/discovery.md` for the comparison.
 

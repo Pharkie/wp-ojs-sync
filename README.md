@@ -21,7 +21,10 @@ UM and WCS work together: WCS processes the payment, then the member gets a WP r
 
 ## Architecture Decision
 
-**Push-sync:** custom OJS plugin + WP plugin. When a WCS subscription status changes (activated, expired, cancelled), the WP plugin queues a sync to OJS. A small OJS plugin exposes subscription CRUD as REST endpoints (using OJS's own internal classes). WP Cron processes the queue asynchronously with retries and a daily reconciliation safety net.
+**Push-sync:** custom OJS plugin + WP plugin. OJS has no native subscription API, so the OJS plugin exposes subscription CRUD as REST endpoints (using OJS's own internal classes). The WP plugin calls those endpoints in two modes:
+
+1. **Initial bulk sync (~500 existing members):** WP-CLI command reads all active WooCommerce Subscriptions, creates OJS user accounts and subscription records for each member, then sends "set your password" welcome emails. This is how existing members get access at launch.
+2. **Ongoing sync (after launch):** WP plugin hooks into WCS lifecycle events and pushes changes to OJS automatically via an async queue with retries and daily reconciliation.
 
 See [docs/plan.md](./docs/plan.md) for the full implementation plan. See [docs/discovery.md](./docs/discovery.md) for the decision trail and why alternatives were eliminated.
 
@@ -32,11 +35,18 @@ See [docs/plan.md](./docs/plan.md) for the full implementation plan. See [docs/d
 | Native REST API sync | API has no subscription endpoints. Not in 3.4, 3.5, or main. |
 | OIDC SSO | Only solves login, not access. Plugin has unresolved bugs, no 3.5 release, breaks multi-journal. |
 | Pull-verify (Subscription SSO plugin) | Source code audit confirmed it hijacks OJS purchase flow. Non-members can't buy content. |
+| XML user import | OJS built-in import creates user accounts only, not subscriptions. Paywall checks subscriptions table, so doesn't grant access. |
 
 ### How it works
 
 ```
-Member signs up / renews on WordPress
+Initial bulk sync (launch)
+  → WP-CLI reads all active WCS subscriptions
+  → For each member: calls OJS to find-or-create user + create subscription
+  → Sends "set your password" welcome email
+  → Member visits OJS, sets password → paywall sees subscription → access granted
+
+Member signs up / renews on WordPress (ongoing)
   → WCS status changes to active → WP plugin queues sync
   → WP Cron calls OJS: find-or-create user + create subscription
   → OJS paywall sees subscription → access granted
@@ -95,6 +105,7 @@ WP OJS/
 │   ├── wp-integration.md              # WP membership stack, hooks, code patterns
 │   ├── phase0-findings.md             # Raw research from API audit
 │   ├── phase0-sso-plugin-audit.md     # Source code audit of Subscription SSO plugin
+│   ├── xml-import-evaluation.md          # Why OJS XML import doesn't work as a stopgap
 │   └── janeway-paywall-investigation.md  # Janeway backup: concrete Stripe paywall plan
 ├── launch/                            # Pre-launch deliverables (drafts)
 │   ├── welcome-email.md              # "Set your password" email copy
