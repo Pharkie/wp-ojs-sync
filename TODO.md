@@ -17,7 +17,7 @@ Confirmed during Phase 0 research (2026-02-16). Details in `docs/phase0-findings
 | WP email uniqueness | Enforced at DB level. UM email changes require confirmation. |
 | OJS API auth | Bearer token via `Authorization` header. Requires `api_key_secret` in `config.inc.php`. Apache+PHP-FPM needs `CGIPassAuth on`. |
 | OJS subscription API | Does not exist. Custom plugin exposes subscription CRUD. |
-| OJS user creation API | Unconfirmed — swagger shows read-only. Must verify on staging (Phase 0.75). |
+| OJS user creation API | Does not exist. Swagger spec shows read-only user endpoints only. OJS plugin creates users via internal PHP classes (`Repo::user()`). |
 | OIDC SSO | Eliminated. Only solves login not access. Plugin has unresolved bugs. |
 | Subscription SSO plugin | Eliminated. Hijacks purchase flow. See `docs/phase0-sso-plugin-audit.md`. |
 | XML user import | Eliminated. Creates accounts only, not subscriptions. See `docs/xml-import-evaluation.md`. |
@@ -96,7 +96,6 @@ Staging sites are bare installs. Before plugin development or end-to-end testing
 
 Must complete before writing any plugin code. Depends on Phase 0.6 staging setup being done first.
 
-- [ ] **Test user creation API** — send `POST /api/v1/users` with a Bearer token on OJS 3.5 staging. Record result in `docs/ojs-api.md`. If it doesn't exist, the OJS plugin must implement full user creation via internal PHP classes.
 - [ ] **Set up transactional email relay** — OJS is assumed to be using raw SMTP. Set up Mailgun or similar before bulk welcome email send. Check SPF/DKIM/DMARC records on the OJS mail domain.
 - [ ] **Document OJS server specs** — RAM, CPU, PHP memory limit, PHP max execution time, web server type, shared or dedicated hosting.
 
@@ -220,14 +219,13 @@ Must complete before writing any plugin code. Depends on Phase 0.6 staging setup
 
 ## Open questions
 
-1. Does the OJS user creation API (POST /users) work on 3.5? Must verify on staging — Phase 0.75.
+None. All blocking questions resolved.
 
 ## Risk register
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | OJS 3.5 upgrade fails or causes data corruption | Medium | Critical | Staging first (done — 3.5.0.3 running), rollback runbook, go/no-go threshold |
-| User creation API doesn't exist | Medium | Medium | OJS plugin handles this too (Phase 0.75 verifies) |
 | Sync failures silently drop members | Medium | High | Async queue with retries, daily reconciliation, admin alerts |
 | Members confused by two logins | High | Medium | Welcome email, permanent login prompt, cross-links, support runbook |
 | OJS upgrade breaks custom plugin | Medium | High | `/preflight` endpoint verifies all PHP dependencies. Run after any OJS upgrade. |
