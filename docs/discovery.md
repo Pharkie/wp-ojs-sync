@@ -78,9 +78,9 @@ Developer proposed using OJS's built-in Users XML Plugin (`Tools > Import/Export
 
 **What it doesn't do:** Create subscription records. The XML schema has no subscription-related fields. There is no separate subscription XML import in any OJS version — PKP has confirmed they have [no plans to build one](https://forum.pkp.sfu.ca/t/ojs3-bulk-import-subscriptions/62294).
 
-**Why this matters:** The OJS paywall checks the `subscriptions` table, not user roles. A Reader account with no subscription record is still blocked from paywalled content. So XML import alone doesn't grant members access.
+**What about role-based access?** Some OJS roles (Journal Manager, Subscription Manager, etc.) do bypass the paywall without a subscription record, and the XML import can assign these roles. But they are editorial/admin roles — assigning them to ~500 members would give them inappropriate capabilities (e.g. managing other users' subscriptions), with no expiry control and no granularity. There is no "subscriber" role in OJS. The `Reader` role does not bypass the paywall.
 
-A working stopgap would still require a separate mechanism to create ~500 subscription records (direct SQL, or a PHP script using `IndividualSubscriptionDAO` — essentially writing a throwaway version of part of the OJS plugin). It would also have no mechanism for expiring lapsed members or handling email changes.
+The correct mechanism for member access is the `subscriptions` table. A working stopgap would still require a separate mechanism to create ~500 subscription records (direct SQL, or a PHP script using `IndividualSubscriptionDAO` — essentially writing a throwaway version of part of the OJS plugin). It would also have no mechanism for expiring lapsed members or handling email changes.
 
 **Result: Eliminated.** The XML import handles the easy part (user accounts) but not the hard part (subscriptions, expiry, ongoing sync). See [`xml-import-evaluation.md`](./xml-import-evaluation.md) for the full write-up.
 
@@ -93,7 +93,7 @@ A working stopgap would still require a separate mechanism to create ~500 subscr
 | **OIDC SSO** | Only solves login, not access. OJS plugin has unresolved bugs, no 3.5 release, breaks multi-journal. Previous developer confirmed. |
 | **Pull-verify** (Subscription SSO plugin) | Source code audit confirmed it hijacks OJS purchase flow. Non-members can't buy articles/issues. See `phase0-sso-plugin-audit.md`. |
 | **Native REST API sync** | OJS has no subscription API endpoints in any version. Push-sync works around this with a custom OJS plugin. |
-| **XML user import** | OJS built-in import creates user accounts only, not subscriptions. Paywall checks subscriptions table, so doesn't grant access. See [`xml-import-evaluation.md`](./xml-import-evaluation.md). |
+| **XML user import** | Creates user accounts only, not subscriptions. Roles that bypass paywall are editorial/admin — inappropriate for members. No expiry control. See [`xml-import-evaluation.md`](./xml-import-evaluation.md). |
 
 ---
 

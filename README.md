@@ -34,8 +34,10 @@ See [docs/plan.md](./docs/plan.md) for the full implementation plan. See [docs/d
 |---|---|
 | Native REST API sync | API has no subscription endpoints. Not in 3.4, 3.5, or main. |
 | OIDC SSO | Only solves login, not access. Plugin has unresolved bugs, no 3.5 release, breaks multi-journal. |
-| Pull-verify (Subscription SSO plugin) | Source code audit confirmed it hijacks OJS purchase flow. Non-members can't buy content. |
-| XML user import | OJS built-in import creates user accounts only, not subscriptions. Paywall checks subscriptions table, so doesn't grant access. |
+| Pull-verify (Subscription SSO plugin) | Source code audit confirmed it hijacks OJS purchase flow. Non-members can't buy content. See [audit](./docs/phase0-sso-plugin-audit.md). |
+| XML user import | Creates user accounts only, not subscriptions. Roles that bypass paywall are editorial/admin — inappropriate for members, no expiry control. See [evaluation](./docs/xml-import-evaluation.md). |
+
+**Backup plan:** [Janeway migration](./docs/janeway-paywall-investigation.md) is a genuine alternative if the OJS 3.5 upgrade proves too costly. See [discovery.md](./docs/discovery.md) for the comparison.
 
 ### How it works
 
@@ -64,7 +66,7 @@ Non-member visits paywalled content
 
 | User type | How they access journal content |
 |---|---|
-| SEA member (current) | Subscription created in OJS via sync; logs into OJS separately |
+| SEA member (current) | Subscription created in OJS via sync. Separate OJS login (matched by email). Welcome email sent with "set your password" link. |
 | Non-member, single article | Buys via OJS paywall (£3) |
 | Non-member, current issue | Buys via OJS paywall (£25) |
 | Non-member, back issue | Buys via OJS paywall (£18) |
@@ -74,8 +76,10 @@ Non-member visits paywalled content
 
 - **Over budget, time-sensitive** — ship the simplest thing that works
 - **WP is source of truth** — OJS subscriptions are derived, not authoritative
+- **Email is the matching key** — same email required on both systems. No mapping table. Members who want a different email on OJS must update their WP email first.
 - **OJS paywall must keep working** — non-member purchases are revenue
 - **No OJS core modifications** — plugins only
+- **Two separate logins** — members have a WP account and a separate OJS account, matched by email. No SSO. Mitigated by welcome email, permanent login page prompt, and cross-links between systems.
 - **No OIDC/OpenID SSO** — only solves login, not access; OJS plugin poorly maintained against 3.5 breaking changes; if it fails, nobody can log into OJS at all
 
 ## Live Sites
@@ -105,7 +109,7 @@ WP OJS/
 │   ├── wp-integration.md              # WP membership stack, hooks, code patterns
 │   ├── phase0-findings.md             # Raw research from API audit
 │   ├── phase0-sso-plugin-audit.md     # Source code audit of Subscription SSO plugin
-│   ├── xml-import-evaluation.md          # Why OJS XML import doesn't work as a stopgap
+│   ├── xml-import-evaluation.md       # Why OJS XML import doesn't work as a stopgap
 │   └── janeway-paywall-investigation.md  # Janeway backup: concrete Stripe paywall plan
 ├── launch/                            # Pre-launch deliverables (drafts)
 │   ├── welcome-email.md              # "Set your password" email copy
@@ -122,6 +126,8 @@ WP OJS/
 - [Discovery / decision trail](./docs/discovery.md)
 - [Plan review findings](./docs/review-findings.md)
 - [WP integration details](./docs/wp-integration.md)
+- [OJS API reference](./docs/ojs-api.md)
+- [XML import evaluation](./docs/xml-import-evaluation.md)
 - [Janeway backup plan](./docs/janeway-paywall-investigation.md)
 - [TODO list](./TODO.md)
 - [OJS REST API swagger spec](https://github.com/pkp/ojs/blob/main/docs/dev/swagger-source.json)

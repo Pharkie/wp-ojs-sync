@@ -1,6 +1,6 @@
 # XML Import Evaluation: Stopgap for Member Sync?
 
-Last updated: 2026-02-18
+Last updated: 2026-02-19
 
 **Context:** Developer proposed using OJS's built-in XML user import as a temporary workaround — export WP members to XML, import into OJS periodically — while the full push-sync system is built or a platform decision is made. For how this fits into the decision trail, see [`discovery.md`](./discovery.md).
 
@@ -24,7 +24,30 @@ php tools/importExport.php UserImportExportPlugin import users.xml [journalPath]
 
 **It does not create subscription records.** The XML import has no subscription-related fields in its schema ([pkp-users.xsd](https://github.com/pkp/pkp-lib/blob/main/plugins/importexport/users/pkp-users.xsd)). There is no separate subscription XML import in any OJS version. PKP has confirmed they have no plans to build one ([forum thread](https://forum.pkp.sfu.ca/t/ojs3-bulk-import-subscriptions/62294)).
 
-This is the critical gap. The OJS paywall checks the `subscriptions` table, not user roles. A user with a Reader role but no subscription record is still blocked from paywalled content.
+## Could a role bypass the paywall instead?
+
+Some OJS roles **do** bypass the paywall without a subscription record. OJS checks roles before checking the `subscriptions` table. The following roles get automatic access to all paywalled content ([source: `IssueAction::allowedIssuePrePublicationAccess()`](https://github.com/pkp/ojs/blob/stable-3_4_0/classes/issue/IssueAction.php)):
+
+| Role | User Groups | Bypasses paywall? |
+|---|---|---|
+| `ROLE_ID_MANAGER` | Journal manager, Journal editor, Production editor | Yes |
+| `ROLE_ID_SUB_EDITOR` | Section editor, Guest editor | Yes |
+| `ROLE_ID_ASSISTANT` | Copyeditor, Designer, Layout Editor, Proofreader, etc. | Yes |
+| `ROLE_ID_SUBSCRIPTION_MANAGER` | Subscription Manager | Yes |
+| `ROLE_ID_READER` | Reader | **No** |
+| `ROLE_ID_REVIEWER` | Reviewer | **No** |
+| `ROLE_ID_AUTHOR` | Author | **No** (only own submissions) |
+
+The XML import **can** assign any of these roles. So in theory, you could import members with e.g. "Subscription Manager" and they'd bypass the paywall.
+
+**Why this doesn't work for members:**
+
+- **Inappropriate capabilities.** These are editorial/admin roles. A "Subscription Manager" can manage other users' subscriptions. A "Journal editor" can manage submissions. ~500 members would have admin access they shouldn't have.
+- **No expiry control.** Role-based access is permanent. When a member lapses, someone would need to manually remove the role — there's no date-based expiry.
+- **No granularity.** Access to everything, all journals, all issues. No per-issue or per-journal control.
+- **No "paid member" role exists.** There is no OJS role designed for subscribers. The `Reader` role does **not** bypass the paywall. Only editorial/admin roles do.
+
+The correct mechanism for subscriber access is the `subscriptions` table, checked via `IndividualSubscriptionDAO::isValidIndividualSubscription()`. This supports date-based expiry, per-journal scoping, and is what OJS's subscription management UI operates on.
 
 ## What a working stopgap would actually require
 
@@ -63,18 +86,17 @@ For ongoing sync, you'd also need to:
 
 ## Assessment
 
-The XML import solves only the easiest part of the problem (user account creation) and leaves the hardest part unaddressed (subscription records, expiry, ongoing sync).
+The XML import can create user accounts, and certain OJS roles do bypass the paywall — but those roles are editorial/admin roles with capabilities members shouldn't have, no expiry control, and no granularity. There is no "subscriber" role in OJS.
 
-Even as a stopgap, you'd need a separate mechanism for subscriptions — most likely a PHP script using OJS's `IndividualSubscriptionDAO`. At that point you're writing a throwaway version of part of the OJS plugin, plus accepting that expiry and ongoing sync remain manual. The effort may not save much compared to building the real solution.
-
-## Key question to resolve
-
-Does the developer have a plan for step 4 (subscription creation)? If they're assuming the XML import handles subscriptions, that assumption is incorrect and should be flagged before investing time in the WP export plugin.
+The correct way to grant member access is via subscription records in the `subscriptions` table. The XML import can't create these, and no bulk mechanism exists for them. Even as a stopgap, you'd need a separate mechanism for subscriptions — most likely a PHP script using OJS's `IndividualSubscriptionDAO`. At that point you're writing a throwaway version of part of the OJS plugin, plus accepting that expiry and ongoing sync remain manual.
 
 ## Sources
 
 - [OJS XML import sample file](https://github.com/pkp/ojs/blob/main/plugins/importexport/users/sample.xml)
 - [OJS XML import schema (pkp-users.xsd)](https://github.com/pkp/pkp-lib/blob/main/plugins/importexport/users/pkp-users.xsd)
+- [OJS IssueAction.php — paywall role bypass logic](https://github.com/pkp/ojs/blob/stable-3_4_0/classes/issue/IssueAction.php)
+- [PKP Repository.php — canPreview / _roleCanPreview](https://github.com/pkp/pkp-lib/blob/stable-3_4_0/classes/submission/Repository.php)
+- [IndividualSubscriptionDAO.php — subscription access check](https://github.com/pkp/ojs/blob/stable-3_4_0/classes/subscription/IndividualSubscriptionDAO.php)
 - [PKP Forum: OJS3 Bulk import subscriptions (confirmed: doesn't exist)](https://forum.pkp.sfu.ca/t/ojs3-bulk-import-subscriptions/62294)
 - [PKP Forum: Subscription management API options (confirmed: none)](https://forum.pkp.sfu.ca/t/are-there-api-or-other-options-for-subscription-management-available-in-ojs-3-3/86106)
 - [OJS subscription DB schema and DAO classes](./ojs-api.md)

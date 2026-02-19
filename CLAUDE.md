@@ -55,7 +55,7 @@ Previous developer called this "Plan C". See `docs/plan.md` for full details, `d
 - **OIDC SSO** — only solves login not access; OJS plugin has unresolved bugs, no 3.5 release, breaks multi-journal. Previous developer confirmed.
 - **Pull-verify** (Subscription SSO plugin) — source code audit confirmed it hijacks OJS purchase flow. Non-members can't buy content. See `docs/phase0-sso-plugin-audit.md`.
 - **Native REST API sync** — subscription endpoints don't exist in any OJS version. Push-sync works around this with a custom OJS plugin.
-- **XML user import** — OJS built-in XML import creates user accounts only, not subscription records. Paywall checks subscriptions table, so doesn't grant access. See `docs/xml-import-evaluation.md`.
+- **XML user import** — creates user accounts only, not subscriptions. Roles that bypass the paywall are editorial/admin (inappropriate for members, no expiry control). No "subscriber" role exists. See `docs/xml-import-evaluation.md`.
 
 ## Gotchas
 
