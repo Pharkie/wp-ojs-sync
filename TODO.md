@@ -32,20 +32,18 @@
 OJS 3.5.0 was released June 2025 (LTS). Required for the custom plugin API. This must happen before any plugin development.
 
 - [x] **Confirm current OJS version** — **OJS 3.4.0-9** (confirmed via meta generator tag on live site)
-- [ ] **Confirm or create staging environment** — staging must exist before upgrade attempt
+- [x] **Confirm or create staging environment** — **Done.** Developer set up staging:
+  - OJS staging: https://testojs.existentialanalysis.org.uk/
+  - WP staging: https://testj.existentialanalysis.org.uk/
+- [x] **Upgrade to 3.5 on staging** — **Done.** OJS staging is running **3.5.0.3** (confirmed 2026-02-19 via About page).
+- [ ] **Post-upgrade acceptance criteria** (still need to verify on staging):
+  - [ ] Journal content intact and browsable
+  - [ ] Existing user accounts survived
+  - [ ] Paywall active on paywalled articles
+  - [ ] Non-member purchase flow works: visit paywalled article → see correct prices (£3/£25/£18) → complete test purchase → access granted
+  - [ ] OJS admin UI functional
 - [ ] **Write OJS 3.5 upgrade rollback runbook** — step-by-step: restore DB, restore files, verify 3.4 is back. Test the rollback on staging.
 - [ ] **Agree go/no-go threshold with SEA** — if staging upgrade takes >X days to stabilise, escalate Janeway decision
-- [ ] **Upgrade to 3.5 on staging**
-  - [ ] Read [OJS 3.5 upgrade guide](https://docs.pkp.sfu.ca/dev/upgrade-guide/en/)
-  - [ ] Read [OJS 3.5 release notes / breaking changes](https://github.com/pkp/pkp-lib/issues/9276)
-  - [ ] Back up OJS database and files
-  - [ ] Run upgrade on staging
-  - [ ] **Post-upgrade acceptance criteria:**
-    - [ ] Journal content intact and browsable
-    - [ ] Existing user accounts survived
-    - [ ] Paywall active on paywalled articles
-    - [ ] Non-member purchase flow works: visit paywalled article → see correct prices (£3/£25/£18) → complete test purchase → access granted
-    - [ ] OJS admin UI functional
 - [ ] **Upgrade to 3.5 on production** (only after staging passes all acceptance criteria)
 
 ### Key 3.5 breaking changes to watch for
@@ -55,6 +53,37 @@ OJS 3.5.0 was released June 2025 (LTS). Required for the custom plugin API. This
 - Vue 2 → Vue 3 on frontend
 - New `app_key` config required
 - Locales now part of URLs
+
+---
+
+## Phase 0.6: Set up staging for testing
+
+Staging sites are bare installs. Before plugin development or end-to-end testing, they need enough of the live site's membership infrastructure to be valid. This doesn't need to replicate the full live site — just enough to trigger WCS hooks and produce realistic sync payloads.
+
+### WP staging (https://testj.existentialanalysis.org.uk/)
+
+- [ ] **Install WooCommerce** + **WooCommerce Subscriptions**
+- [ ] **Install Ultimate Member** (needed if UM ↔ WCS bridge plugin exists on live — see Phase 0.75 open question)
+- [ ] **Create at least one WCS subscription product** — e.g. "Test SEA UK member" with a recurring subscription. Doesn't need real payment gateway — use WCS manual/test mode. One product is enough since all tiers grant the same OJS access.
+- [ ] **Create test user accounts** (~5-10) with active subscriptions, so bulk sync has something to work with
+- [ ] **Verify WCS hooks fire** — activate/expire a test subscription manually in WP admin, confirm `woocommerce_subscription_status_active` / `_expired` hooks fire (add temporary `error_log()` or use Query Monitor plugin)
+
+### OJS staging (https://testojs.existentialanalysis.org.uk/)
+
+- [ ] **Create a test journal** (or confirm one exists) with at least one paywalled article
+- [ ] **Create a subscription type** — e.g. "SEA Member" individual subscription, online format, with a reasonable duration. Record the `type_id` — the WP plugin needs it for the mapping.
+- [ ] **Enable paywall** — confirm that visiting the test article as a non-logged-in user shows purchase/login options, not free access
+- [ ] **Configure `api_key_secret`** in `config.inc.php` `[security]` section (required for API auth)
+- [ ] **Create dedicated service account** — purpose-built OJS account for API sync, with API key enabled (Profile > API Key)
+- [ ] **Test Bearer token auth** — `curl -H "Authorization: Bearer <token>" https://testojs.existentialanalysis.org.uk/api/v1/users` from WP staging server. If 401, add `CGIPassAuth on` to `.htaccess`.
+
+### What we DON'T need on staging
+
+- Every WP membership role from the live site (one WCS product is enough)
+- Real payment processing (WCS test/manual mode is fine)
+- Full content library (one paywalled article is enough)
+- Ultimate Member member directory or listing features
+- GiveWP, SEO plugins, or other unrelated plugins
 
 ---
 

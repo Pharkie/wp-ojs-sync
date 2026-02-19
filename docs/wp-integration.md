@@ -103,6 +103,30 @@ foreach ($subscriptions as $sub) {
 }
 ```
 
+## Membership roles on live site
+
+From the WP admin roles list (confirmed 2026-02-19):
+
+**SEA membership roles** (all grant journal access):
+- SEA student member (with listing)
+- SEA student member (no listing)
+- SEA international member (with listing)
+- SEA international member (no listing)
+- SEA UK member (with listing)
+- SEA UK member (no listing)
+
+**Manual/admin roles** (for Exco/life members):
+- Manually set student listing
+- Manually set international listing
+- Manually set UK listing
+
+**Standard WP/WooCommerce/other plugin roles:**
+- Subscriber, Shop Manager, Editor, Customer, Contributor
+- SEO Manager, SEO Editor
+- GiveWP Worker, GiveWP Manager, GiveWP Donor, GiveWP Accountant
+
+The "with listing" / "no listing" distinction is a member directory feature (UM), not relevant to journal access. All SEA membership roles trigger OJS sync.
+
 ## Mapping membership tiers to OJS subscription types
 
 **All membership tiers grant journal access**, but there are **multiple WooCommerce Subscription products** (e.g. different tiers like student, full, etc.). Any active subscription triggers OJS access regardless of tier.
