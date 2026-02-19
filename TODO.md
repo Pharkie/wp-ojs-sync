@@ -36,20 +36,20 @@ Confirmed during Phase 0 research (2026-02-16). Details in `docs/phase0-findings
 
 OJS 3.5.0 was released June 2025 (LTS). Required for the custom plugin API. This must happen before any plugin development.
 
-- [x] **Confirm current OJS version** — **OJS 3.4.0-9** (confirmed via meta generator tag on live site)
-- [x] **Confirm or create staging environment** — **Done.** Developer set up staging:
-  - OJS staging: https://testojs.existentialanalysis.org.uk/
-  - WP staging: https://testj.existentialanalysis.org.uk/
-- [x] **Upgrade to 3.5 on staging** — **Done.** OJS staging is running **3.5.0.3** (confirmed 2026-02-19 via About page).
-- [ ] **Post-upgrade acceptance criteria** (still need to verify on staging):
+Staging upgraded to 3.5.0.3 (confirmed 2026-02-19). Live is still 3.4.0-9.
+
+- **Staging URLs:**
+  - OJS: https://testojs.existentialanalysis.org.uk/
+  - WP: https://testj.existentialanalysis.org.uk/
+- [ ] **Verify post-upgrade acceptance criteria on staging:**
   - [ ] Journal content intact and browsable
   - [ ] Existing user accounts survived
   - [ ] Paywall active on paywalled articles
   - [ ] Non-member purchase flow works: visit paywalled article → see correct prices (£3/£25/£18) → complete test purchase → access granted
   - [ ] OJS admin UI functional
-- [ ] **Write OJS 3.5 upgrade rollback runbook** — step-by-step: restore DB, restore files, verify 3.4 is back. Test the rollback on staging.
-- [ ] **Agree go/no-go threshold with SEA** — if staging upgrade takes >X days to stabilise, escalate Janeway decision
-- [ ] **Upgrade to 3.5 on production** (only after staging passes all acceptance criteria)
+- [ ] **Write OJS 3.5 upgrade rollback runbook** — step-by-step: restore DB, restore files, verify 3.4 is back
+- [ ] **Agree go/no-go threshold with SEA** — what's the cutoff for abandoning OJS and switching to Janeway?
+- [ ] **Upgrade to 3.5 on production** (only after staging passes acceptance criteria)
 
 ### Key 3.5 breaking changes to watch for
 - Slim → Laravel routing (affects any existing custom code)
@@ -68,7 +68,7 @@ Staging sites are bare installs. Before plugin development or end-to-end testing
 ### WP staging (https://testj.existentialanalysis.org.uk/)
 
 - [ ] **Install WooCommerce** + **WooCommerce Subscriptions**
-- [ ] **Install Ultimate Member** (needed if UM ↔ WCS bridge plugin exists on live — see Phase 0.75 open question)
+- [ ] **Install Ultimate Member** (live site uses UM WooCommerce integration for profiles)
 - [ ] **Create at least one WCS subscription product** — e.g. "Test SEA UK member" with a recurring subscription. Doesn't need real payment gateway — use WCS manual/test mode. One product is enough since all tiers grant the same OJS access.
 - [ ] **Create test user accounts** (~5-10) with active subscriptions, so bulk sync has something to work with
 - [ ] **Verify WCS hooks fire** — activate/expire a test subscription manually in WP admin, confirm `woocommerce_subscription_status_active` / `_expired` hooks fire (add temporary `error_log()` or use Query Monitor plugin)
@@ -94,13 +94,11 @@ Staging sites are bare installs. Before plugin development or end-to-end testing
 
 ## Phase 0.75: Verify OJS API prerequisites
 
-Must complete before writing any plugin code. Answered items have been moved to the established facts table above.
+Must complete before writing any plugin code. Depends on Phase 0.6 staging setup being done first.
 
 - [ ] **Test user creation API** — send `POST /api/v1/users` with a Bearer token on OJS 3.5 staging. Record result in `docs/ojs-api.md`. If it doesn't exist, the OJS plugin must implement full user creation via internal PHP classes.
-- [ ] **Test Bearer token auth from WP server** — `curl` the OJS API with a Bearer token from the WP staging server's IP. Confirm 200 response. If 401, add `CGIPassAuth on` to `.htaccess` and retest.
 - [ ] **Set up transactional email relay** — OJS is assumed to be using raw SMTP. Set up Mailgun or similar before bulk welcome email send. Check SPF/DKIM/DMARC records on the OJS mail domain.
 - [ ] **Document OJS server specs** — RAM, CPU, PHP memory limit, PHP max execution time, web server type, shared or dedicated hosting.
-- [ ] **Create dedicated OJS service account** — purpose-built account with minimum required role for sync operations. Generate API key. Do not use a human admin account.
 
 ---
 
