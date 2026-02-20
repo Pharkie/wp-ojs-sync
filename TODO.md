@@ -11,10 +11,23 @@
 Staging upgraded to 3.5.0.3 (2026-02-19). Live is still 3.4.0-9.
 
 - **Staging:** OJS https://testojs.existentialanalysis.org.uk/ · WP https://testj.existentialanalysis.org.uk/
-- [ ] Verify post-upgrade acceptance criteria on staging (content, users, paywall, purchase flow, admin UI)
+- [x] Verify post-upgrade acceptance criteria on staging (content, users, paywall, purchase flow, admin UI)
 - [ ] Write OJS 3.5 upgrade rollback runbook
 - [ ] Agree go/no-go threshold with SEA (cutoff for Janeway switch)
 - [ ] Upgrade production to 3.5 (after staging passes)
+
+## Phase 0.55: Docker dev environment — DONE
+
+Local dev environment with WP + OJS + two MariaDB instances on Docker. Both plugins bind-mounted for live editing. See `docker/README.md` for quick reference, `docs/ojs-issues-log.md` for bugs encountered.
+
+- [x] Docker Compose setup (base + override + staging configs)
+- [x] OJS automated install script (`docker/reset-ojs.sh`) — works around two pkp/containers bugs
+- [x] WP-CLI entrypoint wrapper (`docker/wp/install-wp-cli.sh`)
+- [x] Import anonymized WP users (727 users from live export, emails → `@example.com`)
+- [x] Import OJS content from live export (2 issues, 43 articles — required XML fix for pkp/pkp-lib#12276)
+- [x] Install WooCommerce + Ultimate Member in WP
+- [x] File pkp/containers#26 (CLI install broken for OJS 3.5)
+- [x] Document OJS bugs encountered (`docs/ojs-issues-log.md`)
 
 ## Phase 0.6: Set up staging for testing
 

@@ -1,0 +1,11 @@
+# Local dev overrides — auto-loaded by Docker Compose alongside docker-compose.yml.
+# Exposes ports for direct browser access: localhost:8080 (WP), localhost:8081 (OJS).
+
+services:
+  wp:
+    ports:
+      - "8080:80"
+
+  ojs:
+    ports:
+      - "8081:80"

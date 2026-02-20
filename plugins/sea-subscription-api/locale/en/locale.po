@@ -1,0 +1,18 @@
+# SEA Subscription API Plugin
+# Copyright (C) 2026 Society for Existential Analysis
+msgid ""
+msgstr ""
+"Project-Id-Version: seaSubscriptionApi 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "plugins.generic.seaSubscriptionApi.displayName"
+msgstr "SEA Subscription API"
+
+msgid "plugins.generic.seaSubscriptionApi.description"
+msgstr "Exposes REST endpoints for managing user accounts and subscriptions, used by the SEA WordPress membership sync plugin."

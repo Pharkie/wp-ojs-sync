@@ -1,6 +1,6 @@
 # Implementation Plan: Push-sync
 
-Last updated: 2026-02-19
+Last updated: 2026-02-20
 
 WP pushes subscription changes to OJS via a custom plugin on each side. For how we arrived at this decision, see [`discovery.md`](./discovery.md). For the full review that shaped this plan, see [`review-findings.md`](./review-findings.md).
 
@@ -247,10 +247,11 @@ Each queue action maps to a specific sequence of OJS API calls. The queue proces
 | Manual member roles | Admin-assigned (Exco/life members). Currently 1 member. Bypass WCS checkout — bulk sync and reconciliation must detect these via WP roles directly. |
 | Non-standard access | Editorial board, reviewers, etc. managed manually in OJS admin UI. Not part of WP sync. |
 | Hosting | Different servers. WP and OJS communicate over HTTP. |
-| OJS state | Fresh install. Admin logins only, ~60 test articles, no existing member accounts. |
+| OJS state | Live: fresh install, admin logins only, ~60 test articles. Docker dev: 2 issues / 43 articles imported from live export. |
 | OJS journals | One journal (*Existential Analysis*). Sync targets one journal ID. |
 | OJS self-registration | Enabled. Non-members need it for paywall purchases. |
 | OJS email | Transactional relay (Mailgun/SES/Postmark) required on OJS — hard prerequisite for bulk sync. SPF/DKIM/DMARC must be configured. All ~700 welcome emails sent inline during bulk sync, no batching. |
+| Docker dev environment | Running. WP (localhost:8080) with 727 anonymized test users, WooCommerce, Ultimate Member. OJS (localhost:8081) with 2 issues, 43 articles from live export. See `docker/README.md`. |
 | WP email uniqueness | Enforced at DB level. UM email changes require confirmation. |
 | WP users total | 1,418 users. 695 in membership roles + 1 manual = ~696 active members. |
 

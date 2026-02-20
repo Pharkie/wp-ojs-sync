@@ -1,0 +1,109 @@
+# Base compose file — used by both local dev and staging.
+# Local dev:  docker compose up -d  (auto-loads docker-compose.override.yml)
+# Staging:    docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+
+services:
+  wp:
+    build:
+      context: .
+      dockerfile: docker/wp/Dockerfile
+    restart: unless-stopped
+    environment:
+      WORDPRESS_DB_HOST: wp-db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - ./wordpress:/var/www/html
+      - ./plugins/sea-ojs-sync:/var/www/html/web/app/plugins/sea-ojs-sync
+      - wp_uploads:/var/www/html/web/app/uploads
+      - ./.env:/var/www/html/.env:ro
+      - ./scripts:/var/www/html/scripts:ro
+    depends_on:
+      wp-db:
+        condition: service_healthy
+    networks:
+      - sea-net
+
+  wp-db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${WP_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: ${WP_DB_PASSWORD}
+    volumes:
+      - wp_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sea-net
+
+  ojs:
+    image: pkpofficial/ojs:3_5_0-3  # OJS 3.5.0.3 — matches staging. Do not use 3_5_0-2 (install bug). If changing tag, delete ojs_data volume first.
+    restart: unless-stopped
+    entrypoint: /etc/ojs/entrypoint.sh
+    command: ["apache2-foreground"]
+    environment:
+      OJS_DB_HOST: ojs-db
+      OJS_DB_USER: ojs
+      OJS_DB_PASSWORD: ${OJS_DB_PASSWORD}
+      OJS_DB_NAME: ojs
+      OJS_CLI_INSTALL: "0"
+      OJS_BASE_URL: ${OJS_BASE_URL:-http://localhost:8081}
+      OJS_TIMEZONE: ${OJS_TIMEZONE:-Europe/London}
+      SEA_OJS_API_KEY_SECRET: ${SEA_OJS_API_KEY}
+      SEA_ALLOWED_IPS: ${SEA_ALLOWED_IPS:-172.0.0.0/8}
+      OJS_SMTP_ENABLED: ${OJS_SMTP_ENABLED:-Off}
+      OJS_SMTP_HOST: ${OJS_SMTP_HOST:-}
+      OJS_SMTP_PORT: ${OJS_SMTP_PORT:-587}
+      OJS_SMTP_AUTH: ${OJS_SMTP_AUTH:-tls}
+      OJS_SMTP_USER: ${OJS_SMTP_USER:-}
+      OJS_SMTP_PASSWORD: ${OJS_SMTP_PASSWORD:-}
+      OJS_MAIL_FROM: ${OJS_MAIL_FROM:-noreply@localhost}
+    volumes:
+      - ojs_data:/var/www/html
+      - ojs_files:/var/www/files
+      - ./plugins/sea-subscription-api:/var/www/html/plugins/generic/seaSubscriptionApi
+      - ./docker/ojs/entrypoint.sh:/etc/ojs/entrypoint.sh:ro
+      - ./docker/ojs/config.inc.php.tmpl:/etc/ojs/config.inc.php.tmpl:ro
+      - ./docker/ojs/apache.conf:/etc/apache2/conf-enabled/sea-cgipassauth.conf:ro
+      - ./scripts:/scripts:ro
+    depends_on:
+      ojs-db:
+        condition: service_healthy
+    networks:
+      - sea-net
+
+  ojs-db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${OJS_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ojs
+      MYSQL_USER: ojs
+      MYSQL_PASSWORD: ${OJS_DB_PASSWORD}
+    volumes:
+      - ojs_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sea-net
+
+volumes:
+  wp_uploads:
+  wp_db_data:
+  ojs_data:
+  ojs_files:
+  ojs_db_data:
+
+networks:
+  sea-net:
+    driver: bridge

@@ -1,6 +1,6 @@
 # Discovery: What We Investigated and Why
 
-Last updated: 2026-02-18
+Last updated: 2026-02-20
 
 This document records the research phase: what approaches were evaluated, what was found, and why options were eliminated. For the forward-looking implementation plan, see [`plan.md`](./plan.md).
 
@@ -127,3 +127,5 @@ Only use if OJS plugins can't be installed or as a stopgap.
 | **Staff retraining** | Minimal (OJS stays) | Required (new admin interface) |
 
 Consider switching if the OJS 3.5 upgrade takes more than 2 weeks or the custom plugin scope grows significantly. See `janeway-paywall-investigation.md` for the full concrete plan.
+
+**OJS quality concerns (2026-02-20):** During Docker dev environment setup, we hit 6 separate OJS bugs — install crashes, broken CLI tooling, XML import/export that can't round-trip its own data, and missing APIs. Documented in [`ojs-issues-log.md`](./ojs-issues-log.md). This strengthens the case for keeping Janeway as a genuine backup.

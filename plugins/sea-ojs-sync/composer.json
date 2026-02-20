@@ -1,0 +1,6 @@
+{
+  "name": "sea/sea-ojs-sync",
+  "type": "wordpress-plugin",
+  "description": "SEA OJS Sync — pushes WP membership changes to OJS",
+  "version": "1.0.0"
+}

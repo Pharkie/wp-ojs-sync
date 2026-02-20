@@ -1,0 +1,32 @@
+# Staging overrides — adds Caddy reverse proxy with automatic SSL.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+# Do NOT use with docker-compose.override.yml (it exposes ports directly).
+
+services:
+  wp:
+    environment:
+      WP_ENV: staging
+
+  ojs:
+    environment:
+      OJS_SMTP_ENABLED: ${OJS_SMTP_ENABLED:-On}
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - wp
+      - ojs
+    networks:
+      - sea-net
+
+volumes:
+  caddy_data:
+  caddy_config:

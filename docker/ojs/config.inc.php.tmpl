@@ -1,0 +1,85 @@
+; OJS configuration — generated from template by entrypoint.sh.
+; Environment-specific values use ${VAR} substitution.
+; Everything else is at OJS defaults.
+
+;;;;;;;;;;;;;;;;;;
+; General Settings
+;;;;;;;;;;;;;;;;;;
+
+[general]
+installed = Off
+base_url = "${OJS_BASE_URL}"
+session_cookie_name = OJSSID
+session_lifetime = 30
+scheduled_tasks = On
+time_zone = "${OJS_TIMEZONE}"
+date_format_short = Y-m-d
+date_format_long = F j, Y
+datetime_format_short = Y-m-d h:i A
+datetime_format_long = F j, Y - h:i A
+allowed_html = a[href|target|title],em,strong,cite,code,ul,ol,li[class],dl,dt,dd,b,i,u,img[src|alt],sup,sub,br,p
+
+;;;;;;;;;;;;;;;;;;;
+; Database Settings
+;;;;;;;;;;;;;;;;;;;
+
+[database]
+driver = mysqli
+host = ${OJS_DB_HOST}
+username = ${OJS_DB_USER}
+password = ${OJS_DB_PASSWORD}
+name = ${OJS_DB_NAME}
+
+;;;;;;;;;;;;;;;;;;
+; Cache Settings
+;;;;;;;;;;;;;;;;;;
+
+[cache]
+cache = file
+web_cache = Off
+web_cache_hours = 1
+
+;;;;;;;;;;;;;;;;;;;
+; Security Settings
+;;;;;;;;;;;;;;;;;;;
+
+[security]
+force_ssl = Off
+force_login_ssl = Off
+api_key_secret = ${SEA_OJS_API_KEY_SECRET}
+
+;;;;;;;;;;;;;;
+; File Settings
+;;;;;;;;;;;;;;
+
+[files]
+files_dir = /var/www/files
+public_files_dir = public
+
+;;;;;;;;;;;;;;;;;;
+; Email Settings
+;;;;;;;;;;;;;;;;;;
+
+[email]
+default_envelope_sender = ${OJS_MAIL_FROM}
+smtp = ${OJS_SMTP_ENABLED}
+smtp_server = ${OJS_SMTP_HOST}
+smtp_port = ${OJS_SMTP_PORT}
+smtp_auth = ${OJS_SMTP_AUTH}
+smtp_username = ${OJS_SMTP_USER}
+smtp_password = ${OJS_SMTP_PASSWORD}
+
+;;;;;;;;;;;;;;;;;;;
+; OAI Settings
+;;;;;;;;;;;;;;;;;;;
+
+[oai]
+oai = On
+repository_id = ojs2.localhost
+
+;;;;;;;;;;;;;;;;;;
+; SEA Integration
+;;;;;;;;;;;;;;;;;;
+
+[sea]
+allowed_ips = ${SEA_ALLOWED_IPS}

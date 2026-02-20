@@ -1,0 +1,17 @@
+# Environment
+.env
+.env.staging
+.env.production
+
+# WordPress (Bedrock)
+wordpress/web/wp/
+wordpress/vendor/
+wordpress/web/app/uploads/
+wordpress/paid-plugins/*/
+!wordpress/paid-plugins/README.md
+
+# DB snapshots
+docker/snapshots/
+
+# Data exports
+/data export
