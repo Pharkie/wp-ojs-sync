@@ -59,7 +59,7 @@ Code complete. 11 endpoints, reviewed by 4 agents (QA, security, PHP architect, 
 - [ ] Custom login page message: "SEA member? First time here? Set your password"
 - [ ] Paywall message for logged-in users with no subscription: "SEA member? Contact [support email]"
 - [ ] OJS footer: "Your journal access is provided by your SEA membership. Manage at [WP URL]"
-- [ ] Run PHPStan
+- [x] Run PHPStan (1 real fix: renamed `authorize()` → `checkAuth()` to avoid parent clash; rest are OJS autoloader false positives)
 - [ ] Code review (second pair of eyes)
 
 ### WP plugin (`sea-ojs-sync`) — CODE COMPLETE

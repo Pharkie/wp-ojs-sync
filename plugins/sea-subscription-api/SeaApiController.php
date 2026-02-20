@@ -131,7 +131,7 @@ class SeaApiController extends PKPBaseController
      * Combined authorization: IP allowlist + role check.
      * Call at the start of every protected endpoint.
      */
-    private function authorize(Request $request): ?JsonResponse
+    private function checkAuth(Request $request): ?JsonResponse
     {
         return $this->checkIp($request) ?? $this->checkRole();
     }
@@ -163,7 +163,7 @@ class SeaApiController extends PKPBaseController
 
     public function preflight(Request $request): JsonResponse
     {
-        $authError = $this->authorize($request);
+        $authError = $this->checkAuth($request);
         if ($authError) {
             return $authError;
         }
@@ -285,7 +285,7 @@ class SeaApiController extends PKPBaseController
 
     public function findUser(Request $request): JsonResponse
     {
-        $authError = $this->authorize($request);
+        $authError = $this->checkAuth($request);
         if ($authError) {
             return $authError;
         }
@@ -319,7 +319,7 @@ class SeaApiController extends PKPBaseController
 
     public function findOrCreateUser(Request $request): JsonResponse
     {
-        $authError = $this->authorize($request);
+        $authError = $this->checkAuth($request);
         if ($authError) {
             return $authError;
         }
@@ -406,7 +406,7 @@ class SeaApiController extends PKPBaseController
 
     public function updateUserEmail(Request $request): JsonResponse
     {
-        $authError = $this->authorize($request);
+        $authError = $this->checkAuth($request);
         if ($authError) {
             return $authError;
         }
@@ -447,7 +447,7 @@ class SeaApiController extends PKPBaseController
 
     public function deleteUser(Request $request): JsonResponse
     {
-        $authError = $this->authorize($request);
+        $authError = $this->checkAuth($request);
         if ($authError) {
             return $authError;
         }
@@ -507,7 +507,7 @@ class SeaApiController extends PKPBaseController
 
     public function createSubscription(Request $request): JsonResponse
     {
-        $authError = $this->authorize($request);
+        $authError = $this->checkAuth($request);
         if ($authError) {
             return $authError;
         }
@@ -611,7 +611,7 @@ class SeaApiController extends PKPBaseController
 
     public function expireSubscription(Request $request): JsonResponse
     {
-        $authError = $this->authorize($request);
+        $authError = $this->checkAuth($request);
         if ($authError) {
             return $authError;
         }
@@ -644,7 +644,7 @@ class SeaApiController extends PKPBaseController
 
     public function expireSubscriptionByUser(Request $request): JsonResponse
     {
-        $authError = $this->authorize($request);
+        $authError = $this->checkAuth($request);
         if ($authError) {
             return $authError;
         }
@@ -678,7 +678,7 @@ class SeaApiController extends PKPBaseController
 
     public function getSubscriptions(Request $request): JsonResponse
     {
-        $authError = $this->authorize($request);
+        $authError = $this->checkAuth($request);
         if ($authError) {
             return $authError;
         }
@@ -740,7 +740,7 @@ class SeaApiController extends PKPBaseController
 
     public function sendWelcomeEmail(Request $request): JsonResponse
     {
-        $authError = $this->authorize($request);
+        $authError = $this->checkAuth($request);
         if ($authError) {
             return $authError;
         }
