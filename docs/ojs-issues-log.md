@@ -44,3 +44,40 @@ OJS has no REST endpoints for subscription CRUD. This is why we had to build a c
 ### 6. User creation API unconfirmed
 
 The Swagger spec shows read-only user endpoints. Creating users programmatically requires either the custom plugin or direct DB access.
+
+## Static analysis
+
+### 7. PHPStan cannot fully analyse OJS plugins
+
+OJS uses a non-standard autoloader (`PKP\core\PKPContainer` + runtime classmap) that PHPStan can't resolve without booting the full application. Running PHPStan on the `sea-subscription-api` plugin produces ~70 false positives:
+
+- **`Response::HTTP_*` constants** (~40): `Illuminate\Http\Response` extends Symfony's `Response` which defines these. PHPStan can't find them because the Symfony package lives inside `laravel/framework/src/Illuminate` rather than as a standalone vendor package.
+- **DAO magic methods** (~15): `IndividualSubscriptionDAO::updateObject()`, `getByUserIdForJournal()`, etc. exist via OJS's `__call` delegation but aren't visible to static analysis.
+- **Unscanned classes** (~10): `AccessKeyManager`, `APIRouter::registerPluginApiControllers()` — exist at runtime but live in directories PHPStan doesn't scan.
+- **Intentional `method_exists()` checks** (~5): The `/preflight` endpoint deliberately checks whether OJS methods exist for version compatibility. PHPStan correctly notes they always return true on 3.5 — that's the point.
+
+**One real bug found:** `authorize()` method on `SeaApiController` shadowed `PKPBaseController::authorize()` with a different signature. Renamed to `checkAuth()`.
+
+**How to run:** Download `phpstan.phar` into the OJS container (no Composer available), point at the OJS autoloader, and provide a bootstrap file defining `PKP_STRICT_MODE`:
+
+```bash
+docker compose exec ojs bash -c "
+  curl -sL https://github.com/phpstan/phpstan/releases/latest/download/phpstan.phar -o /tmp/phpstan.phar
+  echo '<?php define(\"PKP_STRICT_MODE\", false);' > /tmp/phpstan-bootstrap.php
+  cat > /tmp/phpstan.neon << 'NEON'
+parameters:
+    bootstrapFiles:
+        - /tmp/phpstan-bootstrap.php
+    level: 5
+    paths:
+        - /var/www/html/plugins/generic/seaSubscriptionApi
+    scanDirectories:
+        - /var/www/html/lib/pkp/classes
+        - /var/www/html/classes
+        - /var/www/html/lib/pkp/lib/vendor/laravel/framework/src/Illuminate
+    scanFiles:
+        - /var/www/html/lib/pkp/includes/functions.php
+NEON
+  php /tmp/phpstan.phar analyse --configuration=/tmp/phpstan.neon --no-progress --memory-limit=1G
+"
+```
