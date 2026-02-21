@@ -63,9 +63,7 @@ Evaluated 2026-02-21. Pricing verified from official websites.
 | Platform | Type | Cost (~500 members) | API | Verdict |
 |----------|------|---------------------|-----|---------|
 | **WildApricot** | SaaS | ~$125/mo (~£1,200/yr) | Yes (REST, Swagger docs) | Strongest SaaS. All features included. GBP via Stripe. |
-| **CiviCRM** | Open source (WP/Drupal) | Free + hosting (~£300-900/yr) | Yes (REST APIv4, mature) | Most capable. Runs on WP. Widely used by UK societies. Complex to set up. |
 | **Beacon CRM** | UK SaaS | ~£78/mo (~£936/yr excl. VAT) | Yes (REST) | UK-native, REST API. Closer to WildApricot price than expected. More charity CRM than AMS — verify depth. |
-| **Paid Memberships Pro** | WP plugin | Free–£240/yr | Yes (all tiers, basic) | Best value if staying on WP. Open source. |
 
 ### Detailed notes
 
@@ -77,15 +75,6 @@ All-in-one SaaS: members, payments, events, email, website, API. The best-docume
 - **Con:** Platform subscription billed in USD (~$125/mo for 500 contacts, 2yr prepay). Export is CSV-only (no full backup). North American company.
 - **OJS integration:** Rebuild sync against WildApricot API (webhooks + REST). Same push-sync pattern, different source.
 
-#### CiviCRM (free + hosting)
-
-Open-source CRM built specifically for nonprofits, NGOs, and membership organisations. Integrates with WordPress, Drupal, and Joomla. Widely used by UK charities and learned societies. Mature REST API (APIv4).
-
-- **Pro:** Free software. Comprehensive membership management (CiviMember). REST API is mature and well-documented. Supports Stripe and GoCardless. Runs on WordPress (which SEA already has). Large community, UK specialists available. No per-member fees.
-- **Con:** Significant setup complexity — needs a technically capable person or CiviCRM specialist. Still runs on WordPress (same hosting/maintenance burden). Learning curve for admins. Can feel enterprise-heavy for a 500-member society.
-- **OJS integration:** Good. REST APIv4 supports reading membership status. Could use CiviCRM's scheduled jobs or hooks to trigger OJS sync.
-- **Note:** CiviCRM Spark (hosted) is ~$10-15/mo but capped at 5,000 contacts and limited extensions. Managed hosting from specialists (e.g. Skvare, CiviDesk) is £20-80/mo.
-
 #### Beacon CRM (~£936/yr excl. VAT)
 
 UK-built charity CRM with membership management. Designed for UK charities and nonprofits.
@@ -95,22 +84,16 @@ UK-built charity CRM with membership management. Designed for UK charities and n
 - **Con:** More expensive than initial research suggested — closer to WildApricot than expected. Leans more charity/fundraising than association management. Verify whether membership features are deep enough (tiered levels, auto-renewal by tier, member directory). Memberships and Events are paid add-ons, not included in base price.
 - **OJS integration:** Possible via REST API. Would need investigation.
 
-#### Paid Memberships Pro (free–£240/yr)
-
-Open-source WordPress membership plugin. REST API on all tiers including free. Replaces WCS + WCM + UM in one plugin.
-
-- **Pro:** Free tier with Stripe + API (unique). Open-source core. Active community.
-- **Con:** API is basic (7 endpoints). Directory/profiles require Plus tier (£240+/yr). Email via third-party. Still WordPress — same underlying architectural problems.
-- **OJS integration:** Minimal change from current sync. Same WP hooks, different membership check.
-
 ### Also evaluated (not shortlisted)
 
 | Platform | Why excluded |
 |----------|-------------|
+| **CiviCRM** (free + hosting) | Powerful open-source CRM (CiviMember, REST APIv4, Stripe, GoCardless). But it's a WordPress/Drupal plugin — still PHP/MySQL, still self-hosted, still the same infrastructure burden. Replacing one WP plugin chain with a different WP plugin doesn't solve the problem. |
+| **Paid Memberships Pro** (free–£240/yr) | Open-source WP plugin with API on all tiers. Replaces 6 plugins with 1. But migration from UM/WCS is all cost, little benefit — you're still on WordPress with the same hosting, fragility, and infrastructure problems. |
+| **MemberPress** (£280–500/yr) | API locked to Scale tier (£500+/yr, doubles after year 1). Same objection as PMPro — still WordPress. |
 | **membermojo** (~£95/yr) | No API. Cheapest option but can't integrate with OJS. |
 | **White Fuse** (~£1,000/yr) | No API. Good UK all-in-one otherwise. |
 | **Join It** (~£950/yr) | Expensive. 2% transaction surcharge on top of Stripe fees. API locked to $99/mo tier. |
-| **MemberPress** (£280–500/yr) | API locked to Scale tier (£500+/yr, doubles after year 1). Not worth the premium over PMPro. |
 | **Salesforce Nonprofit** (free + £10-30k setup) | Massive overkill. Requires dedicated admin expertise SEA doesn't have. |
 | **Novi AMS** (~$829/mo) | Far too expensive for a 500-member society. |
 | **MemberClicks** (~$375/mo) | Expensive, US-focused. Designed for larger associations. |
@@ -169,17 +152,13 @@ The OJS sync is being built against the current stack because it exists today, b
 
 1. **WildApricot** — leave WordPress entirely. ~£1,200/yr. All-in-one SaaS with mature REST API. The OJS sync becomes a lightweight external service instead of a WordPress plugin. No servers, no plugin chains, no PHP internals. The strongest option if SEA wants a clean break and modern architecture.
 
-2. **CiviCRM** — stay on WordPress but replace the plugin chain with a proper CRM. Free software + hosting costs. Mature REST API, widely used by UK societies. The most capable option feature-wise, but needs specialist setup and still runs on WordPress (same hosting burden). Best if SEA has access to CiviCRM expertise or is willing to pay a specialist for initial setup.
-
-3. **Paid Memberships Pro** — stay on WordPress, simplify the plugin stack. Free–£240/yr. Replaces 6 plugins with 1. Has an API (basic). Lowest migration effort, but doesn't solve the fundamental WordPress problems (server management, fragile infrastructure, no real API).
+2. **Beacon CRM** — UK-native SaaS. ~£936/yr excl. VAT. REST API, Stripe, zero transaction fees. Cheaper than WildApricot but less proven for association management. Needs deeper investigation of membership feature depth.
 
 ### What to do next
 
-This is a decision for SEA, not a technical call. The questions are:
+This is a decision for SEA, not a technical call. It's really a binary:
 
-- **Does SEA want to stop managing servers and WordPress?** → WildApricot. Higher cost, but the infrastructure and maintenance burden goes to zero.
-- **Does SEA want maximum capability and is willing to invest in setup?** → CiviCRM. Most powerful option, but needs specialist knowledge.
-- **Does SEA want minimum disruption right now?** → Paid Memberships Pro. Cheapest and easiest migration, but doesn't fix the underlying architecture.
-- **What's the budget?** → PMPro is free. CiviCRM is free + hosting. WildApricot is ~£1,200/yr. The current stack is ~£400/yr in licences plus hosting plus developer time that dwarfs all of them.
+- **Stay on WordPress** — the current stack is working, the OJS sync is built, the cost is ~£400/yr in licences plus hosting. It's fragile but functional. Don't migrate to another WP plugin (PMPro, MemberPress, CiviCRM) — same infrastructure, all migration cost, no benefit.
+- **Leave WordPress entirely** → WildApricot (or possibly Beacon). Higher cost (~£1,000-1,200/yr), but the infrastructure and maintenance burden goes to zero. The OJS sync would need rebuilding against the new platform's API, but the push-sync pattern is identical.
 
 The OJS sync work is not wasted regardless of which path SEA chooses — the push-sync pattern ports to any platform with an API.
