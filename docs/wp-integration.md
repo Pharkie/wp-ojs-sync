@@ -6,7 +6,7 @@ This doc covers the WP membership stack and the raw hooks available. For the ful
 
 ## Plugin stack
 
-SEA's membership system is five WordPress plugins layered on top of each other. None of them is a membership system on its own — each answers one question:
+SEA's membership system is six WordPress plugins layered on top of each other. None of them is a membership system on its own — each answers one question:
 
 | Plugin | Question it answers | Without it... |
 |--------|-------------------|---------------|
@@ -15,6 +15,7 @@ SEA's membership system is five WordPress plugins layered on top of each other. 
 | **WC Memberships** | "What access do they get?" | Paying doesn't grant anything. Someone has to manually assign roles after each payment. |
 | **Ultimate Member** | "What's their experience?" | No registration forms, no profiles, no member directory. Just raw WP user accounts. |
 | **UM-WooCommerce** | "Can UM see WooCommerce data?" | UM profiles and WC purchase history are disconnected. No order history on profiles, no synced fields. |
+| **UM-Notifications** | "Do members get notified?" | No email/on-site notifications for UM profile events (new followers, role changes, etc.). |
 
 ### How they chain together
 
@@ -46,17 +47,18 @@ We only care about **WC Subscriptions**. It fires status events (`active`, `expi
 
 ### Why this is fragile
 
-Five plugins, three vendors (Automattic, SkyVerge, Ultimate Member), each with independent update cycles, database tables, hooks, and paid licences (~£200+/year for WCS alone). A breaking update in any one of them can silently break the membership chain. This stack is a strong candidate for future replacement — see [`membership-platform.md`](./membership-platform.md).
+Six plugins, three vendors (Automattic, SkyVerge, Ultimate Member), each with independent update cycles, database tables, hooks, and paid licences (~£200+/year for WCS alone). A breaking update in any one of them can silently break the membership chain. This stack is a strong candidate for future replacement — see [`membership-platform.md`](./membership-platform.md).
 
 ### Plugin versions and sources
 
-| Plugin | Version | Source | Licence |
-|--------|---------|--------|---------|
-| WooCommerce | 10.5.2 | wordpress.org | Free |
-| Ultimate Member | 2.11.2 | wordpress.org | Free |
-| WooCommerce Subscriptions | 8.4.0 | woocommerce.com | Paid |
-| WooCommerce Memberships | 1.27.5 | woocommerce.com | Paid |
-| Ultimate Member - WooCommerce | 2.4.4 | ultimatemember.com | Paid |
+| Plugin | Version | Source | Licence | Bedrock |
+|--------|---------|--------|---------|---------|
+| WooCommerce | 9.8+ | wordpress.org (wpackagist) | Free | `wpackagist-plugin/woocommerce` |
+| Ultimate Member | 2.11+ | wordpress.org (wpackagist) | Free | `wpackagist-plugin/ultimate-member` |
+| WooCommerce Subscriptions | 8.4.0 | woocommerce.com | Paid | `wordpress/paid-plugins/` |
+| WooCommerce Memberships | 1.27.5 | woocommerce.com | Paid | `wordpress/paid-plugins/` |
+| UM - WooCommerce | 2.4.4 | ultimatemember.com | Paid | `wordpress/paid-plugins/` |
+| UM - Notifications | 2.3.8 | ultimatemember.com | Paid | `wordpress/paid-plugins/` |
 
 **WC Memberships note:** Several WC Memberships add-ons are deactivated on the live site (Directory Shortcode, Adjust Excerpt Length, Role Handler, Sensei Member Area) but the core plugin is active.
 

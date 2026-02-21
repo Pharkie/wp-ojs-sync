@@ -18,7 +18,7 @@ Staging upgraded to 3.5.0.3 (2026-02-19). Live is still 3.4.0-9.
 
 ## Phase 0.55: Docker dev environment — DONE
 
-Local dev environment with WP + OJS + two MariaDB instances on Docker. Bedrock (Composer-managed WP), OJS config templating, fully scripted setup. Both plugins bind-mounted for live editing. Paid plugins (WCS 8.4.0, WCM 1.27.5) added via Composer path repositories (`wordpress/paid-plugins/`). See `docker/README.md` for quick reference, `docs/ojs-issues-log.md` for bugs encountered.
+Local dev environment with WP + OJS + two MariaDB instances on Docker. Bedrock (Composer-managed WP), OJS config templating, fully scripted setup. Both plugins bind-mounted for live editing. All 6 required plugins added via Composer — free from wpackagist, paid (WCS 8.4.0, WCM 1.27.5, UM-Notifications 2.3.8, UM-WooCommerce 2.4.4) via path repositories (`wordpress/paid-plugins/`). See `docker/README.md` for quick reference, `docs/ojs-issues-log.md` for bugs encountered.
 
 - [x] Docker Compose setup (base + override + staging configs)
 - [x] Bedrock WP project (Composer pins WP core + plugins, config from `.env`)
@@ -33,7 +33,9 @@ Local dev environment with WP + OJS + two MariaDB instances on Docker. Bedrock (
 - [x] Import OJS content from live export (2 issues, 43 articles — required XML fix for pkp/pkp-lib#12276)
 - [x] File pkp/containers#26 (CLI install broken for OJS 3.5)
 - [x] Document OJS bugs encountered (`docs/ojs-issues-log.md`)
-- [x] Add paid plugin ZIPs to Bedrock via Composer path repos: WooCommerce Subscriptions 8.4.0, WooCommerce Memberships 1.27.5 (`wordpress/paid-plugins/`, gitignored, `composer.json` stubs)
+- [x] Add paid plugin ZIPs to Bedrock via Composer path repos (`wordpress/paid-plugins/`, gitignored, `composer.json` stubs): WooCommerce Subscriptions 8.4.0, WooCommerce Memberships 1.27.5, UM-Notifications 2.3.8, UM-WooCommerce 2.4.4
+- [x] All 6 required plugins + sea-ojs-sync active in Docker dev environment
+- [x] OJS PDF search indexing enabled in config template (filed [pkp/containers#27](https://github.com/pkp/containers/issues/27))
 
 ## Phase 0.6: Set up staging for testing
 
