@@ -1,8 +1,21 @@
 #!/bin/bash
 # Bootstrap OJS: create journal, subscription type, enable plugin.
 # Idempotent — safe to run repeatedly.
-# Run after OJS install: docker compose exec ojs bash /scripts/setup-ojs.sh
+#
+# Usage:
+#   scripts/setup-ojs.sh                    # Base setup only
+#   scripts/setup-ojs.sh --with-sample-data # Base setup + import 2 issues / 43 articles
+#
+# Run after OJS install:
+#   docker compose exec ojs bash /scripts/setup-ojs.sh [--with-sample-data]
 set -e
+
+SAMPLE_DATA=false
+for arg in "$@"; do
+  case "$arg" in
+    --with-sample-data) SAMPLE_DATA=true ;;
+  esac
+done
 
 MARIADB="mariadb --skip-ssl -h${OJS_DB_HOST} -u${OJS_DB_USER} -p${OJS_DB_PASSWORD} ${OJS_DB_NAME}"
 
@@ -92,3 +105,23 @@ $MARIADB <<SQL
 SQL
 
 echo "[SEA] OJS setup complete."
+
+# --- Sample data (dev/staging only) ---
+if [ "$SAMPLE_DATA" = true ]; then
+  IMPORT_XML="/data/ojs-import-clean.xml"
+  if [ ! -f "$IMPORT_XML" ]; then
+    echo "[SEA] ERROR: Import XML not found at $IMPORT_XML"
+    exit 1
+  fi
+
+  # Idempotent check: see if articles already exist
+  ARTICLE_COUNT=$($MARIADB -N -e "SELECT COUNT(*) FROM publications WHERE submission_id > 0")
+  if [ "$ARTICLE_COUNT" -gt "0" ]; then
+    echo "[SEA] Articles already imported ($ARTICLE_COUNT publications), skipping."
+  else
+    echo "[SEA] Importing OJS content (2 issues, 43 articles)..."
+    php /var/www/html/tools/importExport.php NativeImportExportPlugin import "$IMPORT_XML" t1
+    NEW_COUNT=$($MARIADB -N -e "SELECT COUNT(*) FROM publications WHERE submission_id > 0")
+    echo "[SEA] Import complete. Publications: $NEW_COUNT"
+  fi
+fi

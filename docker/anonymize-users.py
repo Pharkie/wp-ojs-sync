@@ -5,6 +5,11 @@ Anonymize a WP user export CSV for use as test data.
 Reads the full user export, strips PII, and outputs a CSV compatible
 with `wp user import-csv`.
 
+Roles from UM and WooCommerce (um_custom_role_*, customer) are not
+registered at import time, so we map them to `subscriber` for import
+and store the original role in a separate column. The setup script
+applies original roles after import once UM + WCS are active.
+
 Usage:
     python3 anonymize-users.py
 """
@@ -31,7 +36,17 @@ OUTPUT_FIELDS = [
     "last_name",
     "user_pass",
     "role",
+    "original_role",
 ]
+
+# Roles that wp user import-csv accepts without UM/WCS being fully loaded.
+WP_BUILTIN_ROLES = {
+    "administrator",
+    "editor",
+    "author",
+    "contributor",
+    "subscriber",
+}
 
 
 def primary_role(roles_value):
@@ -43,8 +58,16 @@ def primary_role(roles_value):
     return raw.split(",")[0].strip()
 
 
+def safe_role(role):
+    """Map to a WP built-in role for reliable import. Keep original separately."""
+    if role in WP_BUILTIN_ROLES:
+        return role
+    return "subscriber"
+
+
 def main():
     role_counts = Counter()
+    mapped_counts = Counter()
     seq = 0
     skipped_no_email = 0
 
@@ -64,8 +87,11 @@ def main():
 
             seq += 1
             tag = f"{seq:04d}"
-            role = primary_role(row["roles"])
-            role_counts[role] += 1
+            original_role = primary_role(row["roles"])
+            import_role = safe_role(original_role)
+            role_counts[original_role] += 1
+            if original_role != import_role:
+                mapped_counts[original_role] += 1
 
             first_name = f"Test{seq}"
             last_name = f"User{seq}"
@@ -78,7 +104,8 @@ def main():
                     "first_name": first_name,
                     "last_name": last_name,
                     "user_pass": "testpass123",
-                    "role": role,
+                    "role": import_role,
+                    "original_role": original_role,
                 }
             )
 
@@ -90,10 +117,15 @@ def main():
     if skipped_no_email:
         print(f"Skipped (no email):  {skipped_no_email}")
     print()
-    print("Role distribution:")
+    print("Original role distribution:")
     for role, count in role_counts.most_common():
         label = role if role else "(empty)"
         print(f"  {count:4d}  {label}")
+    if mapped_counts:
+        print()
+        print(f"Roles mapped to 'subscriber' for import: {sum(mapped_counts.values())}")
+        for role, count in mapped_counts.most_common():
+            print(f"  {count:4d}  {role}")
 
 
 if __name__ == "__main__":

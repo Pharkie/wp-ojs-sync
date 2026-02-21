@@ -2,25 +2,29 @@
 
 Problems encountered with OJS during this project. Evidence for the Janeway backup evaluation.
 
+Issues marked **[we reported]** were filed by us. Others were found by other users — we just hit the same problems.
+
 ## Install bugs
 
 ### 1. OJS 3.5.0-2: ROR dataset crash during install
 
 The web installer crashes with `ValueError: Path cannot be empty` in `UpdateRorRegistryDataset.php`. A logic bug (`empty($pathCsv || ...)` instead of `empty($pathCsv) || ...`) lets an empty CSV path through to `fopen('', 'r')`. Fresh install is impossible on 3.5.0-2.
 
-- **Reported:** [pkp/pkp-lib#12144](https://github.com/pkp/pkp-lib/issues/12144)
+- **Reported by others:** [pkp/pkp-lib#12144](https://github.com/pkp/pkp-lib/issues/12144)
 - **Fixed in:** OJS 3.5.0.3 / Docker tag `3_5_0-3`
 
 ### 2. Docker CLI install script broken for OJS 3.5
 
 The `pkp-cli-install` script (used when `OJS_CLI_INSTALL=1`) fails silently on 3.5.x. Two bugs: missing required `timeZone` field (new in 3.5), and no session cookie (OJS 3.5 rejects the POST without one). The install appears to succeed but `installed` stays `Off`.
 
-- **Reported:** [pkp/containers#26](https://github.com/pkp/containers/issues/26)
+- **We reported:** [pkp/containers#26](https://github.com/pkp/containers/issues/26)
 - **Workaround:** Our `docker/reset-ojs.sh` script handles both issues.
 
 ### 3. Failed install leaves database and config in corrupt state
 
 If the install crashes partway through (e.g. due to bug #1), OJS sets `installed = On` in config and creates partial database tables. On next visit it tries to use the half-built database and 500s. Recovery requires three separate resets: database wipe, config flag reset, AND volume deletion. There's no self-healing or install rollback.
+
+- **Not reported upstream** — general design issue, not a single fixable bug.
 
 ## Import/Export bugs
 
@@ -32,7 +36,7 @@ Exporting issues from one OJS 3.5 instance and importing to another fails with:
 
 The exporter writes `source_submission_file_id` references to IDs that don't exist yet in the target database. The importer doesn't resolve the ordering. This is OJS exporting data that OJS can't import.
 
-- **Reported:** [pkp/pkp-lib#12276](https://github.com/pkp/pkp-lib/issues/12276)
+- **We reported:** [pkp/pkp-lib#12276](https://github.com/pkp/pkp-lib/issues/12276)
 - **Workaround:** Strip `source_submission_file_id` references from the XML before importing. Loses some file linkage but metadata imports fine.
 
 ## API gaps
@@ -41,13 +45,33 @@ The exporter writes `source_submission_file_id` references to IDs that don't exi
 
 OJS has no REST endpoints for subscription CRUD. This is why we had to build a custom plugin (`sea-subscription-api`). See `docs/ojs-api.md`.
 
+- **Not reported upstream** — known long-standing gap, not a bug.
+
 ### 6. User creation API unconfirmed
 
 The Swagger spec shows read-only user endpoints. Creating users programmatically requires either the custom plugin or direct DB access.
 
+- **Not reported upstream** — known limitation.
+
+## Configuration gaps
+
+### 7. Docker image installs pdftotext but doesn't enable it
+
+The `pkpofficial/ojs:3_5_0-3` Docker image installs `poppler-utils` (which provides `pdftotext`), but the default config has all search indexing helpers commented out. PDF files import successfully but are never full-text indexed. The only indication is a `Skipped indexation: No suitable parser` log message during import — easy to miss.
+
+The fix is adding the `[search]` section with the `index[application/pdf]` line pointing to `pdftotext`. OJS's own `config.TEMPLATE.inc.php` has this as a commented-out example, but the Docker image doesn't uncomment it despite installing the binary.
+
+- **We reported:** [pkp/containers#27](https://github.com/pkp/containers/issues/27)
+- **Impact:** Search won't find content within PDFs until config is fixed
+- **Workaround:** Add to `config.inc.php`:
+  ```ini
+  [search]
+  index[application/pdf] = "/usr/bin/pdftotext -enc UTF-8 -nopgbrk %s - | /usr/bin/tr '[:cntrl:]' ' '"
+  ```
+
 ## Static analysis
 
-### 7. PHPStan cannot fully analyse OJS plugins
+### 8. PHPStan cannot fully analyse OJS plugins
 
 OJS uses a non-standard autoloader (`PKP\core\PKPContainer` + runtime classmap) that PHPStan can't resolve without booting the full application. Running PHPStan on the `sea-subscription-api` plugin produces ~70 false positives:
 
@@ -57,6 +81,8 @@ OJS uses a non-standard autoloader (`PKP\core\PKPContainer` + runtime classmap) 
 - **Intentional `method_exists()` checks** (~5): The `/preflight` endpoint deliberately checks whether OJS methods exist for version compatibility. PHPStan correctly notes they always return true on 3.5 — that's the point.
 
 **One real bug found:** `authorize()` method on `SeaApiController` shadowed `PKPBaseController::authorize()` with a different signature. Renamed to `checkAuth()`.
+
+- **Not reported upstream** — OJS architectural limitation, not a fixable bug.
 
 **How to run:** Download `phpstan.phar` into the OJS container (no Composer available), point at the OJS autoloader, and provide a bootstrap file defining `PKP_STRICT_MODE`:
 

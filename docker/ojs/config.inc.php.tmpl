@@ -83,6 +83,16 @@ smtp_username = ${OJS_SMTP_USER}
 smtp_password = ${OJS_SMTP_PASSWORD}
 
 ;;;;;;;;;;;;;;;;;;;
+; Search Settings
+;;;;;;;;;;;;;;;;;;;
+
+[search]
+index = On
+min_word_length = 3
+results_per_keyword = 500
+index[application/pdf] = "/usr/bin/pdftotext -enc UTF-8 -nopgbrk %s - | /usr/bin/tr '[:cntrl:]' ' '"
+
+;;;;;;;;;;;;;;;;;;;
 ; OAI Settings
 ;;;;;;;;;;;;;;;;;;;
 

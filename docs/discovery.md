@@ -129,3 +129,41 @@ Only use if OJS plugins can't be installed or as a stopgap.
 Consider switching if the OJS 3.5 upgrade takes more than 2 weeks or the custom plugin scope grows significantly. See `janeway-paywall-investigation.md` for the full concrete plan.
 
 **OJS quality concerns (2026-02-20):** During Docker dev environment setup, we hit 6 separate OJS bugs — install crashes, broken CLI tooling, XML import/export that can't round-trip its own data, and missing APIs. Documented in [`ojs-issues-log.md`](./ojs-issues-log.md). This strengthens the case for keeping Janeway as a genuine backup.
+
+---
+
+## Test data seeding: role assignment approach
+
+**Decision (2026-02-21):** Use direct SQL (`wp eval-file`) for assigning UM/WCS roles to test users.
+
+### Context
+
+The `--with-sample-data` flag on `setup-wp.sh` imports ~1,400 anonymised test users for dev/staging environments. This is **not** the production sync path — production members already exist in WP and are pushed to OJS via `wp sea-ojs sync`.
+
+### Problem
+
+`wp user import-csv` validates roles early in bootstrap, before Ultimate Member registers its custom roles (`um_custom_role_*`). Importing users with UM roles produces "invalid role" warnings and assigns no role. Activating UM before import doesn't help — the validation runs before plugins fully load.
+
+### Approaches evaluated
+
+| Approach | Speed (1,400 users) | Correctness | Notes |
+|---|---|---|---|
+| `wp user import-csv` with original roles | — | Fails | UM roles not registered at validation time |
+| `wp user set-role` in a loop | ~10 min | Correct | Fires all hooks per user — correct but extremely slow |
+| Direct SQL via `wp db query` | ~2s | Correct | Shell quoting issues with serialized PHP values |
+| Direct SQL via `wp eval-file` | ~2s | Correct | **Chosen** — PHP handles serialization natively |
+
+### Solution
+
+Two-step process:
+1. **Import** users via `wp user import-csv` with role `subscriber` (always valid) — handles password hashing, user creation, and WP hooks correctly
+2. **Reassign roles** via `wp eval-file scripts/apply-roles.php` — reads the CSV `original_role` column and updates `wp_capabilities` in `wp_usermeta` directly with the serialized capabilities value
+
+The anonymise script (`docker/anonymize-users.py`) maps all non-builtin roles to `subscriber` for import and preserves the original role in a separate `original_role` column.
+
+### Why this is safe
+
+- **Test data only.** Production members already exist in WP with correct roles assigned by UM and WCS during normal operation.
+- **Direct SQL is appropriate** because we're seeding known-good test data, not modifying live user state. The roles are read from the original export.
+- **UM roles don't have special capabilities** beyond what WP stores in `wp_capabilities`. The serialized format `a:1:{s:16:"um_custom_role_1";b:1;}` is all WP needs.
+- **No hooks needed.** Test users don't need UM profile metadata, WCS subscription records, or other side effects that `wp user set-role` would trigger. Those are irrelevant for testing the OJS sync.

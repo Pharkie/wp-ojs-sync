@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "342a3afb34d9fb8604f90a740ceeb141",
+    "content-hash": "57e3b136e47c310d240bc284a1ede6e8",
     "packages": [
         {
             "name": "composer/installers",
@@ -784,6 +784,34 @@
             ],
             "abandoned": "roots/wp-password-bcrypt",
             "time": "2021-10-31T01:18:58+00:00"
+        },
+        {
+            "name": "sea/woocommerce-memberships",
+            "version": "1.27.5",
+            "dist": {
+                "type": "path",
+                "url": "paid-plugins/woocommerce-memberships",
+                "reference": "e0b2a83c549e48a4fc65d7fba6b28f4c0a501a6f"
+            },
+            "type": "wordpress-plugin",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "sea/woocommerce-subscriptions",
+            "version": "8.4.0",
+            "dist": {
+                "type": "path",
+                "url": "paid-plugins/woocommerce-subscriptions",
+                "reference": "e1792b47a4cac869a0458580105e320ba59ce9eb"
+            },
+            "type": "wordpress-plugin",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
         },
         {
             "name": "symfony/polyfill-ctype",

@@ -41,9 +41,9 @@ docker compose up -d --build
 # 2. Wait for OJS auto-install (check logs)
 docker compose logs -f ojs
 
-# 3. Run setup scripts
-docker compose exec wp bash /var/www/html/scripts/setup-wp.sh
-docker compose exec ojs bash /scripts/setup-ojs.sh
+# 3. Run setup scripts (--with-sample-data imports test users + articles)
+docker compose exec wp bash /var/www/html/scripts/setup-wp.sh --with-sample-data
+docker compose exec ojs bash /scripts/setup-ojs.sh --with-sample-data
 ```
 
 ## URLs
@@ -89,9 +89,13 @@ docker compose down -v
 
 # Run WP setup (install core, activate plugins, set options)
 docker compose exec wp bash /var/www/html/scripts/setup-wp.sh
+# ...with 727 anonymised test users:
+docker compose exec wp bash /var/www/html/scripts/setup-wp.sh --with-sample-data
 
 # Run OJS setup (create journal, subscription type, enable plugin)
 docker compose exec ojs bash /scripts/setup-ojs.sh
+# ...with 2 issues + 43 articles from live:
+docker compose exec ojs bash /scripts/setup-ojs.sh --with-sample-data
 
 # View logs
 docker compose logs -f        # all

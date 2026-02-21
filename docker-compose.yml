@@ -19,6 +19,7 @@ services:
       - wp_uploads:/var/www/html/web/app/uploads
       - ./.env:/var/www/html/.env:ro
       - ./scripts:/var/www/html/scripts:ro
+      - ./docker/test-users.csv:/data/test-users.csv:ro
     depends_on:
       wp-db:
         condition: service_healthy
@@ -79,6 +80,7 @@ services:
       - ./docker/ojs/config.inc.php.tmpl:/etc/ojs/config.inc.php.tmpl:ro
       - ./docker/ojs/apache.conf:/etc/apache2/conf-enabled/sea-cgipassauth.conf:ro
       - ./scripts:/scripts:ro
+      - ./data export/ojs-import-clean.xml:/data/ojs-import-clean.xml:ro
     depends_on:
       ojs-db:
         condition: service_healthy
