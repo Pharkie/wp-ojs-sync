@@ -14,7 +14,9 @@
     "wpackagist-plugin/woocommerce": "^9.8",
     "wpackagist-plugin/ultimate-member": "^2.11",
     "sea/woocommerce-subscriptions": "8.4.0",
-    "sea/woocommerce-memberships": "1.27.5"
+    "sea/woocommerce-memberships": "1.27.5",
+    "sea/um-notifications": "2.3.8",
+    "sea/um-woocommerce": "2.4.4"
   },
   "repositories": [
     {
@@ -27,6 +29,20 @@
     {
       "type": "path",
       "url": "paid-plugins/woocommerce-memberships",
+      "options": {
+        "symlink": false
+      }
+    },
+    {
+      "type": "path",
+      "url": "paid-plugins/um-notifications",
+      "options": {
+        "symlink": false
+      }
+    },
+    {
+      "type": "path",
+      "url": "paid-plugins/um-woocommerce",
       "options": {
         "symlink": false
       }

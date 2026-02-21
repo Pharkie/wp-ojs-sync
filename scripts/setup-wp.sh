@@ -35,6 +35,8 @@ wp plugin activate \
   woocommerce-subscriptions \
   woocommerce-memberships \
   ultimate-member \
+  um-notifications \
+  um-woocommerce \
   sea-ojs-sync \
   --allow-root 2>/dev/null || true
 

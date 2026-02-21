@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "57e3b136e47c310d240bc284a1ede6e8",
+    "content-hash": "ca6b0c053275c4d9961a84601a577d4d",
     "packages": [
         {
             "name": "composer/installers",
@@ -784,6 +784,34 @@
             ],
             "abandoned": "roots/wp-password-bcrypt",
             "time": "2021-10-31T01:18:58+00:00"
+        },
+        {
+            "name": "sea/um-notifications",
+            "version": "2.3.8",
+            "dist": {
+                "type": "path",
+                "url": "paid-plugins/um-notifications",
+                "reference": "e3b34125aa26d70bf1b5b27f3b4deb4f46e383ab"
+            },
+            "type": "wordpress-plugin",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "sea/um-woocommerce",
+            "version": "2.4.4",
+            "dist": {
+                "type": "path",
+                "url": "paid-plugins/um-woocommerce",
+                "reference": "b389f3c8fc479f7b7129b60b924f0e06bf35ac40"
+            },
+            "type": "wordpress-plugin",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
         },
         {
             "name": "sea/woocommerce-memberships",
