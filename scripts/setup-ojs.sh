@@ -19,12 +19,12 @@ done
 
 MARIADB="mariadb --skip-ssl -h${OJS_DB_HOST} -u${OJS_DB_USER} -p${OJS_DB_PASSWORD} ${OJS_DB_NAME}"
 
-echo "[SEA] Setting up OJS..."
+echo "[OJS] Setting up OJS..."
 
 # --- Enable admin API key for scripted access ---
 API_KEY_ENABLED=$($MARIADB -N -e "SELECT setting_value FROM user_settings WHERE user_id=1 AND setting_name='apiKeyEnabled'")
 if [ "$API_KEY_ENABLED" != "1" ]; then
-  echo "[SEA] Enabling API key for admin user..."
+  echo "[OJS] Enabling API key for admin user..."
 
   # Generate a random API key
   API_KEY=$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 32)
@@ -58,70 +58,73 @@ ojs_api() {
 }
 
 # --- Journal creation via API ---
-JOURNAL_EXISTS=$($MARIADB -N -e "SELECT COUNT(*) FROM journals WHERE path='t1'")
+JOURNAL_PATH="${OJS_JOURNAL_PATH:-journal}"
+JOURNAL_NAME="${OJS_JOURNAL_NAME:-My Journal}"
+
+JOURNAL_EXISTS=$($MARIADB -N -e "SELECT COUNT(*) FROM journals WHERE path='$JOURNAL_PATH'")
 
 if [ "$JOURNAL_EXISTS" = "0" ]; then
-  echo "[SEA] Creating journal 't1' via API..."
+  echo "[OJS] Creating journal '$JOURNAL_PATH' via API..."
 
-  RESULT=$(ojs_api POST "/index/api/v1/contexts" '{
-    "urlPath": "t1",
-    "name": {"en": "Existential Analysis"},
-    "primaryLocale": "en",
-    "supportedLocales": ["en"],
-    "supportedSubmissionLocales": ["en"],
-    "enabled": true
-  }')
+  RESULT=$(ojs_api POST "/index/api/v1/contexts" "{
+    \"urlPath\": \"$JOURNAL_PATH\",
+    \"name\": {\"en\": \"$JOURNAL_NAME\"},
+    \"primaryLocale\": \"en\",
+    \"supportedLocales\": [\"en\"],
+    \"supportedSubmissionLocales\": [\"en\"],
+    \"enabled\": true
+  }")
 
-  if echo "$RESULT" | grep -q '"urlPath":"t1"'; then
-    echo "[SEA] Journal 't1' created."
+  if echo "$RESULT" | grep -q "\"urlPath\":\"$JOURNAL_PATH\""; then
+    echo "[OJS] Journal '$JOURNAL_PATH' created."
   else
-    echo "[SEA] WARNING: Journal creation may have failed:"
+    echo "[OJS] WARNING: Journal creation may have failed:"
     echo "$RESULT" | head -5
   fi
 else
-  echo "[SEA] Journal 't1' already exists, skipping."
+  echo "[OJS] Journal '$JOURNAL_PATH' already exists, skipping."
 fi
 
 # --- Subscription type ---
 SUB_TYPE_EXISTS=$($MARIADB -N -e "SELECT COUNT(*) FROM subscription_types WHERE journal_id=1")
 
 if [ "$SUB_TYPE_EXISTS" = "0" ]; then
-  echo "[SEA] Creating subscription type..."
+  echo "[OJS] Creating subscription type..."
   $MARIADB <<'SQL'
     INSERT INTO subscription_types (journal_id, cost, currency_code_alpha, duration, format, institutional, membership, disable_public_display, seq)
     VALUES (1, 0.00, 'GBP', 365, 1, 0, 0, 1, 1);
 SQL
-  echo "[SEA] Subscription type created."
+  echo "[OJS] Subscription type created."
 else
-  echo "[SEA] Subscription type already exists, skipping."
+  echo "[OJS] Subscription type already exists, skipping."
 fi
 
-# --- Enable SEA plugin ---
-JOURNAL_ID=$($MARIADB -N -e "SELECT journal_id FROM journals WHERE path='t1'")
-echo "[SEA] Enabling sea-subscription-api plugin for journal $JOURNAL_ID..."
+# --- Enable WP-OJS plugin ---
+JOURNAL_ID=$($MARIADB -N -e "SELECT journal_id FROM journals WHERE path='$JOURNAL_PATH'")
+echo "[OJS] Enabling wpojs-subscription-api plugin for journal $JOURNAL_ID..."
 $MARIADB <<SQL
   INSERT IGNORE INTO plugin_settings (plugin_name, context_id, setting_name, setting_value, setting_type)
-  VALUES ('seasubscriptionapiplugin', $JOURNAL_ID, 'enabled', '1', 'bool');
+  VALUES ('wpojssubscriptionapiplugin', $JOURNAL_ID, 'enabled', '1', 'bool');
 SQL
 
-echo "[SEA] OJS setup complete."
+echo "[OJS] OJS setup complete."
 
 # --- Sample data (dev/staging only) ---
 if [ "$SAMPLE_DATA" = true ]; then
   IMPORT_XML="/data/ojs-import-clean.xml"
   if [ ! -f "$IMPORT_XML" ]; then
-    echo "[SEA] ERROR: Import XML not found at $IMPORT_XML"
+    echo "[OJS] ERROR: Import XML not found at $IMPORT_XML"
     exit 1
   fi
 
   # Idempotent check: see if articles already exist
   ARTICLE_COUNT=$($MARIADB -N -e "SELECT COUNT(*) FROM publications WHERE submission_id > 0")
   if [ "$ARTICLE_COUNT" -gt "0" ]; then
-    echo "[SEA] Articles already imported ($ARTICLE_COUNT publications), skipping."
+    echo "[OJS] Articles already imported ($ARTICLE_COUNT publications), skipping."
   else
-    echo "[SEA] Importing OJS content (2 issues, 43 articles)..."
-    php /var/www/html/tools/importExport.php NativeImportExportPlugin import "$IMPORT_XML" t1
+    echo "[OJS] Importing OJS content (2 issues, 43 articles)..."
+    php /var/www/html/tools/importExport.php NativeImportExportPlugin import "$IMPORT_XML" "$JOURNAL_PATH"
     NEW_COUNT=$($MARIADB -N -e "SELECT COUNT(*) FROM publications WHERE submission_id > 0")
-    echo "[SEA] Import complete. Publications: $NEW_COUNT"
+    echo "[OJS] Import complete. Publications: $NEW_COUNT"
   fi
 fi

@@ -39,9 +39,9 @@ Non-member visits paywalled content
 
 ## What gets built
 
-### OJS plugin (`sea-subscription-api`)
+### OJS plugin (`wpojs-subscription-api`)
 
-Installed in `plugins/generic/seaSubscriptionApi/`:
+Installed in `plugins/generic/wpojsSubscriptionApi/`:
 
 - Registers REST endpoints for subscription CRUD (see [endpoint spec](#ojs-endpoint-spec) below)
 - All endpoints are **idempotent** — safe to call repeatedly with the same payload
@@ -53,15 +53,15 @@ Installed in `plugins/generic/seaSubscriptionApi/`:
 - No modifications to OJS core code — standard plugin, dropped into a folder
 - Requires OJS 3.5+ for the clean plugin API pattern ([pkp-lib #9434](https://github.com/pkp/pkp-lib/issues/9434))
 - "Set your password" welcome email: generates reset token, sends branded email on user creation
-- UI messages via plugin hooks: login hint, paywall hint for non-subscribers, site footer. Config: `[sea] wp_member_url`, `support_email`
+- UI messages via plugin hooks: login hint, paywall hint for non-subscribers, site footer. Config: `[wpojs] wp_member_url`, `support_email`
 - Delete-user endpoint for GDPR erasure propagation from WP
 
-### WP plugin (`sea-ojs-sync`)
+### WP plugin (`wpojs-sync`)
 
 Installed like any WP plugin:
 
 - Settings page: OJS URL (HTTPS enforced), subscription type ID mapping (WooCommerce Product → OJS Subscription Type), journal ID(s), "Test connection" button
-- API key stored as `wp-config.php` constant (`SEA_OJS_API_KEY`), not in the database
+- API key stored as `wp-config.php` constant (`WPOJS_API_KEY`), not in the database
 - Hooks into **WooCommerce Subscriptions** lifecycle events (`status_active`, `status_expired`, `status_cancelled`, `status_on-hold`) as primary triggers
 - **Async dispatch**: hooks log sync intent to a local queue table; WP Cron processes the queue (not inline HTTP calls)
 - **Retry logic**: 3 attempts at 5min / 15min / 1hr intervals via WP Cron; after 3 failures, mark as permanently failed and email admin
@@ -80,7 +80,7 @@ All endpoints except `/ping` require Bearer token auth + Journal Manager or Site
 
 **Fragility note:** These endpoints use OJS internal PHP classes (Repo facade, DAOs, Validation), not a stable public API. OJS could rename, merge, or remove any of these in a future release without notice — every OJS plugin has this risk. Mitigation: the `/preflight` endpoint verifies every class and method the plugin depends on. The WP "Test connection" button calls `/ping` then `/preflight`. **Run `/preflight` after any OJS upgrade.**
 
-**Journal context:** All endpoints are scoped to the journal in the URL path (e.g., `/api/v1/{journal-path}/sea/subscriptions`). There is no `journalId` parameter in request bodies — the journal is always derived from the URL context via OJS's `has.context` middleware.
+**Journal context:** All endpoints are scoped to the journal in the URL path (e.g., `/api/v1/{journal-path}/wpojs/subscriptions`). There is no `journalId` parameter in request bodies — the journal is always derived from the URL context via OJS's `has.context` middleware.
 
 | Method | Path | Request body | Response | Notes |
 |---|---|---|---|---|
@@ -94,7 +94,7 @@ All endpoints except `/ping` require Bearer token auth + Journal Manager or Site
 | `PUT` | `/subscriptions/{id}/expire` | — | `200 {subscriptionId}` | Sets status to `SUBSCRIPTION_STATUS_OTHER`. Idempotent. |
 | `PUT` | `/subscriptions/expire-by-user/{userId}` | — | `200 {subscriptionId}` | Convenience: expires subscription by userId (saves WP plugin a lookup call). Returns `404` if no subscription found. |
 | `GET` | `/subscriptions?email=&userId=` | — | `200 [{subscriptionId, userId, journalId, typeId, status, dateStart, dateEnd}]` | Returns array with at most one item per user per journal (OJS enforces one-subscription-per-user-per-journal). Returns `[]` if user or subscription not found. |
-| `POST` | `/welcome-email` | `{userId}` | `200 {sent: true}` or `200 {sent: false, reason}` | Generates password reset access key via `AccessKeyManager::createKey()`, builds reset URL, sends `PasswordResetRequested` mailable. Dedup: atomic `insertOrIgnore` on `sea_welcome_email_sent` flag — concurrent requests are safe. If mail send fails, dedup flag is removed so it can be retried. Token expiry configured via `password_reset_timeout` in `config.inc.php` (set to 7 for bulk welcome emails). |
+| `POST` | `/welcome-email` | `{userId}` | `200 {sent: true}` or `200 {sent: false, reason}` | Generates password reset access key via `AccessKeyManager::createKey()`, builds reset URL, sends `PasswordResetRequested` mailable. Dedup: atomic `insertOrIgnore` on `wpojs_welcome_email_sent` flag — concurrent requests are safe. If mail send fails, dedup flag is removed so it can be retried. Token expiry configured via `password_reset_timeout` in `config.inc.php` (set to 7 for bulk welcome emails). |
 
 Error responses: `400` (invalid input), `401` (bad/missing auth), `403` (IP not allowed or insufficient role), `404` (not found), `409` (conflict), `500` (server error). All errors return `{error: "message"}`. Error messages never include internal details (exception messages, stack traces, IP addresses).
 
@@ -106,14 +106,14 @@ Error responses: `400` (invalid input), `401` (bad/missing auth), `403` (IP not 
 
 | Setting | Storage | Notes |
 |---|---|---|
-| OJS base URL | Settings page (`wp_options`) | HTTPS enforced — reject `http://` URLs. Includes journal path, e.g. `https://journal.example.org/index.php/t1`. The API URL is `{base}/api/v1/sea/...` — the journal context is embedded in the URL path, not sent as a parameter. |
-| API key | `wp-config.php` constant `SEA_OJS_API_KEY` | Never stored in database |
+| OJS base URL | Settings page (`wp_options`) | HTTPS enforced — reject `http://` URLs. Includes journal path, e.g. `https://journal.example.org/index.php/t1`. The API URL is `{base}/api/v1/wpojs/...` — the journal context is embedded in the URL path, not sent as a parameter. |
+| API key | `wp-config.php` constant `WPOJS_API_KEY` | Never stored in database |
 | Subscription type mapping | Settings page (`wp_options`) | WooCommerce Product ID → OJS Subscription Type ID |
 | WP server IP | Display only on settings page | Shown so admin can configure OJS IP allowlist |
 
 ### Database tables
 
-**`sea_ojs_sync_queue`** — async dispatch queue
+**`wpojs_sync_queue`** — async dispatch queue
 
 | Column | Type | Notes |
 |---|---|---|
@@ -128,9 +128,9 @@ Error responses: `400` (invalid input), `401` (bad/missing auth), `403` (IP not 
 | `created_at` | DATETIME | When the event was queued |
 | `completed_at` | DATETIME | When it succeeded or permanently failed |
 
-**WP usermeta: `_sea_ojs_user_id`** — cached OJS userId per WP user, set on first successful `find-or-create`. Used by expire/email_change/delete actions to avoid an extra HTTP lookup. Removed on GDPR deletion.
+**WP usermeta: `_wpojs_user_id`** — cached OJS userId per WP user, set on first successful `find-or-create`. Used by expire/email_change/delete actions to avoid an extra HTTP lookup. Removed on GDPR deletion.
 
-**`sea_ojs_sync_log`** — audit trail
+**`wpojs_sync_log`** — audit trail
 
 | Column | Type | Notes |
 |---|---|---|
@@ -159,14 +159,14 @@ When a member has **multiple active WCS subscriptions**, the plugin resolves to 
 
 ### Queue processor — API call sequences
 
-Each queue action maps to a specific sequence of OJS API calls. The queue processor stores `ojs_user_id` in WP usermeta (`_sea_ojs_user_id`) after the first successful find-or-create, so subsequent actions can skip the lookup.
+Each queue action maps to a specific sequence of OJS API calls. The queue processor stores `ojs_user_id` in WP usermeta (`_wpojs_user_id`) after the first successful find-or-create, so subsequent actions can skip the lookup.
 
 **`activate`** (new subscription or renewal):
 1. `POST /users/find-or-create` — `{email, firstName, lastName, sendWelcomeEmail: true}`. Returns `{userId, created}`. If `created: true`, welcome email is sent automatically. Store `userId` in usermeta.
 2. `POST /subscriptions` — `{userId, typeId, dateStart, dateEnd}`. Uses the `userId` from step 1. `typeId` from settings mapping. `dateEnd` = latest across all active WCS subs for this user (or `null` for non-expiring).
 
 **`expire`** (cancellation, expiry, on-hold):
-1. Resolve OJS userId: check `_sea_ojs_user_id` usermeta first. If not cached, call `GET /users?email=` to look up. If user not found, log and skip (never synced).
+1. Resolve OJS userId: check `_wpojs_user_id` usermeta first. If not cached, call `GET /users?email=` to look up. If user not found, log and skip (never synced).
 2. `PUT /subscriptions/expire-by-user/{userId}` — single call, no need to look up subscriptionId separately. Returns `404` if no subscription (log and skip — subscription may have already been expired or never created).
 
 **`email_change`**:
@@ -176,7 +176,7 @@ Each queue action maps to a specific sequence of OJS API calls. The queue proces
 **`delete_user`** (GDPR):
 1. Resolve OJS userId: usermeta or `GET /users?email=`. If not found, log and skip (nothing to delete).
 2. `DELETE /users/{userId}` — anonymises all PII, disables account, expires subscription.
-3. Clean up: remove `_sea_ojs_user_id` from usermeta.
+3. Clean up: remove `_wpojs_user_id` from usermeta.
 
 **Error handling in queue processor:**
 - `200`: success → mark completed, log response
@@ -191,22 +191,22 @@ Each queue action maps to a specific sequence of OJS API calls. The queue proces
 
 | Command | Description |
 |---|---|
-| `wp sea-ojs sync --dry-run` | Report what bulk sync would do without making changes |
-| `wp sea-ojs sync` | Run bulk sync: creates users + subscriptions (no welcome emails). Batched (50 users), 500ms delay, resume from last run |
-| `wp sea-ojs sync --user=<id or email>` | Sync a single member (sends welcome email — it's a targeted action) |
-| `wp sea-ojs send-welcome-emails --dry-run` | Report how many welcome emails would be sent |
-| `wp sea-ojs send-welcome-emails` | Send "set your password" emails to all synced users. OJS dedup prevents duplicates — safe to re-run |
-| `wp sea-ojs reconcile` | Run reconciliation now (compare WCS ↔ OJS, retry drift) |
-| `wp sea-ojs status` | Show sync stats: total synced, pending, failed, last reconciliation |
-| `wp sea-ojs test-connection` | Hit OJS `/ping` (reachability, no auth) then `/preflight` (auth + IP + compatibility). Reports specific diagnostic: reachable but IP blocked, reachable but auth failed, reachable but incompatible, or all clear. |
+| `wp ojs-sync sync --dry-run` | Report what bulk sync would do without making changes |
+| `wp ojs-sync sync` | Run bulk sync: creates users + subscriptions (no welcome emails). Batched (50 users), 500ms delay, resume from last run |
+| `wp ojs-sync sync --user=<id or email>` | Sync a single member (sends welcome email — it's a targeted action) |
+| `wp ojs-sync send-welcome-emails --dry-run` | Report how many welcome emails would be sent |
+| `wp ojs-sync send-welcome-emails` | Send "set your password" emails to all synced users. OJS dedup prevents duplicates — safe to re-run |
+| `wp ojs-sync reconcile` | Run reconciliation now (compare WCS ↔ OJS, retry drift) |
+| `wp ojs-sync status` | Show sync stats: total synced, pending, failed, last reconciliation |
+| `wp ojs-sync test-connection` | Hit OJS `/ping` (reachability, no auth) then `/preflight` (auth + IP + compatibility). Reports specific diagnostic: reachable but IP blocked, reachable but auth failed, reachable but incompatible, or all clear. |
 
 ### WP Cron schedule
 
 | Event | Frequency | What it does |
 |---|---|---|
-| `sea_ojs_process_queue` | Every 1 minute | Process pending/retry items from sync queue |
-| `sea_ojs_daily_reconcile` | Daily | Compare active WCS subscriptions vs OJS, queue any drift |
-| `sea_ojs_daily_digest` | Daily | Email admin: failure count in last 24 hours (skip if zero) |
+| `wpojs_process_queue` | Every 1 minute | Process pending/retry items from sync queue |
+| `wpojs_daily_reconcile` | Daily | Compare active WCS subscriptions vs OJS, queue any drift |
+| `wpojs_daily_digest` | Daily | Email admin: failure count in last 24 hours (skip if zero) |
 
 ### Admin pages
 
@@ -261,12 +261,12 @@ Each queue action maps to a specific sequence of OJS API calls. The queue proces
 
 1. **Upgrade OJS 3.4 → 3.5** — the biggest risk. Significant breaking changes (Slim→Laravel, Vue 2→3). Staging upgraded to 3.5.0.3 (2026-02-19). Still need: verify acceptance criteria on staging, write rollback runbook, agree go/no-go threshold with SEA, then upgrade production.
 2. **Verify OJS API prerequisites** — test Bearer token auth from WP server IP (`CGIPassAuth on`), test user creation API, confirm email config (SPF/DKIM/DMARC), document OJS server specs.
-3. **Build and deploy OJS plugin** (`sea-subscription-api`) — code review + PHPStan before production.
-4. **Build and deploy WP plugin** (`sea-ojs-sync`) — code review before production.
+3. **Build and deploy OJS plugin** (`wpojs-subscription-api`) — code review + PHPStan before production.
+4. **Build and deploy WP plugin** (`wpojs-sync`) — code review before production.
 5. **Smoke test** — end-to-end with 10 test users: create subscription → OJS account created → subscription active → paywall grants access → expire subscription → paywall denies access. Also test non-member purchase flow.
-6. **Bulk sync ~700 existing members** — `wp sea-ojs sync --dry-run` then `wp sea-ojs sync`. Creates users + subscriptions on OJS. **Does not send welcome emails** — that's a separate step. Batched (50 at a time), 500ms delay, ~12 minutes. Verify: `wp sea-ojs status` shows correct synced count, spot-check a few users in OJS admin.
-7. **Send welcome emails** — `wp sea-ojs send-welcome-emails --dry-run` then `wp sea-ojs send-welcome-emails`. Sends "set your password" email to all synced users. OJS dedup prevents duplicates — safe to re-run if interrupted. Token expiry 7 days. **Requires transactional email relay on OJS.**
-8. **OJS template changes** — DONE. Login hint ("First time? Set your password"), paywall hint for logged-in non-subscribers ("Contact support"), site footer ("Access provided by SEA membership"). Implemented via plugin hooks (`TemplateManager::display`, `Templates::Article::Footer::PageFooter`, `Templates::Common::Footer::PageFooter`). Messages read `wp_member_url` + `support_email` from `config.inc.php [sea]`.
+6. **Bulk sync ~700 existing members** — `wp ojs-sync sync --dry-run` then `wp ojs-sync sync`. Creates users + subscriptions on OJS. **Does not send welcome emails** — that's a separate step. Batched (50 at a time), 500ms delay, ~12 minutes. Verify: `wp ojs-sync status` shows correct synced count, spot-check a few users in OJS admin.
+7. **Send welcome emails** — `wp ojs-sync send-welcome-emails --dry-run` then `wp ojs-sync send-welcome-emails`. Sends "set your password" email to all synced users. OJS dedup prevents duplicates — safe to re-run if interrupted. Token expiry 7 days. **Requires transactional email relay on OJS.**
+8. **OJS template changes** — DONE. Login hint ("First time? Set your password"), paywall hint for logged-in non-subscribers ("Contact support"), site footer ("Access provided by SEA membership"). Implemented via plugin hooks (`TemplateManager::display`, `Templates::Article::Footer::PageFooter`, `Templates::Common::Footer::PageFooter`). Messages read `wp_member_url` + `support_email` from `config.inc.php [wpojs]`.
 9. **WP member dashboard** — DONE. "Access Existential Analysis" card on WooCommerce My Account page. Shows active/inactive status with expiry date.
 10. **Member announcement** — via SEA's normal channel (newsletter/email), sent only after steps 6-9 are confirmed working. "Check your email for instructions" not "visit the journal now."
 
@@ -355,7 +355,7 @@ The WP plugin's critical logic is the queue state machine, multi-subscription re
 |---|---|
 | `activate` action → calls find-or-create then create-subscription | Correct two-step sequence |
 | `activate` for existing user (`created: false`) → no welcome email param sent | Welcome email only for new users |
-| `activate` stores returned `userId` in `_sea_ojs_user_id` usermeta | OJS userId cached |
+| `activate` stores returned `userId` in `_wpojs_user_id` usermeta | OJS userId cached |
 | `expire` with cached usermeta → calls expire-by-user directly (1 HTTP call) | Usermeta cache hit |
 | `expire` without usermeta → calls GET /users then expire-by-user (2 HTTP calls) | Usermeta cache miss |
 | `expire` when GET /users returns `found: false` → mark completed, log skip | Never-synced user |

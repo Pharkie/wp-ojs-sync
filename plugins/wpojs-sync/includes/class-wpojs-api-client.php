@@ -4,15 +4,15 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-class SEA_OJS_API_Client {
+class WPOJS_API_Client {
 
     private $base_url;
     private $api_key;
     private $timeout;
 
     public function __construct() {
-        $this->base_url = untrailingslashit( get_option( 'sea_ojs_url', '' ) );
-        $this->api_key  = defined( 'SEA_OJS_API_KEY' ) ? SEA_OJS_API_KEY : '';
+        $this->base_url = untrailingslashit( get_option( 'wpojs_url', '' ) );
+        $this->api_key  = defined( 'WPOJS_API_KEY' ) ? WPOJS_API_KEY : '';
         $this->timeout  = 30;
     }
 
@@ -20,28 +20,28 @@ class SEA_OJS_API_Client {
      * Ping — no auth, pure reachability probe.
      */
     public function ping() {
-        return $this->get( '/sea/ping', array(), false );
+        return $this->get( '/wpojs/ping', array(), false );
     }
 
     /**
      * Preflight — verify compatibility (requires auth).
      */
     public function preflight() {
-        return $this->get( '/sea/preflight' );
+        return $this->get( '/wpojs/preflight' );
     }
 
     /**
      * Find user by email. Returns ['success' => true, 'body' => ['found' => bool, ...]].
      */
     public function find_user( $email ) {
-        return $this->get( '/sea/users', array( 'email' => $email ) );
+        return $this->get( '/wpojs/users', array( 'email' => $email ) );
     }
 
     /**
      * Find or create a user. Returns ['success' => true, 'body' => ['userId' => int, 'created' => bool]].
      */
     public function find_or_create_user( $email, $first_name, $last_name, $send_welcome_email = true ) {
-        return $this->post( '/sea/users/find-or-create', array(
+        return $this->post( '/wpojs/users/find-or-create', array(
             'email'            => $email,
             'firstName'        => $first_name,
             'lastName'         => $last_name,
@@ -53,7 +53,7 @@ class SEA_OJS_API_Client {
      * Update a user's email address. Returns 409 if new email already in use.
      */
     public function update_user_email( $user_id, $new_email ) {
-        return $this->request( 'PUT', '/sea/users/' . absint( $user_id ) . '/email', array(
+        return $this->request( 'PUT', '/wpojs/users/' . absint( $user_id ) . '/email', array(
             'newEmail' => $new_email,
         ) );
     }
@@ -62,7 +62,7 @@ class SEA_OJS_API_Client {
      * Delete (anonymise) a user. GDPR erasure.
      */
     public function delete_user( $user_id ) {
-        return $this->request( 'DELETE', '/sea/users/' . absint( $user_id ) );
+        return $this->request( 'DELETE', '/wpojs/users/' . absint( $user_id ) );
     }
 
     /**
@@ -79,21 +79,21 @@ class SEA_OJS_API_Client {
         } else {
             $body['dateEnd'] = null;
         }
-        return $this->post( '/sea/subscriptions', $body );
+        return $this->post( '/wpojs/subscriptions', $body );
     }
 
     /**
      * Expire subscription by user ID. 404 if no subscription found.
      */
     public function expire_subscription_by_user( $user_id ) {
-        return $this->request( 'PUT', '/sea/subscriptions/expire-by-user/' . absint( $user_id ) );
+        return $this->request( 'PUT', '/wpojs/subscriptions/expire-by-user/' . absint( $user_id ) );
     }
 
     /**
      * Send welcome email to an OJS user. Dedup: safe to call repeatedly.
      */
     public function send_welcome_email( $user_id ) {
-        return $this->post( '/sea/welcome-email', array(
+        return $this->post( '/wpojs/welcome-email', array(
             'userId' => absint( $user_id ),
         ) );
     }
@@ -102,7 +102,7 @@ class SEA_OJS_API_Client {
      * Get subscriptions by email or userId.
      */
     public function get_subscriptions( $args = array() ) {
-        return $this->get( '/sea/subscriptions', $args );
+        return $this->get( '/wpojs/subscriptions', $args );
     }
 
     /**
@@ -211,7 +211,7 @@ class SEA_OJS_API_Client {
 
     private function build_url( $endpoint ) {
         // base_url includes journal path, e.g. https://journal.example.org/index.php/t1
-        // API endpoints are at {base}/api/v1/sea/...
+        // API endpoints are at {base}/api/v1/wpojs/...
         return $this->base_url . '/api/v1' . $endpoint;
     }
 

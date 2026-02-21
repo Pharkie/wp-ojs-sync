@@ -633,7 +633,7 @@ The webhook endpoint is critical for reliability. It handles:
 
 The webhook URL would be registered in the Stripe Dashboard as:
 ```
-https://journal.existentialanalysis.org.uk/plugins/sea-paywall/webhook/
+https://your-ojs-site.example.org/plugins/sea-paywall/webhook/
 ```
 
 Stripe webhook signature verification is handled by the `stripe` library via `stripe.Webhook.construct_event()`.

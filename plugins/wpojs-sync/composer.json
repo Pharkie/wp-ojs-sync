@@ -1,0 +1,6 @@
+{
+  "name": "wpojs/wpojs-sync",
+  "type": "wordpress-plugin",
+  "description": "WP OJS Sync — pushes WP membership changes to OJS",
+  "version": "1.0.0"
+}

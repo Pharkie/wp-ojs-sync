@@ -53,8 +53,8 @@ docker compose exec ojs bash /scripts/setup-ojs.sh --with-sample-data
 | WordPress | http://localhost:8080 | http://wp:80 |
 | WP admin | http://localhost:8080/wp/wp-admin/ | — |
 | OJS | http://localhost:8081 | http://ojs:80 |
-| OJS journal | http://localhost:8081/index.php/t1 | http://ojs:80/index.php/t1 |
-| OJS API (from WP) | — | http://ojs:80/index.php/t1/api/v1/sea/... |
+| OJS journal | http://localhost:8081/index.php/journal | http://ojs:80/index.php/journal |
+| OJS API (from WP) | — | http://ojs:80/index.php/journal/api/v1/wpojs/... |
 
 ## Credentials (local dev)
 
@@ -106,7 +106,7 @@ docker compose exec wp bash
 docker compose exec ojs bash
 
 # Test WP → OJS connectivity
-docker compose exec wp curl http://ojs:80/index.php/t1/api/v1/sea/ping
+docker compose exec wp curl http://ojs:80/index.php/journal/api/v1/wpojs/ping
 
 # Staging (on remote server)
 docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
@@ -137,16 +137,16 @@ Edits on your host are reflected immediately in the containers:
 
 | Host path | Container path |
 |-----------|---------------|
-| `plugins/sea-ojs-sync/` | WP: `/var/www/html/web/app/plugins/sea-ojs-sync/` |
-| `plugins/sea-subscription-api/` | OJS: `/var/www/html/plugins/generic/seaSubscriptionApi/` |
+| `plugins/wpojs-sync/` | WP: `/var/www/html/web/app/plugins/wpojs-sync/` |
+| `plugins/wpojs-subscription-api/` | OJS: `/var/www/html/plugins/generic/wpojsSubscriptionApi/` |
 
 ## Environment variables
 
 All config is in `.env` (gitignored). See `.env.example` for the full list. Key groups:
 
 - **WP (Bedrock):** `DB_*`, `WP_HOME`, `WP_SITEURL`, `WP_ENV`, auth salts
-- **SEA integration:** `SEA_OJS_API_KEY`, `SEA_OJS_BASE_URL`
+- **WP-OJS integration:** `WPOJS_API_KEY`, `WPOJS_BASE_URL`
 - **OJS:** `OJS_DB_*`, `OJS_BASE_URL`, `OJS_TIMEZONE`, `OJS_ADMIN_*`
 - **OJS email:** `OJS_SMTP_*`, `OJS_MAIL_FROM`
-- **OJS security:** `SEA_OJS_API_KEY_SECRET`, `SEA_ALLOWED_IPS`
-- **SEA UI messages:** `SEA_WP_MEMBER_URL`, `SEA_SUPPORT_EMAIL`
+- **OJS security:** `WPOJS_API_KEY_SECRET`, `WPOJS_ALLOWED_IPS`
+- **WP-OJS UI messages:** `WPOJS_WP_MEMBER_URL`, `WPOJS_SUPPORT_EMAIL`

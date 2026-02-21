@@ -69,19 +69,19 @@ Six plugins, three vendors (Automattic, SkyVerge, Ultimate Member), each with in
 ```php
 // Subscription activated (new signup or reactivation)
 // → Queue: find-or-create OJS user + create/renew subscription + welcome email (if new user)
-add_action('woocommerce_subscription_status_active', 'sea_ojs_queue_activate');
+add_action('woocommerce_subscription_status_active', 'wpojs_queue_activate');
 
 // Subscription expired
 // → Queue: expire OJS subscription
-add_action('woocommerce_subscription_status_expired', 'sea_ojs_queue_expire');
+add_action('woocommerce_subscription_status_expired', 'wpojs_queue_expire');
 
 // Subscription cancelled
 // → Queue: expire OJS subscription
-add_action('woocommerce_subscription_status_cancelled', 'sea_ojs_queue_expire');
+add_action('woocommerce_subscription_status_cancelled', 'wpojs_queue_expire');
 
 // Subscription on hold (e.g. payment failed)
 // → Queue: expire OJS subscription (immediate, no grace period)
-add_action('woocommerce_subscription_status_on-hold', 'sea_ojs_queue_expire');
+add_action('woocommerce_subscription_status_on-hold', 'wpojs_queue_expire');
 ```
 
 **Important: all hooks queue a sync intent, they do not make inline HTTP calls.** The WP Cron queue processor handles the actual OJS API calls asynchronously. This prevents OJS downtime from blocking WP checkout.
@@ -91,11 +91,11 @@ add_action('woocommerce_subscription_status_on-hold', 'sea_ojs_queue_expire');
 ```php
 // Email change — propagate to OJS so the email-as-key model stays in sync
 // → Queue: update OJS user email (old email → new email)
-add_action('profile_update', 'sea_ojs_queue_email_change', 10, 3);
+add_action('profile_update', 'wpojs_queue_email_change', 10, 3);
 
 // User deletion — GDPR erasure propagation
 // → Queue: delete/anonymise OJS user account
-add_action('deleted_user', 'sea_ojs_queue_delete_user');
+add_action('deleted_user', 'wpojs_queue_delete_user');
 ```
 
 ## WC_Subscription object
@@ -234,7 +234,7 @@ Ultimate Member role change hooks (`um_after_member_role_upgrade`, `um_after_use
 1. **Double-firing**: WCS status changes trigger UM role changes, so both hooks fire for the same event — duplicate OJS API calls
 2. **False positives**: UM hooks fire for role changes unrelated to membership (admin actions, other plugins)
 3. **Complexity**: would need dedup logic (timestamp checks, action comparison) to avoid noise
-4. **Unnecessary**: daily reconciliation catches anything WCS hooks miss. For immediate manual grants, use `wp sea-ojs sync --user=<email>`.
+4. **Unnecessary**: daily reconciliation catches anything WCS hooks miss. For immediate manual grants, use `wp ojs-sync sync --user=<email>`.
 
 The UM hooks are documented here for reference in case the decision is revisited. The raw hook signatures:
 

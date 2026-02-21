@@ -8,12 +8,12 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
     require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 }
 
-class SEA_OJS_Log_Page {
+class WPOJS_Log_Page {
 
-    /** @var SEA_OJS_Logger */
+    /** @var WPOJS_Logger */
     private $logger;
 
-    public function __construct( SEA_OJS_Logger $logger ) {
+    public function __construct( WPOJS_Logger $logger ) {
         $this->logger = $logger;
     }
 
@@ -23,11 +23,11 @@ class SEA_OJS_Log_Page {
 
     public function add_submenu() {
         add_submenu_page(
-            'sea-ojs-sync',
+            'wpojs-sync',
             'Sync Log',
             'Sync Log',
             'manage_options',
-            'sea-ojs-sync-log',
+            'wpojs-sync-log',
             array( $this, 'render_page' )
         );
     }
@@ -37,7 +37,7 @@ class SEA_OJS_Log_Page {
             return;
         }
 
-        $table = new SEA_OJS_Log_List_Table( $this->logger );
+        $table = new WPOJS_Log_List_Table( $this->logger );
         $table->prepare_items();
 
         ?>
@@ -45,7 +45,7 @@ class SEA_OJS_Log_Page {
             <h1>OJS Sync Log</h1>
 
             <form method="get">
-                <input type="hidden" name="page" value="sea-ojs-sync-log" />
+                <input type="hidden" name="page" value="wpojs-sync-log" />
 
                 <div class="tablenav top" style="margin-bottom: 10px;">
                     <label>
@@ -84,12 +84,12 @@ class SEA_OJS_Log_Page {
     }
 }
 
-class SEA_OJS_Log_List_Table extends WP_List_Table {
+class WPOJS_Log_List_Table extends WP_List_Table {
 
-    /** @var SEA_OJS_Logger */
+    /** @var WPOJS_Logger */
     private $logger;
 
-    public function __construct( SEA_OJS_Logger $logger ) {
+    public function __construct( WPOJS_Logger $logger ) {
         parent::__construct( array(
             'singular' => 'log_entry',
             'plural'   => 'log_entries',

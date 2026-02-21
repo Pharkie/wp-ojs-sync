@@ -138,7 +138,7 @@ Consider switching if the OJS 3.5 upgrade takes more than 2 weeks or the custom 
 
 ### Context
 
-The `--with-sample-data` flag on `setup-wp.sh` imports ~1,400 anonymised test users for dev/staging environments. This is **not** the production sync path — production members already exist in WP and are pushed to OJS via `wp sea-ojs sync`.
+The `--with-sample-data` flag on `setup-wp.sh` imports ~1,400 anonymised test users for dev/staging environments. This is **not** the production sync path — production members already exist in WP and are pushed to OJS via `wp ojs-sync sync`.
 
 ### Problem
 

@@ -43,7 +43,7 @@ The exporter writes `source_submission_file_id` references to IDs that don't exi
 
 ### 5. No subscription REST API
 
-OJS has no REST endpoints for subscription CRUD. This is why we had to build a custom plugin (`sea-subscription-api`). See `docs/ojs-api.md`.
+OJS has no REST endpoints for subscription CRUD. This is why we had to build a custom plugin (`wpojs-subscription-api`). See `docs/ojs-api.md`.
 
 - **Not reported upstream** — known long-standing gap, not a bug.
 
@@ -73,14 +73,14 @@ The fix is adding the `[search]` section with the `index[application/pdf]` line 
 
 ### 8. PHPStan cannot fully analyse OJS plugins
 
-OJS uses a non-standard autoloader (`PKP\core\PKPContainer` + runtime classmap) that PHPStan can't resolve without booting the full application. Running PHPStan on the `sea-subscription-api` plugin produces ~70 false positives:
+OJS uses a non-standard autoloader (`PKP\core\PKPContainer` + runtime classmap) that PHPStan can't resolve without booting the full application. Running PHPStan on the `wpojs-subscription-api` plugin produces ~70 false positives:
 
 - **`Response::HTTP_*` constants** (~40): `Illuminate\Http\Response` extends Symfony's `Response` which defines these. PHPStan can't find them because the Symfony package lives inside `laravel/framework/src/Illuminate` rather than as a standalone vendor package.
 - **DAO magic methods** (~15): `IndividualSubscriptionDAO::updateObject()`, `getByUserIdForJournal()`, etc. exist via OJS's `__call` delegation but aren't visible to static analysis.
 - **Unscanned classes** (~10): `AccessKeyManager`, `APIRouter::registerPluginApiControllers()` — exist at runtime but live in directories PHPStan doesn't scan.
 - **Intentional `method_exists()` checks** (~5): The `/preflight` endpoint deliberately checks whether OJS methods exist for version compatibility. PHPStan correctly notes they always return true on 3.5 — that's the point.
 
-**One real bug found:** `authorize()` method on `SeaApiController` shadowed `PKPBaseController::authorize()` with a different signature. Renamed to `checkAuth()`.
+**One real bug found:** `authorize()` method on `WpojsApiController` shadowed `PKPBaseController::authorize()` with a different signature. Renamed to `checkAuth()`.
 
 - **Not reported upstream** — OJS architectural limitation, not a fixable bug.
 
@@ -96,7 +96,7 @@ parameters:
         - /tmp/phpstan-bootstrap.php
     level: 5
     paths:
-        - /var/www/html/plugins/generic/seaSubscriptionApi
+        - /var/www/html/plugins/generic/wpojsSubscriptionApi
     scanDirectories:
         - /var/www/html/lib/pkp/classes
         - /var/www/html/classes

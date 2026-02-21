@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-class SEA_OJS_Resolver {
+class WPOJS_Resolver {
 
     /**
      * Resolve what OJS subscription data a WP user should have.
@@ -61,8 +61,8 @@ class SEA_OJS_Resolver {
             return null;
         }
 
-        $type_mapping   = get_option( 'sea_ojs_type_mapping', array() );
-        $default_type   = (int) get_option( 'sea_ojs_default_type_id', 0 );
+        $type_mapping   = get_option( 'wpojs_type_mapping', array() );
+        $default_type   = (int) get_option( 'wpojs_default_type_id', 0 );
         $latest_end     = '';
         $type_id        = $default_type;
         $non_expiring   = false;
@@ -143,7 +143,7 @@ class SEA_OJS_Resolver {
             return null;
         }
 
-        $default_type = (int) get_option( 'sea_ojs_default_type_id', 0 );
+        $default_type = (int) get_option( 'wpojs_default_type_id', 0 );
 
         return array(
             'type_id'    => $default_type,
@@ -227,7 +227,7 @@ class SEA_OJS_Resolver {
      * @return array Array of WP role slugs.
      */
     private function get_manual_member_roles() {
-        return get_option( 'sea_ojs_manual_roles', array() );
+        return get_option( 'wpojs_manual_roles', array() );
     }
 
     /**
@@ -236,6 +236,6 @@ class SEA_OJS_Resolver {
      * @return array
      */
     public function get_all_member_roles() {
-        return get_option( 'sea_ojs_member_roles', array() );
+        return get_option( 'wpojs_member_roles', array() );
     }
 }

@@ -15,7 +15,7 @@ services:
       WORDPRESS_DB_NAME: wordpress
     volumes:
       - ./wordpress:/var/www/html
-      - ./plugins/sea-ojs-sync:/var/www/html/web/app/plugins/sea-ojs-sync
+      - ./plugins/wpojs-sync:/var/www/html/web/app/plugins/wpojs-sync
       - wp_uploads:/var/www/html/web/app/uploads
       - ./.env:/var/www/html/.env:ro
       - ./scripts:/var/www/html/scripts:ro
@@ -61,10 +61,10 @@ services:
       OJS_ADMIN_USER: ${OJS_ADMIN_USER:-admin}
       OJS_ADMIN_PASSWORD: ${OJS_ADMIN_PASSWORD:-admin123}
       OJS_ADMIN_EMAIL: ${OJS_ADMIN_EMAIL:-admin@example.com}
-      SEA_OJS_API_KEY_SECRET: ${SEA_OJS_API_KEY_SECRET:-dev-api-key-local}
-      SEA_ALLOWED_IPS: ${SEA_ALLOWED_IPS:-172.0.0.0/8}
-      SEA_WP_MEMBER_URL: ${SEA_WP_MEMBER_URL:-http://localhost:8080}
-      SEA_SUPPORT_EMAIL: ${SEA_SUPPORT_EMAIL:-support@existentialanalysis.org.uk}
+      WPOJS_API_KEY_SECRET: ${WPOJS_API_KEY_SECRET:-dev-api-key-local}
+      WPOJS_ALLOWED_IPS: ${WPOJS_ALLOWED_IPS:-172.0.0.0/8}
+      WPOJS_WP_MEMBER_URL: ${WPOJS_WP_MEMBER_URL:-http://localhost:8080}
+      WPOJS_SUPPORT_EMAIL: ${WPOJS_SUPPORT_EMAIL:-}
       OJS_SMTP_ENABLED: ${OJS_SMTP_ENABLED:-Off}
       OJS_SMTP_HOST: ${OJS_SMTP_HOST:-}
       OJS_SMTP_PORT: ${OJS_SMTP_PORT:-587}
@@ -75,7 +75,7 @@ services:
     volumes:
       - ojs_data:/var/www/html
       - ojs_files:/var/www/files
-      - ./plugins/sea-subscription-api:/var/www/html/plugins/generic/seaSubscriptionApi
+      - ./plugins/wpojs-subscription-api:/var/www/html/plugins/generic/wpojsSubscriptionApi
       - ./docker/ojs/entrypoint.sh:/etc/ojs/entrypoint.sh:ro
       - ./docker/ojs/config.inc.php.tmpl:/etc/ojs/config.inc.php.tmpl:ro
       - ./docker/ojs/apache.conf:/etc/apache2/conf-enabled/sea-cgipassauth.conf:ro

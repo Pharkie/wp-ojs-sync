@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class SEA_OJS_Activator {
+class WPOJS_Activator {
 
 	/**
 	 * Plugin activation: create DB tables, schedule cron events.
@@ -18,15 +18,15 @@ class SEA_OJS_Activator {
 	 * Plugin deactivation: unschedule cron events (do NOT drop tables).
 	 */
 	public static function deactivate() {
-		wp_clear_scheduled_hook( 'sea_ojs_daily_reconcile' );
-		wp_clear_scheduled_hook( 'sea_ojs_daily_digest' );
+		wp_clear_scheduled_hook( 'wpojs_daily_reconcile' );
+		wp_clear_scheduled_hook( 'wpojs_daily_digest' );
 	}
 
 	private static function create_tables() {
 		global $wpdb;
 		$charset_collate = $wpdb->get_charset_collate();
 
-		$log_table = $wpdb->prefix . 'sea_ojs_sync_log';
+		$log_table = $wpdb->prefix . 'wpojs_sync_log';
 
 		$sql_log = "CREATE TABLE {$log_table} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -47,16 +47,16 @@ class SEA_OJS_Activator {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		dbDelta( $sql_log );
 
-		update_option( 'sea_ojs_db_version', SEA_OJS_VERSION );
+		update_option( 'wpojs_db_version', WPOJS_VERSION );
 	}
 
 	private static function schedule_cron() {
-		if ( ! wp_next_scheduled( 'sea_ojs_daily_reconcile' ) ) {
-			wp_schedule_event( time(), 'daily', 'sea_ojs_daily_reconcile' );
+		if ( ! wp_next_scheduled( 'wpojs_daily_reconcile' ) ) {
+			wp_schedule_event( time(), 'daily', 'wpojs_daily_reconcile' );
 		}
 
-		if ( ! wp_next_scheduled( 'sea_ojs_daily_digest' ) ) {
-			wp_schedule_event( time(), 'daily', 'sea_ojs_daily_digest' );
+		if ( ! wp_next_scheduled( 'wpojs_daily_digest' ) ) {
+			wp_schedule_event( time(), 'daily', 'wpojs_daily_digest' );
 		}
 	}
 }

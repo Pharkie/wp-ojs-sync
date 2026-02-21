@@ -18,3 +18,9 @@ docker/snapshots/
 
 # Data exports
 /data export
+
+# Organisation-specific launch materials
+/launch/
+
+# Development screenshots
+/screenshots/

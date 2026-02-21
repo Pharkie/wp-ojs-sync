@@ -4,9 +4,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class SEA_OJS_Hooks {
+class WPOJS_Hooks {
 
-	/** @var SEA_OJS_Resolver */
+	/** @var WPOJS_Resolver */
 	private $resolver;
 
 	/**
@@ -18,7 +18,7 @@ class SEA_OJS_Hooks {
 	 */
 	public static $pending_deletions = array();
 
-	public function __construct( SEA_OJS_Resolver $resolver ) {
+	public function __construct( WPOJS_Resolver $resolver ) {
 		$this->resolver = $resolver;
 	}
 
@@ -61,8 +61,8 @@ class SEA_OJS_Hooks {
 		}
 
 		$args = array( 'wp_user_id' => $wp_user_id );
-		if ( ! as_has_scheduled_action( 'sea_ojs_sync_activate', $args, 'sea-ojs-sync' ) ) {
-			as_schedule_single_action( time(), 'sea_ojs_sync_activate', $args, 'sea-ojs-sync' );
+		if ( ! as_has_scheduled_action( 'wpojs_sync_activate', $args, 'wpojs-sync' ) ) {
+			as_schedule_single_action( time(), 'wpojs_sync_activate', $args, 'wpojs-sync' );
 		}
 	}
 
@@ -92,8 +92,8 @@ class SEA_OJS_Hooks {
 		}
 
 		$args = array( 'wp_user_id' => $wp_user_id );
-		if ( ! as_has_scheduled_action( 'sea_ojs_sync_expire', $args, 'sea-ojs-sync' ) ) {
-			as_schedule_single_action( time(), 'sea_ojs_sync_expire', $args, 'sea-ojs-sync' );
+		if ( ! as_has_scheduled_action( 'wpojs_sync_expire', $args, 'wpojs-sync' ) ) {
+			as_schedule_single_action( time(), 'wpojs_sync_expire', $args, 'wpojs-sync' );
 		}
 	}
 
@@ -124,8 +124,8 @@ class SEA_OJS_Hooks {
 			'old_email'  => $old_email,
 			'new_email'  => $new_email,
 		);
-		if ( ! as_has_scheduled_action( 'sea_ojs_sync_email_change', $args, 'sea-ojs-sync' ) ) {
-			as_schedule_single_action( time(), 'sea_ojs_sync_email_change', $args, 'sea-ojs-sync' );
+		if ( ! as_has_scheduled_action( 'wpojs_sync_email_change', $args, 'wpojs-sync' ) ) {
+			as_schedule_single_action( time(), 'wpojs_sync_email_change', $args, 'wpojs-sync' );
 		}
 	}
 
@@ -139,7 +139,7 @@ class SEA_OJS_Hooks {
 		if ( $user ) {
 			self::$pending_deletions[ $user_id ] = array(
 				'email'       => $user->user_email,
-				'ojs_user_id' => get_user_meta( $user_id, '_sea_ojs_user_id', true ),
+				'ojs_user_id' => get_user_meta( $user_id, '_wpojs_user_id', true ),
 			);
 		}
 	}
@@ -160,10 +160,10 @@ class SEA_OJS_Hooks {
 		$data = self::$pending_deletions[ $user_id ];
 		unset( self::$pending_deletions[ $user_id ] );
 
-		as_schedule_single_action( time(), 'sea_ojs_sync_delete_user', array(
+		as_schedule_single_action( time(), 'wpojs_sync_delete_user', array(
 			'wp_user_id'  => $user_id,
 			'email'       => $data['email'],
 			'ojs_user_id' => $data['ojs_user_id'] ? (int) $data['ojs_user_id'] : null,
-		), 'sea-ojs-sync' );
+		), 'wpojs-sync' );
 	}
 }

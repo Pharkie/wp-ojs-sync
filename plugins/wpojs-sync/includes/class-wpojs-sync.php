@@ -4,18 +4,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class SEA_OJS_Sync {
+class WPOJS_Sync {
 
-	/** @var SEA_OJS_API_Client */
+	/** @var WPOJS_API_Client */
 	private $api;
 
-	/** @var SEA_OJS_Logger */
+	/** @var WPOJS_Logger */
 	private $logger;
 
-	/** @var SEA_OJS_Resolver */
+	/** @var WPOJS_Resolver */
 	private $resolver;
 
-	public function __construct( SEA_OJS_API_Client $api, SEA_OJS_Logger $logger, SEA_OJS_Resolver $resolver ) {
+	public function __construct( WPOJS_API_Client $api, WPOJS_Logger $logger, WPOJS_Resolver $resolver ) {
 		$this->api      = $api;
 		$this->logger   = $logger;
 		$this->resolver = $resolver;
@@ -25,10 +25,10 @@ class SEA_OJS_Sync {
 	 * Register Action Scheduler callbacks for each sync action.
 	 */
 	public function register() {
-		add_action( 'sea_ojs_sync_activate', array( $this, 'handle_activate' ) );
-		add_action( 'sea_ojs_sync_expire', array( $this, 'handle_expire' ) );
-		add_action( 'sea_ojs_sync_email_change', array( $this, 'handle_email_change' ) );
-		add_action( 'sea_ojs_sync_delete_user', array( $this, 'handle_delete_user' ) );
+		add_action( 'wpojs_sync_activate', array( $this, 'handle_activate' ) );
+		add_action( 'wpojs_sync_expire', array( $this, 'handle_expire' ) );
+		add_action( 'wpojs_sync_email_change', array( $this, 'handle_email_change' ) );
+		add_action( 'wpojs_sync_delete_user', array( $this, 'handle_delete_user' ) );
 	}
 
 	/**
@@ -75,7 +75,7 @@ class SEA_OJS_Sync {
 		$ojs_user_id = $result['body']['userId'];
 
 		// Cache OJS userId in usermeta.
-		update_user_meta( $wp_user_id, '_sea_ojs_user_id', $ojs_user_id );
+		update_user_meta( $wp_user_id, '_wpojs_user_id', $ojs_user_id );
 
 		// Log user creation if new.
 		if ( ! empty( $result['body']['created'] ) ) {
@@ -260,7 +260,7 @@ class SEA_OJS_Sync {
 	 */
 	public function resolve_ojs_user_id( $wp_user_id, $email ) {
 		// Check usermeta cache first.
-		$cached = get_user_meta( $wp_user_id, '_sea_ojs_user_id', true );
+		$cached = get_user_meta( $wp_user_id, '_wpojs_user_id', true );
 		if ( $cached ) {
 			return (int) $cached;
 		}
@@ -274,7 +274,7 @@ class SEA_OJS_Sync {
 		if ( $result['success'] && ! empty( $result['body']['found'] ) ) {
 			$ojs_user_id = (int) $result['body']['userId'];
 			// Cache for future use.
-			update_user_meta( $wp_user_id, '_sea_ojs_user_id', $ojs_user_id );
+			update_user_meta( $wp_user_id, '_wpojs_user_id', $ojs_user_id );
 			return $ojs_user_id;
 		}
 
@@ -333,7 +333,7 @@ class SEA_OJS_Sync {
 		}
 
 		$ojs_user_id = $result['body']['userId'];
-		update_user_meta( $wp_user_id, '_sea_ojs_user_id', $ojs_user_id );
+		update_user_meta( $wp_user_id, '_wpojs_user_id', $ojs_user_id );
 
 		if ( ! empty( $result['body']['created'] ) ) {
 			$this->logger->log( $wp_user_id, $email, 'create_user', 'success', $result['code'], wp_json_encode( $result['body'] ) );

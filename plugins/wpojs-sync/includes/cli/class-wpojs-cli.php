@@ -4,21 +4,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class SEA_OJS_CLI {
+class WPOJS_CLI {
 
-	/** @var SEA_OJS_Sync */
+	/** @var WPOJS_Sync */
 	private $sync;
 
-	/** @var SEA_OJS_Resolver */
+	/** @var WPOJS_Resolver */
 	private $resolver;
 
-	/** @var SEA_OJS_API_Client */
+	/** @var WPOJS_API_Client */
 	private $api;
 
-	/** @var SEA_OJS_Logger */
+	/** @var WPOJS_Logger */
 	private $logger;
 
-	public function __construct( SEA_OJS_Sync $sync, SEA_OJS_Resolver $resolver, SEA_OJS_API_Client $api, SEA_OJS_Logger $logger ) {
+	public function __construct( WPOJS_Sync $sync, WPOJS_Resolver $resolver, WPOJS_API_Client $api, WPOJS_Logger $logger ) {
 		$this->sync     = $sync;
 		$this->resolver = $resolver;
 		$this->api      = $api;
@@ -28,13 +28,13 @@ class SEA_OJS_CLI {
 	/**
 	 * Register WP-CLI commands.
 	 */
-	public static function register( SEA_OJS_Sync $sync, SEA_OJS_Resolver $resolver, SEA_OJS_API_Client $api, SEA_OJS_Logger $logger ) {
+	public static function register( WPOJS_Sync $sync, WPOJS_Resolver $resolver, WPOJS_API_Client $api, WPOJS_Logger $logger ) {
 		$instance = new self( $sync, $resolver, $api, $logger );
-		WP_CLI::add_command( 'sea-ojs sync', array( $instance, 'sync' ) );
-		WP_CLI::add_command( 'sea-ojs send-welcome-emails', array( $instance, 'send_welcome_emails' ) );
-		WP_CLI::add_command( 'sea-ojs reconcile', array( $instance, 'reconcile' ) );
-		WP_CLI::add_command( 'sea-ojs status', array( $instance, 'status' ) );
-		WP_CLI::add_command( 'sea-ojs test-connection', array( $instance, 'test_connection' ) );
+		WP_CLI::add_command( 'ojs-sync sync', array( $instance, 'sync' ) );
+		WP_CLI::add_command( 'ojs-sync send-welcome-emails', array( $instance, 'send_welcome_emails' ) );
+		WP_CLI::add_command( 'ojs-sync reconcile', array( $instance, 'reconcile' ) );
+		WP_CLI::add_command( 'ojs-sync status', array( $instance, 'status' ) );
+		WP_CLI::add_command( 'ojs-sync test-connection', array( $instance, 'test_connection' ) );
 	}
 
 	/**
@@ -50,10 +50,10 @@ class SEA_OJS_CLI {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp sea-ojs sync --dry-run
-	 *     wp sea-ojs sync
-	 *     wp sea-ojs sync --user=42
-	 *     wp sea-ojs sync --user=member@example.com
+	 *     wp ojs-sync sync --dry-run
+	 *     wp ojs-sync sync
+	 *     wp ojs-sync sync --user=42
+	 *     wp ojs-sync sync --user=member@example.com
 	 *
 	 * @param array $args
 	 * @param array $assoc_args
@@ -152,14 +152,14 @@ class SEA_OJS_CLI {
 		if ( $failed > 0 ) {
 			WP_CLI::warning( sprintf( '%d members failed to sync. Check the sync log for details.', $failed ) );
 		} else {
-			WP_CLI::success( 'Bulk sync complete. Run "wp sea-ojs send-welcome-emails" to send invite emails.' );
+			WP_CLI::success( 'Bulk sync complete. Run "wp ojs-sync send-welcome-emails" to send invite emails.' );
 		}
 	}
 
 	/**
 	 * Send welcome ("set your password") emails to synced members.
 	 *
-	 * Sends to all users with a cached _sea_ojs_user_id (i.e. successfully synced).
+	 * Sends to all users with a cached _wpojs_user_id (i.e. successfully synced).
 	 * OJS dedup prevents duplicate emails -- safe to run multiple times.
 	 *
 	 * ## OPTIONS
@@ -169,8 +169,8 @@ class SEA_OJS_CLI {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp sea-ojs send-welcome-emails --dry-run
-	 *     wp sea-ojs send-welcome-emails
+	 *     wp ojs-sync send-welcome-emails --dry-run
+	 *     wp ojs-sync send-welcome-emails
 	 *
 	 * @param array $args
 	 * @param array $assoc_args
@@ -181,13 +181,13 @@ class SEA_OJS_CLI {
 		// Find all WP users who have been synced (have an OJS user ID cached).
 		global $wpdb;
 		$synced_users = $wpdb->get_results(
-			"SELECT user_id, meta_value AS ojs_user_id FROM {$wpdb->usermeta} WHERE meta_key = '_sea_ojs_user_id'"
+			"SELECT user_id, meta_value AS ojs_user_id FROM {$wpdb->usermeta} WHERE meta_key = '_wpojs_user_id'"
 		);
 
 		$total = count( $synced_users );
 
 		if ( $total === 0 ) {
-			WP_CLI::warning( 'No synced users found. Run "wp sea-ojs sync" first.' );
+			WP_CLI::warning( 'No synced users found. Run "wp ojs-sync sync" first.' );
 			return;
 		}
 
@@ -247,7 +247,7 @@ class SEA_OJS_CLI {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp sea-ojs reconcile
+	 *     wp ojs-sync reconcile
 	 *
 	 * @param array $args
 	 * @param array $assoc_args
@@ -290,8 +290,8 @@ class SEA_OJS_CLI {
 
 			if ( ! $has_active ) {
 				$as_args = array( 'wp_user_id' => $wp_user_id );
-				if ( ! as_has_scheduled_action( 'sea_ojs_sync_activate', $as_args, 'sea-ojs-sync' ) ) {
-					as_schedule_single_action( time(), 'sea_ojs_sync_activate', $as_args, 'sea-ojs-sync' );
+				if ( ! as_has_scheduled_action( 'wpojs_sync_activate', $as_args, 'wpojs-sync' ) ) {
+					as_schedule_single_action( time(), 'wpojs_sync_activate', $as_args, 'wpojs-sync' );
 				}
 				$queued++;
 				WP_CLI::log( sprintf( '  Queued activate for %s (no active OJS subscription)', $user->user_email ) );
@@ -311,7 +311,7 @@ class SEA_OJS_CLI {
 
 		global $wpdb;
 		$synced_users = $wpdb->get_col(
-			"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = '_sea_ojs_user_id'"
+			"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = '_wpojs_user_id'"
 		);
 		$active_set = array_flip( $members );
 		$expired    = 0;
@@ -320,8 +320,8 @@ class SEA_OJS_CLI {
 			$uid = (int) $uid;
 			if ( ! isset( $active_set[ $uid ] ) ) {
 				$as_args = array( 'wp_user_id' => $uid );
-				if ( ! as_has_scheduled_action( 'sea_ojs_sync_expire', $as_args, 'sea-ojs-sync' ) ) {
-					as_schedule_single_action( time(), 'sea_ojs_sync_expire', $as_args, 'sea-ojs-sync' );
+				if ( ! as_has_scheduled_action( 'wpojs_sync_expire', $as_args, 'wpojs-sync' ) ) {
+					as_schedule_single_action( time(), 'wpojs_sync_expire', $as_args, 'wpojs-sync' );
 				}
 				$expired++;
 				$user = get_userdata( $uid );
@@ -346,14 +346,14 @@ class SEA_OJS_CLI {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp sea-ojs status
+	 *     wp ojs-sync status
 	 *
 	 * @param array $args
 	 * @param array $assoc_args
 	 */
 	public function status( $args, $assoc_args ) {
 		// Action Scheduler stats.
-		WP_CLI::log( 'Action Scheduler Queue (sea-ojs-sync)' );
+		WP_CLI::log( 'Action Scheduler Queue (wpojs-sync)' );
 		WP_CLI::log( '======================================' );
 
 		if ( class_exists( 'ActionScheduler' ) ) {
@@ -369,7 +369,7 @@ class SEA_OJS_CLI {
 			foreach ( $statuses as $label => $status ) {
 				$rows[] = array(
 					'Status' => $label,
-					'Count'  => (int) $store->query_actions_count_by_status( $status, 'sea-ojs-sync' ),
+					'Count'  => (int) $store->query_actions_count_by_status( $status, 'wpojs-sync' ),
 				);
 			}
 			WP_CLI\Utils\format_items( 'table', $rows, array( 'Status', 'Count' ) );
@@ -382,10 +382,10 @@ class SEA_OJS_CLI {
 		WP_CLI::log( '' );
 		WP_CLI::log( sprintf( 'Active WP members: %d', count( $members ) ) );
 
-		// Synced members (those with _sea_ojs_user_id).
+		// Synced members (those with _wpojs_user_id).
 		global $wpdb;
 		$synced = (int) $wpdb->get_var(
-			"SELECT COUNT(DISTINCT user_id) FROM {$wpdb->usermeta} WHERE meta_key = '_sea_ojs_user_id'"
+			"SELECT COUNT(DISTINCT user_id) FROM {$wpdb->usermeta} WHERE meta_key = '_wpojs_user_id'"
 		);
 		WP_CLI::log( sprintf( 'Members synced to OJS: %d', $synced ) );
 
@@ -395,8 +395,8 @@ class SEA_OJS_CLI {
 		WP_CLI::log( sprintf( 'Failures in last 24h: %d', $failures ) );
 
 		// Cron status.
-		$next_recon  = wp_next_scheduled( 'sea_ojs_daily_reconcile' );
-		$next_digest = wp_next_scheduled( 'sea_ojs_daily_digest' );
+		$next_recon  = wp_next_scheduled( 'wpojs_daily_reconcile' );
+		$next_digest = wp_next_scheduled( 'wpojs_daily_digest' );
 
 		WP_CLI::log( '' );
 		WP_CLI::log( 'Cron Schedule' );
@@ -410,19 +410,19 @@ class SEA_OJS_CLI {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp sea-ojs test-connection
+	 *     wp ojs-sync test-connection
 	 *
 	 * @param array $args
 	 * @param array $assoc_args
 	 */
 	public function test_connection( $args, $assoc_args ) {
-		$ojs_url = get_option( 'sea_ojs_url', '' );
+		$ojs_url = get_option( 'wpojs_url', '' );
 		if ( ! $ojs_url ) {
 			WP_CLI::error( 'OJS URL not configured. Set it in Settings > OJS Sync.' );
 		}
 
 		WP_CLI::log( 'OJS URL: ' . $ojs_url );
-		WP_CLI::log( 'API Key: ' . ( defined( 'SEA_OJS_API_KEY' ) && SEA_OJS_API_KEY ? 'Configured' : 'NOT CONFIGURED' ) );
+		WP_CLI::log( 'API Key: ' . ( defined( 'WPOJS_API_KEY' ) && WPOJS_API_KEY ? 'Configured' : 'NOT CONFIGURED' ) );
 		WP_CLI::log( '' );
 
 		// Step 1: Ping (no auth).

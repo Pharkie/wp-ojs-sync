@@ -1,26 +1,26 @@
-# Code Review: `sea-ojs-sync` WordPress Plugin
+# Code Review: `wpojs-sync` WordPress Plugin
 
 Reviewed: 2026-02-21.
 
-Plugin path: `plugins/sea-ojs-sync/`
+Plugin path: `plugins/wpojs-sync/`
 
 Files reviewed (all files in the plugin):
 
-- `sea-ojs-sync.php` (bootstrap)
+- `wpojs-sync.php` (bootstrap)
 - `composer.json`
-- `includes/class-sea-ojs-activator.php`
-- `includes/class-sea-ojs-api-client.php`
-- `includes/class-sea-ojs-cron.php`
-- `includes/class-sea-ojs-dashboard.php`
-- `includes/class-sea-ojs-hooks.php`
-- `includes/class-sea-ojs-logger.php`
-- `includes/class-sea-ojs-queue.php`
-- `includes/class-sea-ojs-resolver.php`
-- `includes/class-sea-ojs-sync.php`
-- `includes/cli/class-sea-ojs-cli.php`
-- `includes/admin/class-sea-ojs-settings.php`
-- `includes/admin/class-sea-ojs-log-page.php`
-- `includes/admin/class-sea-ojs-queue-page.php`
+- `includes/class-wpojs-activator.php`
+- `includes/class-wpojs-api-client.php`
+- `includes/class-wpojs-cron.php`
+- `includes/class-wpojs-dashboard.php`
+- `includes/class-wpojs-hooks.php`
+- `includes/class-wpojs-logger.php`
+- `includes/class-wpojs-queue.php`
+- `includes/class-wpojs-resolver.php`
+- `includes/class-wpojs-sync.php`
+- `includes/cli/class-wpojs-cli.php`
+- `includes/admin/class-wpojs-settings.php`
+- `includes/admin/class-wpojs-log-page.php`
+- `includes/admin/class-wpojs-queue-page.php`
 
 Reviewed against: `docs/plan.md` (endpoint spec, queue state machine, hook mapping), `docs/wp-integration.md` (WCS hooks, resolver logic), `docs/ojs-api.md` (OJS internals), `CLAUDE.md` (constraints).
 
@@ -30,7 +30,7 @@ Reviewed against: `docs/plan.md` (endpoint spec, queue state machine, hook mappi
 
 ### C1. Queue dedup race condition allows duplicate processing
 
-**File:** `includes/class-sea-ojs-queue.php`, lines 29-39
+**File:** `includes/class-wpojs-queue.php`, lines 29-39
 
 The dedup check in `enqueue()` uses a SELECT-then-INSERT pattern with no locking. Under concurrent requests (e.g. two WCS hooks firing near-simultaneously for the same user), both can pass the SELECT check before either INSERT completes, resulting in duplicate queue items.
 
@@ -64,7 +64,7 @@ Then use `$wpdb->query()` with `INSERT IGNORE` or catch the `$wpdb->last_error` 
 
 ### C2. Queue processor has no locking -- concurrent cron runs can double-process items
 
-**File:** `includes/class-sea-ojs-queue.php`, lines 62-76 and 81-89
+**File:** `includes/class-wpojs-queue.php`, lines 62-76 and 81-89
 
 `get_due_items()` fetches items with `status = 'pending'`, and `mark_processing()` updates them individually. If two cron runs overlap (WP Cron is notoriously unreliable with timing), both can fetch the same items before either marks them as processing.
 
@@ -85,12 +85,12 @@ public function mark_processing( $id ) {
 
 ```php
 public function process_queue() {
-    if ( get_transient( 'sea_ojs_queue_lock' ) ) {
+    if ( get_transient( 'wpojs_queue_lock' ) ) {
         return;
     }
-    set_transient( 'sea_ojs_queue_lock', true, 60 );
+    set_transient( 'wpojs_queue_lock', true, 60 );
     // ... process items ...
-    delete_transient( 'sea_ojs_queue_lock' );
+    delete_transient( 'wpojs_queue_lock' );
 }
 ```
 
@@ -100,7 +100,7 @@ public function process_queue() {
 
 ### C3. `mark_failed()` and `mark_permanent_fail()` read `attempts` with a separate query -- race condition
 
-**File:** `includes/class-sea-ojs-queue.php`, lines 112-124, 130-143, 148-154
+**File:** `includes/class-wpojs-queue.php`, lines 112-124, 130-143, 148-154
 
 Both `mark_failed()` and `mark_permanent_fail()` call `$this->get_attempts($id)` (a separate SELECT) and then UPDATE with `attempts + 1`. This is a read-then-write race. If two processes handle the same item, the counter can be wrong.
 
@@ -125,7 +125,7 @@ This is atomic and doesn't require a separate read.
 
 ### C4. `on_subscription_inactive()` check for remaining active subscriptions may be unreliable during WCS status transition
 
-**File:** `includes/class-sea-ojs-hooks.php`, lines 73-88
+**File:** `includes/class-wpojs-hooks.php`, lines 73-88
 
 When a subscription is cancelled/expired/on-hold, the hook calls `$this->resolver->is_active_member()` to check if the user still has other active subscriptions. However, depending on when WCS fires the hook relative to updating the subscription status in the database, the subscription being cancelled might still appear as "active" in the `wcs_get_subscriptions()` query.
 
@@ -162,7 +162,7 @@ public function on_subscription_inactive( $subscription ) {
 
 ### I1. `Logger::get_entries()` produces broken SQL when no filter conditions are set
 
-**File:** `includes/class-sea-ojs-logger.php`, lines 108-120
+**File:** `includes/class-wpojs-logger.php`, lines 108-120
 
 When no filters are applied, `$values` contains only the `per_page` and `offset` values. The code checks `count($values) > 2` for the count query but doesn't handle the case where `$values` has exactly 2 entries correctly:
 
@@ -182,7 +182,7 @@ However, there is a subtle issue: `$count_sql` includes `WHERE 1=1` but no place
 
 ### I2. `Queue::get_items()` passes `null` to `$wpdb->prepare()` when values array is empty
 
-**File:** `includes/class-sea-ojs-queue.php`, lines 251-257
+**File:** `includes/class-wpojs-queue.php`, lines 251-257
 
 ```php
 if ( ! empty( $values ) ) {
@@ -209,29 +209,29 @@ $items = $wpdb->get_results( $wpdb->prepare( $sql, $values ) );
 
 ### I3. `on_user_deleted()` hook fires after user is deleted -- `get_user_meta()` may fail
 
-**File:** `includes/class-sea-ojs-hooks.php`, lines 126-147
+**File:** `includes/class-wpojs-hooks.php`, lines 126-147
 
-The `deleted_user` hook fires *after* the user row and all usermeta have been deleted from the database. At this point, `get_user_meta($user_id, '_sea_ojs_user_id', true)` and `get_user_meta($user_id, '_sea_ojs_delete_email', true)` will return empty strings because the meta rows no longer exist.
+The `deleted_user` hook fires *after* the user row and all usermeta have been deleted from the database. At this point, `get_user_meta($user_id, '_wpojs_user_id', true)` and `get_user_meta($user_id, '_wpojs_delete_email', true)` will return empty strings because the meta rows no longer exist.
 
-The pre-delete hook `sea_ojs_pre_delete_user()` (line 154) tries to save the email to `_sea_ojs_delete_email` meta, but by the time `on_user_deleted()` fires, that meta has been deleted too.
+The pre-delete hook `wpojs_pre_delete_user()` (line 154) tries to save the email to `_wpojs_delete_email` meta, but by the time `on_user_deleted()` fires, that meta has been deleted too.
 
 ```php
 public function on_user_deleted( $user_id, $reassign = null ) {
-    $ojs_user_id = get_user_meta( $user_id, '_sea_ojs_user_id', true ); // Always empty!
-    $email = get_user_meta( $user_id, '_sea_ojs_delete_email', true );   // Always empty!
+    $ojs_user_id = get_user_meta( $user_id, '_wpojs_user_id', true ); // Always empty!
+    $email = get_user_meta( $user_id, '_wpojs_delete_email', true );   // Always empty!
     // ...
 }
 ```
 
-**Fix:** Use the `delete_user` hook (fires before deletion) instead of `deleted_user`, and capture both the email and OJS user ID before the user is deleted. Or, store the captured data in a class property / static variable from `sea_ojs_pre_delete_user()` and read it in the `deleted_user` handler:
+**Fix:** Use the `delete_user` hook (fires before deletion) instead of `deleted_user`, and capture both the email and OJS user ID before the user is deleted. Or, store the captured data in a class property / static variable from `wpojs_pre_delete_user()` and read it in the `deleted_user` handler:
 
 ```php
-function sea_ojs_pre_delete_user( $user_id ) {
+function wpojs_pre_delete_user( $user_id ) {
     $user = get_userdata( $user_id );
     if ( $user ) {
-        SEA_OJS_Hooks::$pending_deletions[ $user_id ] = array(
+        WPOJS_Hooks::$pending_deletions[ $user_id ] = array(
             'email'       => $user->user_email,
-            'ojs_user_id' => get_user_meta( $user_id, '_sea_ojs_user_id', true ),
+            'ojs_user_id' => get_user_meta( $user_id, '_wpojs_user_id', true ),
         );
     }
 }
@@ -243,13 +243,13 @@ function sea_ojs_pre_delete_user( $user_id ) {
 
 ### I4. `handle_delete_user()` calls `delete_user_meta()` on an already-deleted user
 
-**File:** `includes/class-sea-ojs-sync.php`, lines 173-189
+**File:** `includes/class-wpojs-sync.php`, lines 173-189
 
-After successfully deleting/anonymising the OJS user, the code calls `delete_user_meta( $item->wp_user_id, '_sea_ojs_user_id' )`. But the WP user was already deleted (this is the GDPR flow). `delete_user_meta()` on a non-existent user is a no-op, so it doesn't cause an error, but it's dead code.
+After successfully deleting/anonymising the OJS user, the code calls `delete_user_meta( $item->wp_user_id, '_wpojs_user_id' )`. But the WP user was already deleted (this is the GDPR flow). `delete_user_meta()` on a non-existent user is a no-op, so it doesn't cause an error, but it's dead code.
 
 ```php
 if ( $result['success'] ) {
-    delete_user_meta( $item->wp_user_id, '_sea_ojs_user_id' ); // user already deleted
+    delete_user_meta( $item->wp_user_id, '_wpojs_user_id' ); // user already deleted
 }
 ```
 
@@ -259,7 +259,7 @@ if ( $result['success'] ) {
 
 ### I5. `resolve_from_wcs()` always sets `date_start` to today, not the subscription's actual start date
 
-**File:** `includes/class-sea-ojs-resolver.php`, line 100
+**File:** `includes/class-wpojs-resolver.php`, line 100
 
 ```php
 return array(
@@ -290,7 +290,7 @@ For the initial sync this isn't critical (the subscription is being created fres
 
 ### I6. Reconciliation is one-directional -- doesn't detect users who should be expired on OJS
 
-**File:** `includes/class-sea-ojs-cron.php`, lines 65-119
+**File:** `includes/class-wpojs-cron.php`, lines 65-119
 
 The daily reconciliation only checks that active WP members have active OJS subscriptions. It does not check the reverse: users with active OJS subscriptions who are no longer active WP members.
 
@@ -305,10 +305,10 @@ The comment acknowledges this explicitly. However, the plan.md spec says "daily 
 
 If an expire hook fails silently (e.g. queue item never created due to a PHP error, or the hook is temporarily deregistered), the user retains OJS access indefinitely until someone notices manually.
 
-**Fix:** Add a reverse check: query `_sea_ojs_user_id` usermeta to find all synced users, then check which ones are no longer active members and queue expire actions for them. This doesn't require querying OJS -- it only needs local WP data:
+**Fix:** Add a reverse check: query `_wpojs_user_id` usermeta to find all synced users, then check which ones are no longer active members and queue expire actions for them. This doesn't require querying OJS -- it only needs local WP data:
 
 ```php
-$synced_users = $wpdb->get_col("SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = '_sea_ojs_user_id'");
+$synced_users = $wpdb->get_col("SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = '_wpojs_user_id'");
 $active_set = array_flip($active_members);
 foreach ($synced_users as $uid) {
     if (!isset($active_set[$uid])) {
@@ -323,9 +323,9 @@ foreach ($synced_users as $uid) {
 
 ### I7. Reconciliation makes one API call per active member -- will hammer OJS for ~700 members
 
-**File:** `includes/class-sea-ojs-cron.php`, lines 70-104
+**File:** `includes/class-wpojs-cron.php`, lines 70-104
 
-The daily reconciliation loops through all ~700 active members and calls `GET /sea/subscriptions?email=...` for each one. With no delay between calls, this fires 700 HTTP requests at OJS in rapid succession.
+The daily reconciliation loops through all ~700 active members and calls `GET /wpojs/subscriptions?email=...` for each one. With no delay between calls, this fires 700 HTTP requests at OJS in rapid succession.
 
 ```php
 foreach ( $active_members as $wp_user_id ) {
@@ -352,7 +352,7 @@ foreach ( $active_members as $index => $wp_user_id ) {
 
 ### I8. `on_subscription_active()` resolves subscription data at hook time but it's also resolved again at processing time
 
-**File:** `includes/class-sea-ojs-hooks.php`, lines 43-61 and `includes/class-sea-ojs-sync.php`, lines 69-111
+**File:** `includes/class-wpojs-hooks.php`, lines 43-61 and `includes/class-wpojs-sync.php`, lines 69-111
 
 The hook captures `$sub_data` (type_id, date_start, date_end) and stores it in the queue payload. But when the queue processor runs `handle_activate()`, it calls `$this->resolver->resolve_subscription_data()` again (line 96) and ignores the payload data entirely.
 
@@ -382,18 +382,18 @@ The second point is actually correct behavior for most cases (you want the lates
 
 ---
 
-### I9. Settings page creates a new `SEA_OJS_Queue` instance instead of using the injected one
+### I9. Settings page creates a new `WPOJS_Queue` instance instead of using the injected one
 
-**File:** `includes/admin/class-sea-ojs-settings.php`, lines 264-265
+**File:** `includes/admin/class-wpojs-settings.php`, lines 264-265
 
 ```php
-$queue = new SEA_OJS_Queue();
+$queue = new WPOJS_Queue();
 $stats = $queue->get_stats();
 ```
 
 The settings page already has access to the API client via DI (`$this->api`), but creates a standalone Queue instance. This bypasses any future dependency injection improvements and creates unnecessary coupling.
 
-**Fix:** Pass the `$queue` instance to `SEA_OJS_Settings` via the constructor, or accept this as minor coupling for a display-only feature.
+**Fix:** Pass the `$queue` instance to `WPOJS_Settings` via the constructor, or accept this as minor coupling for a display-only feature.
 
 **Impact:** Minor code quality issue. No functional bug.
 
@@ -401,7 +401,7 @@ The settings page already has access to the API client via DI (`$this->api`), bu
 
 ### I10. `activate` handler sends `sendWelcomeEmail: true` for ALL queue-triggered activations, including renewals
 
-**File:** `includes/class-sea-ojs-sync.php`, line 80
+**File:** `includes/class-wpojs-sync.php`, line 80
 
 ```php
 $result = $this->api->find_or_create_user( $email, $first_name, $last_name, true );
@@ -424,7 +424,7 @@ $result = $this->sync->sync_user( $wp_user_id, $dry_run, false );
 
 ### I11. `type_id` resolution takes the LAST matched product's type, not necessarily the correct one
 
-**File:** `includes/class-sea-ojs-resolver.php`, lines 80-88
+**File:** `includes/class-wpojs-resolver.php`, lines 80-88
 
 ```php
 foreach ( $subscriptions as $sub ) {
@@ -454,7 +454,7 @@ Since the plan says "All tiers grant the same OJS access," all products likely m
 
 ### M1. Plugin installed at wrong path
 
-The plugin source is at `plugins/sea-ojs-sync/` (project root), but the plan and CLAUDE.md say it should be installed at `wordpress/web/app/plugins/sea-ojs-sync/`. The latter directory exists but is empty.
+The plugin source is at `plugins/wpojs-sync/` (project root), but the plan and CLAUDE.md say it should be installed at `wordpress/web/app/plugins/wpojs-sync/`. The latter directory exists but is empty.
 
 **Impact:** Deployment question. May be intentional (plugin developed separately, deployed via symlink or copy). Verify the deployment process includes copying the plugin to the correct WP plugins directory.
 
@@ -462,7 +462,7 @@ The plugin source is at `plugins/sea-ojs-sync/` (project root), but the plan and
 
 ### M2. `$response_body` in `Logger::log()` is not sanitized for SQL storage
 
-**File:** `includes/class-sea-ojs-logger.php`, lines 35-48
+**File:** `includes/class-wpojs-logger.php`, lines 35-48
 
 The `ojs_response_body` column receives data via `$wpdb->insert()` with `%s` format specifier, which is properly escaped by `$wpdb->prepare()` internally. So there's no SQL injection risk. However, the response body comes from OJS and is stored as-is (after truncation). It could contain HTML or scripts that would be rendered in the admin log page.
 
@@ -478,7 +478,7 @@ return '<span title="' . esc_attr( $item->ojs_response_body ) . '">' . substr( $
 
 ### M3. `sanitize_email()` in `Logger::log()` strips legitimate debug info
 
-**File:** `includes/class-sea-ojs-logger.php`, line 39
+**File:** `includes/class-wpojs-logger.php`, line 39
 
 ```php
 'email' => sanitize_email( $email ),
@@ -494,15 +494,15 @@ For the reconciliation log entry (line 115 of cron.php), the email is `'system'`
 
 ### M4. No `dbDelta` version check for table schema upgrades
 
-**File:** `includes/class-sea-ojs-activator.php`, lines 26-69
+**File:** `includes/class-wpojs-activator.php`, lines 26-69
 
 The `create_tables()` method runs `dbDelta()` on every activation but only stores a version number. There's no check like "if current version < new version, run migrations." For the initial release this is fine, but if table schema changes are needed in a future version, there's no migration framework.
 
 **Fix:** Add a version comparison before running `dbDelta()`:
 
 ```php
-$installed_version = get_option('sea_ojs_db_version', '0');
-if (version_compare($installed_version, SEA_OJS_VERSION, '<')) {
+$installed_version = get_option('wpojs_db_version', '0');
+if (version_compare($installed_version, WPOJS_VERSION, '<')) {
     self::create_tables();
 }
 ```
@@ -513,7 +513,7 @@ if (version_compare($installed_version, SEA_OJS_VERSION, '<')) {
 
 ### M5. `$_SERVER['SERVER_ADDR']` may not contain the outgoing IP
 
-**File:** `includes/admin/class-sea-ojs-settings.php`, line 242
+**File:** `includes/admin/class-wpojs-settings.php`, line 242
 
 ```php
 $ip = isset( $_SERVER['SERVER_ADDR'] ) ? sanitize_text_field( $_SERVER['SERVER_ADDR'] ) : 'Unknown';
@@ -529,7 +529,7 @@ $ip = isset( $_SERVER['SERVER_ADDR'] ) ? sanitize_text_field( $_SERVER['SERVER_A
 
 ### M6. Cron schedule registration in activator runs during activation hook, but `add_filter` for `cron_schedules` may not be registered yet
 
-**File:** `includes/class-sea-ojs-activator.php`, lines 72-87
+**File:** `includes/class-wpojs-activator.php`, lines 72-87
 
 The `schedule_cron()` method calls `add_filter('cron_schedules', ...)` inside itself, but this filter needs to be registered *before* `wp_schedule_event()` is called with the custom interval name `'every_minute'`. The code does register the filter first, so the order within the method is correct. Additionally, the filter is also registered at the bottom of the file (line 102) for runtime use. This is fine.
 
@@ -541,7 +541,7 @@ However, during activation, the filter registration via `add_filter()` in `sched
 
 ### M7. CLI `sync_bulk()` delays every single request, not just batch boundaries
 
-**File:** `includes/cli/class-sea-ojs-cli.php`, lines 142-148
+**File:** `includes/cli/class-wpojs-cli.php`, lines 142-148
 
 ```php
 if ( ! $dry_run && ( $index + 1 ) % $batch_size === 0 ) {
@@ -573,7 +573,7 @@ Or keep per-user delay but use a shorter interval (50-100ms).
 
 ### M8. Log page response body column has potential XSS via `substr()` before `esc_html()`
 
-**File:** `includes/admin/class-sea-ojs-log-page.php`, lines 167-169
+**File:** `includes/admin/class-wpojs-log-page.php`, lines 167-169
 
 ```php
 $body = esc_html( $item->ojs_response_body );
@@ -604,7 +604,7 @@ return '<span title="' . esc_attr($raw) . '">' . esc_html($truncated) . '</span>
 
 ```json
 {
-  "name": "sea/sea-ojs-sync",
+  "name": "sea/wpojs-sync",
   "type": "wordpress-plugin",
   "description": "SEA OJS Sync — pushes WP membership changes to OJS",
   "version": "1.0.0"
@@ -617,23 +617,23 @@ No autoloading (`autoload`), no dependencies, no `require` section. The plugin u
 
 ---
 
-### M10. `sea_ojs_pre_delete_user()` function is in class-sea-ojs-hooks.php but outside the class
+### M10. `wpojs_pre_delete_user()` function is in class-wpojs-hooks.php but outside the class
 
-**File:** `includes/class-sea-ojs-hooks.php`, lines 150-160
+**File:** `includes/class-wpojs-hooks.php`, lines 150-160
 
 ```php
-function sea_ojs_pre_delete_user( $user_id ) {
+function wpojs_pre_delete_user( $user_id ) {
     $user = get_userdata( $user_id );
     if ( $user ) {
-        update_user_meta( $user_id, '_sea_ojs_delete_email', $user->user_email );
+        update_user_meta( $user_id, '_wpojs_delete_email', $user->user_email );
     }
 }
-add_action( 'delete_user', 'sea_ojs_pre_delete_user' );
+add_action( 'delete_user', 'wpojs_pre_delete_user' );
 ```
 
-This function and hook registration live outside the `SEA_OJS_Hooks` class, at the file's top level. It registers immediately when the file is loaded, regardless of whether `register()` is called. This works but is inconsistent with the rest of the architecture where hooks are registered explicitly via `register()` methods.
+This function and hook registration live outside the `WPOJS_Hooks` class, at the file's top level. It registers immediately when the file is loaded, regardless of whether `register()` is called. This works but is inconsistent with the rest of the architecture where hooks are registered explicitly via `register()` methods.
 
-**Fix:** Move this into the `SEA_OJS_Hooks` class and register it in the `register()` method. Or at minimum, add it as a static method.
+**Fix:** Move this into the `WPOJS_Hooks` class and register it in the `register()` method. Or at minimum, add it as a static method.
 
 **Impact:** Code style inconsistency. The hook fires unconditionally when the file is loaded, but since the file is always loaded (via `require_once` in the bootstrap), this is functionally equivalent.
 
@@ -641,7 +641,7 @@ This function and hook registration live outside the `SEA_OJS_Hooks` class, at t
 
 ### M11. No uninstall hook to clean up database tables and options
 
-The plugin has activation and deactivation hooks but no `uninstall.php` or `register_uninstall_hook()`. If the plugin is deleted from WP admin, the custom tables (`sea_ojs_sync_queue`, `sea_ojs_sync_log`) and options (`sea_ojs_url`, `sea_ojs_type_mapping`, etc.) remain in the database.
+The plugin has activation and deactivation hooks but no `uninstall.php` or `register_uninstall_hook()`. If the plugin is deleted from WP admin, the custom tables (`wpojs_sync_queue`, `wpojs_sync_log`) and options (`wpojs_url`, `wpojs_type_mapping`, etc.) remain in the database.
 
 **Fix:** Create an `uninstall.php` file or register an uninstall hook that drops the tables and deletes the options.
 
@@ -651,12 +651,12 @@ The plugin has activation and deactivation hooks but no `uninstall.php` or `regi
 
 ### M12. Missing text domain loading for i18n
 
-The plugin uses `__()` and `esc_html_e()` with the `'sea-ojs-sync'` text domain (e.g., in `class-sea-ojs-dashboard.php`) but never calls `load_plugin_textdomain()`. Translation files would not be loaded.
+The plugin uses `__()` and `esc_html_e()` with the `'wpojs-sync'` text domain (e.g., in `class-wpojs-dashboard.php`) but never calls `load_plugin_textdomain()`. Translation files would not be loaded.
 
-**Fix:** Add to `sea_ojs_init()`:
+**Fix:** Add to `wpojs_init()`:
 
 ```php
-load_plugin_textdomain( 'sea-ojs-sync', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+load_plugin_textdomain( 'wpojs-sync', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 ```
 
 **Impact:** Translations won't work. Since the site is English-only, this has no current impact.
@@ -667,15 +667,15 @@ load_plugin_textdomain( 'sea-ojs-sync', false, dirname( plugin_basename( __FILE_
 
 ### N1. Verify OJS subscription status constant
 
-**Files:** `includes/class-sea-ojs-cron.php` line 92, `includes/cli/class-sea-ojs-cli.php` line 288
+**Files:** `includes/class-wpojs-cron.php` line 92, `includes/cli/class-wpojs-cli.php` line 288
 
-Both the cron reconciliation and CLI reconcile use `(int) $sub['status'] === 1` to check for active subscriptions. According to `docs/ojs-api.md`, `1 = SUBSCRIPTION_STATUS_ACTIVE` is correct. Verify this matches the actual OJS response format from the `GET /sea/subscriptions` endpoint.
+Both the cron reconciliation and CLI reconcile use `(int) $sub['status'] === 1` to check for active subscriptions. According to `docs/ojs-api.md`, `1 = SUBSCRIPTION_STATUS_ACTIVE` is correct. Verify this matches the actual OJS response format from the `GET /wpojs/subscriptions` endpoint.
 
 ---
 
 ### N2. `$_SERVER['SERVER_ADDR']` availability varies by hosting environment
 
-**File:** `includes/admin/class-sea-ojs-settings.php`, line 242
+**File:** `includes/admin/class-wpojs-settings.php`, line 242
 
 On some hosting environments (especially CLI or certain SAPI configurations), `$_SERVER['SERVER_ADDR']` may not be set. The code handles this with an `isset` check, so it will show "Unknown" in those cases. Consider using `gethostbyname(gethostname())` as a fallback.
 
@@ -686,7 +686,7 @@ On some hosting environments (especially CLI or certain SAPI configurations), `$
 WP Cron is not a real cron -- it fires on page loads. If the site has low traffic, the queue processor may not fire every minute. For production, consider recommending a system cron to trigger WP Cron:
 
 ```
-* * * * * wget -q -O /dev/null https://community.existentialanalysis.org.uk/wp-cron.php?doing_wp_cron
+* * * * * wget -q -O /dev/null https://your-wp-site.example.org/wp-cron.php?doing_wp_cron
 ```
 
 This is mentioned in the general WordPress guidance but should be part of the deployment checklist.
@@ -695,7 +695,7 @@ This is mentioned in the general WordPress guidance but should be part of the de
 
 ### N4. No rate limiting on admin alert emails
 
-**File:** `includes/class-sea-ojs-sync.php`, lines 284-287
+**File:** `includes/class-wpojs-sync.php`, lines 284-287
 
 If many queue items fail simultaneously (e.g., OJS goes down and items are 400-erroring), each permanent failure sends a separate admin email. For 700 items failing at once, that's 700 emails.
 
@@ -703,7 +703,7 @@ Consider batching admin alerts or using a transient to rate-limit:
 
 ```php
 private function send_admin_alert( $subject, $message ) {
-    $throttle_key = 'sea_ojs_alert_' . md5($subject);
+    $throttle_key = 'wpojs_alert_' . md5($subject);
     if ( get_transient( $throttle_key ) ) {
         return; // Already sent recently.
     }
@@ -716,7 +716,7 @@ private function send_admin_alert( $subject, $message ) {
 
 ### N5. Bulk sync creates all OJS users with `$user->first_name ?: $user->display_name` fallback
 
-**File:** `includes/class-sea-ojs-sync.php`, lines 76-77
+**File:** `includes/class-wpojs-sync.php`, lines 76-77
 
 ```php
 $first_name = $user->first_name ?: $user->display_name;
@@ -729,7 +729,7 @@ If a WP user has no first name set, their display name is used as the OJS first 
 
 ### N6. `create_subscription()` always sends `dateEnd: null` explicitly when null
 
-**File:** `includes/class-sea-ojs-api-client.php`, lines 71-82
+**File:** `includes/class-wpojs-api-client.php`, lines 71-82
 
 ```php
 if ( $date_end !== null ) {
@@ -751,7 +751,7 @@ The explicit `null` is fine (it signals non-expiring to OJS), but the branching 
 
 ### N7. Verify `wp_json_encode()` handles null correctly for `dateEnd`
 
-**File:** `includes/class-sea-ojs-api-client.php`, line 189
+**File:** `includes/class-wpojs-api-client.php`, line 189
 
 `wp_json_encode( $body )` where `$body['dateEnd']` is PHP `null` will produce `"dateEnd": null` in JSON, which is the correct representation. The OJS endpoint expects `null` for non-expiring subscriptions. Verified correct.
 
@@ -759,7 +759,7 @@ The explicit `null` is fine (it signals non-expiring to OJS), but the branching 
 
 ### N8. Queue completed items accumulate indefinitely
 
-The `sea_ojs_sync_queue` table has no cleanup mechanism for completed items. Over time, with 700+ members syncing and the queue running every minute, the table will grow. The log table has `cleanup_old()` (line 142 of `class-sea-ojs-logger.php`) but it's never called from anywhere in the code.
+The `wpojs_sync_queue` table has no cleanup mechanism for completed items. Over time, with 700+ members syncing and the queue running every minute, the table will grow. The log table has `cleanup_old()` (line 142 of `class-wpojs-logger.php`) but it's never called from anywhere in the code.
 
 Consider adding a cleanup step to the daily cron or a CLI command to purge old completed items and old log entries.
 
@@ -767,9 +767,9 @@ Consider adding a cleanup step to the daily cron or a CLI command to purge old c
 
 ### N9. API client constructs base_url from option on instantiation
 
-**File:** `includes/class-sea-ojs-api-client.php`, lines 13-17
+**File:** `includes/class-wpojs-api-client.php`, lines 13-17
 
-The `SEA_OJS_API_Client` reads `sea_ojs_url` once in the constructor. If the setting is changed during a request (e.g., via the settings page), existing instances won't pick up the change. The settings page's AJAX handler works around this by creating a fresh client (line 319), which is correct.
+The `WPOJS_API_Client` reads `wpojs_url` once in the constructor. If the setting is changed during a request (e.g., via the settings page), existing instances won't pick up the change. The settings page's AJAX handler works around this by creating a fresh client (line 319), which is correct.
 
 For the queue processor running in cron, the URL is read at plugin init time and stays constant for the entire request, which is the expected behavior.
 
@@ -777,7 +777,7 @@ For the queue processor running in cron, the URL is read at plugin init time and
 
 ### N10. `add_query_arg()` in API client's `get()` method may double-encode query parameters
 
-**File:** `includes/class-sea-ojs-api-client.php`, lines 168-171
+**File:** `includes/class-wpojs-api-client.php`, lines 168-171
 
 ```php
 if ( ! empty( $query_args ) ) {

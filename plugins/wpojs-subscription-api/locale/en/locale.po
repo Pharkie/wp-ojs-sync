@@ -1,0 +1,27 @@
+# WP-OJS Subscription API Plugin
+# Copyright (C) 2026 Adam Knowles
+msgid ""
+msgstr ""
+"Project-Id-Version: wpojsSubscriptionApi 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "plugins.generic.wpojsSubscriptionApi.displayName"
+msgstr "WP–OJS Subscription API"
+
+msgid "plugins.generic.wpojsSubscriptionApi.description"
+msgstr "Exposes REST endpoints for WP↔OJS membership sync. Also adds login, paywall, and footer messages for members."
+
+msgid "plugins.generic.wpojsSubscriptionApi.loginHint"
+msgstr "Member? First time here? <a href=\"{$lostPasswordUrl}\">Set your password</a> to access journal content."
+
+msgid "plugins.generic.wpojsSubscriptionApi.paywallHint"
+msgstr "If you should have access to this content, please contact <a href=\"mailto:{$supportEmail}\">{$supportEmail}</a>."
+
+msgid "plugins.generic.wpojsSubscriptionApi.footerMessage"
+msgstr "Your journal access is provided by your membership. <a href=\"{$wpUrl}\">Manage your membership</a>."

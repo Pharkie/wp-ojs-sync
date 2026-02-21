@@ -1,6 +1,6 @@
 <?php
 
-namespace APP\plugins\generic\seaSubscriptionApi;
+namespace APP\plugins\generic\wpojsSubscriptionApi;
 
 use APP\core\Application;
 use APP\facades\Repo;
@@ -20,7 +20,7 @@ use PKP\security\AccessKeyManager;
 use PKP\security\Role;
 use PKP\security\Validation;
 
-class SeaApiController extends PKPBaseController
+class WpojsApiController extends PKPBaseController
 {
     // Subscription status constants (from classes/subscription/Subscription.php)
     private const STATUS_ACTIVE = 1;
@@ -28,7 +28,7 @@ class SeaApiController extends PKPBaseController
 
     public function getHandlerPath(): string
     {
-        return 'sea';
+        return 'wpojs';
     }
 
     public function getRouteGroupMiddleware(): array
@@ -43,19 +43,19 @@ class SeaApiController extends PKPBaseController
     {
         // Ping bypasses auth — reachability check only
         Route::get('ping', $this->ping(...))
-            ->name('sea.ping')
+            ->name('wpojs.ping')
             ->withoutMiddleware(['has.user', 'has.context']);
 
-        Route::get('preflight', $this->preflight(...))->name('sea.preflight');
-        Route::get('users', $this->findUser(...))->name('sea.users.find');
-        Route::post('users/find-or-create', $this->findOrCreateUser(...))->name('sea.users.findOrCreate');
-        Route::put('users/{userId}/email', $this->updateUserEmail(...))->name('sea.users.updateEmail');
-        Route::delete('users/{userId}', $this->deleteUser(...))->name('sea.users.delete');
-        Route::post('subscriptions', $this->createSubscription(...))->name('sea.subscriptions.create');
-        Route::put('subscriptions/expire-by-user/{userId}', $this->expireSubscriptionByUser(...))->name('sea.subscriptions.expireByUser');
-        Route::put('subscriptions/{subscriptionId}/expire', $this->expireSubscription(...))->name('sea.subscriptions.expire');
-        Route::get('subscriptions', $this->getSubscriptions(...))->name('sea.subscriptions.list');
-        Route::post('welcome-email', $this->sendWelcomeEmail(...))->name('sea.welcomeEmail');
+        Route::get('preflight', $this->preflight(...))->name('wpojs.preflight');
+        Route::get('users', $this->findUser(...))->name('wpojs.users.find');
+        Route::post('users/find-or-create', $this->findOrCreateUser(...))->name('wpojs.users.findOrCreate');
+        Route::put('users/{userId}/email', $this->updateUserEmail(...))->name('wpojs.users.updateEmail');
+        Route::delete('users/{userId}', $this->deleteUser(...))->name('wpojs.users.delete');
+        Route::post('subscriptions', $this->createSubscription(...))->name('wpojs.subscriptions.create');
+        Route::put('subscriptions/expire-by-user/{userId}', $this->expireSubscriptionByUser(...))->name('wpojs.subscriptions.expireByUser');
+        Route::put('subscriptions/{subscriptionId}/expire', $this->expireSubscription(...))->name('wpojs.subscriptions.expire');
+        Route::get('subscriptions', $this->getSubscriptions(...))->name('wpojs.subscriptions.list');
+        Route::post('welcome-email', $this->sendWelcomeEmail(...))->name('wpojs.welcomeEmail');
     }
 
     // ---------------------------------------------------------------
@@ -69,11 +69,11 @@ class SeaApiController extends PKPBaseController
      */
     private function checkIp(Request $request): ?JsonResponse
     {
-        $allowedIps = Config::getVar('sea', 'allowed_ips', '');
+        $allowedIps = Config::getVar('wpojs', 'allowed_ips', '');
 
         if (empty($allowedIps)) {
             return response()->json(
-                ['error' => 'No allowed IPs configured in config.inc.php [sea] section'],
+                ['error' => 'No allowed IPs configured in config.inc.php [wpojs] section'],
                 Response::HTTP_FORBIDDEN
             );
         }
@@ -152,7 +152,7 @@ class SeaApiController extends PKPBaseController
     }
 
     // ---------------------------------------------------------------
-    // GET /sea/ping
+    // GET /wpojs/ping
     // No auth, no IP check — pure reachability probe.
     // ---------------------------------------------------------------
 
@@ -162,7 +162,7 @@ class SeaApiController extends PKPBaseController
     }
 
     // ---------------------------------------------------------------
-    // GET /sea/preflight
+    // GET /wpojs/preflight
     // ---------------------------------------------------------------
 
     public function preflight(Request $request): JsonResponse
@@ -289,7 +289,7 @@ class SeaApiController extends PKPBaseController
     }
 
     // ---------------------------------------------------------------
-    // GET /sea/users?email=...
+    // GET /wpojs/users?email=...
     // Read-only user lookup (no side effects).
     // ---------------------------------------------------------------
 
@@ -324,7 +324,7 @@ class SeaApiController extends PKPBaseController
     }
 
     // ---------------------------------------------------------------
-    // POST /sea/users/find-or-create
+    // POST /wpojs/users/find-or-create
     // ---------------------------------------------------------------
 
     public function findOrCreateUser(Request $request): JsonResponse
@@ -416,7 +416,7 @@ class SeaApiController extends PKPBaseController
     }
 
     // ---------------------------------------------------------------
-    // PUT /sea/users/{userId}/email
+    // PUT /wpojs/users/{userId}/email
     // ---------------------------------------------------------------
 
     public function updateUserEmail(Request $request): JsonResponse
@@ -456,7 +456,7 @@ class SeaApiController extends PKPBaseController
     }
 
     // ---------------------------------------------------------------
-    // DELETE /sea/users/{userId}
+    // DELETE /wpojs/users/{userId}
     // GDPR erasure: anonymise all PII, disable account, expire subscription.
     // ---------------------------------------------------------------
 
@@ -517,7 +517,7 @@ class SeaApiController extends PKPBaseController
     }
 
     // ---------------------------------------------------------------
-    // POST /sea/subscriptions
+    // POST /wpojs/subscriptions
     // Idempotent upsert. Creates or updates subscription.
     // ---------------------------------------------------------------
 
@@ -622,7 +622,7 @@ class SeaApiController extends PKPBaseController
     }
 
     // ---------------------------------------------------------------
-    // PUT /sea/subscriptions/{subscriptionId}/expire
+    // PUT /wpojs/subscriptions/{subscriptionId}/expire
     // ---------------------------------------------------------------
 
     public function expireSubscription(Request $request): JsonResponse
@@ -654,7 +654,7 @@ class SeaApiController extends PKPBaseController
     }
 
     // ---------------------------------------------------------------
-    // PUT /sea/subscriptions/expire-by-user/{userId}
+    // PUT /wpojs/subscriptions/expire-by-user/{userId}
     // Convenience: expire by userId (saves WP plugin an extra lookup).
     // ---------------------------------------------------------------
 
@@ -689,7 +689,7 @@ class SeaApiController extends PKPBaseController
     }
 
     // ---------------------------------------------------------------
-    // GET /sea/subscriptions?email=...&userId=...
+    // GET /wpojs/subscriptions?email=...&userId=...
     // ---------------------------------------------------------------
 
     public function getSubscriptions(Request $request): JsonResponse
@@ -751,7 +751,7 @@ class SeaApiController extends PKPBaseController
     }
 
     // ---------------------------------------------------------------
-    // POST /sea/welcome-email
+    // POST /wpojs/welcome-email
     // ---------------------------------------------------------------
 
     public function sendWelcomeEmail(Request $request): JsonResponse
@@ -775,7 +775,7 @@ class SeaApiController extends PKPBaseController
         // Dedup: skip if already sent
         $alreadySent = DB::table('user_settings')
             ->where('user_id', $userId)
-            ->where('setting_name', 'sea_welcome_email_sent')
+            ->where('setting_name', 'wpojs_welcome_email_sent')
             ->exists();
 
         if ($alreadySent) {
@@ -814,7 +814,7 @@ class SeaApiController extends PKPBaseController
         $inserted = DB::table('user_settings')->insertOrIgnore([
             'user_id' => $userId,
             'locale' => '',
-            'setting_name' => 'sea_welcome_email_sent',
+            'setting_name' => 'wpojs_welcome_email_sent',
             'setting_value' => '1',
         ]);
 
@@ -887,7 +887,7 @@ class SeaApiController extends PKPBaseController
             // Email failed — remove dedup flag so it can be retried
             DB::table('user_settings')
                 ->where('user_id', $userId)
-                ->where('setting_name', 'sea_welcome_email_sent')
+                ->where('setting_name', 'wpojs_welcome_email_sent')
                 ->delete();
 
             return false;

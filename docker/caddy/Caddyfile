@@ -1,7 +1,7 @@
-staging-wp.existentialanalysis.org.uk {
+staging-wp.example.org {
 	reverse_proxy wp:80
 }
 
-staging-ojs.existentialanalysis.org.uk {
+staging-ojs.example.org {
 	reverse_proxy ojs:80
 }

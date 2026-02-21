@@ -4,17 +4,17 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-class SEA_OJS_Dashboard {
+class WPOJS_Dashboard {
 
-    /** @var SEA_OJS_Resolver */
+    /** @var WPOJS_Resolver */
     private $resolver;
 
     /** @var string */
     private $ojs_url;
 
-    public function __construct( SEA_OJS_Resolver $resolver ) {
+    public function __construct( WPOJS_Resolver $resolver ) {
         $this->resolver = $resolver;
-        $this->ojs_url  = untrailingslashit( get_option( 'sea_ojs_url', '' ) );
+        $this->ojs_url  = untrailingslashit( get_option( 'wpojs_url', '' ) );
     }
 
     /**
@@ -40,22 +40,22 @@ class SEA_OJS_Dashboard {
         // Build status text.
         if ( $is_member && $sub_data ) {
             if ( $sub_data['date_end'] === null ) {
-                $status_text = __( 'Active', 'sea-ojs-sync' );
-                $status_class = 'sea-status--active';
+                $status_text = __( 'Active', 'wpojs-sync' );
+                $status_class = 'wpojs-status--active';
             } else {
                 $expires = date_i18n( get_option( 'date_format' ), strtotime( $sub_data['date_end'] ) );
-                $status_text = sprintf( __( 'Active until %s', 'sea-ojs-sync' ), $expires );
-                $status_class = 'sea-status--active';
+                $status_text = sprintf( __( 'Active until %s', 'wpojs-sync' ), $expires );
+                $status_class = 'wpojs-status--active';
             }
         } else {
-            $status_text = __( 'No active access', 'sea-ojs-sync' );
-            $status_class = 'sea-status--inactive';
+            $status_text = __( 'No active access', 'wpojs-sync' );
+            $status_class = 'wpojs-status--inactive';
         }
 
         $journal_url = $this->ojs_url ?: '#';
         ?>
-        <div class="sea-journal-access" style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;padding:20px;margin-bottom:24px;">
-            <h3 style="margin:0 0 8px;font-size:16px;"><?php esc_html_e( 'Existential Analysis Journal', 'sea-ojs-sync' ); ?></h3>
+        <div class="wpojs-journal-access" style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;padding:20px;margin-bottom:24px;">
+            <h3 style="margin:0 0 8px;font-size:16px;"><?php echo esc_html( get_option( 'wpojs_journal_name', 'Journal' ) ); ?></h3>
             <p style="margin:0 0 12px;font-size:14px;color:#555;">
                 <span class="<?php echo esc_attr( $status_class ); ?>" style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:600;<?php
                     echo $is_member
@@ -68,11 +68,11 @@ class SEA_OJS_Dashboard {
             <?php if ( $is_member && $this->ojs_url ) : ?>
                 <a href="<?php echo esc_url( $journal_url ); ?>" target="_blank" rel="noopener"
                    style="display:inline-block;background:#0073aa;color:#fff;padding:8px 20px;border-radius:4px;text-decoration:none;font-size:14px;font-weight:500;">
-                    <?php esc_html_e( 'Access Existential Analysis', 'sea-ojs-sync' ); ?> &rarr;
+                    <?php echo esc_html( sprintf( 'Access %s', get_option( 'wpojs_journal_name', 'Journal' ) ) ); ?> &rarr;
                 </a>
             <?php elseif ( ! $is_member ) : ?>
                 <p style="margin:0;font-size:13px;color:#666;">
-                    <?php esc_html_e( 'Journal access is included with your SEA membership. If you believe this is an error, please contact support.', 'sea-ojs-sync' ); ?>
+                    <?php esc_html_e( 'Journal access is included with your membership. If you believe this is an error, please contact support.', 'wpojs-sync' ); ?>
                 </p>
             <?php endif; ?>
         </div>

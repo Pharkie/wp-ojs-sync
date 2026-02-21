@@ -4,13 +4,13 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-class SEA_OJS_Logger {
+class WPOJS_Logger {
 
     private $table;
 
     public function __construct() {
         global $wpdb;
-        $this->table = $wpdb->prefix . 'sea_ojs_sync_log';
+        $this->table = $wpdb->prefix . 'wpojs_sync_log';
     }
 
     /**

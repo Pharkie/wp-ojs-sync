@@ -4,21 +4,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class SEA_OJS_Cron {
+class WPOJS_Cron {
 
-	/** @var SEA_OJS_Sync */
+	/** @var WPOJS_Sync */
 	private $sync;
 
-	/** @var SEA_OJS_Resolver */
+	/** @var WPOJS_Resolver */
 	private $resolver;
 
-	/** @var SEA_OJS_API_Client */
+	/** @var WPOJS_API_Client */
 	private $api;
 
-	/** @var SEA_OJS_Logger */
+	/** @var WPOJS_Logger */
 	private $logger;
 
-	public function __construct( SEA_OJS_Sync $sync, SEA_OJS_Resolver $resolver, SEA_OJS_API_Client $api, SEA_OJS_Logger $logger ) {
+	public function __construct( WPOJS_Sync $sync, WPOJS_Resolver $resolver, WPOJS_API_Client $api, WPOJS_Logger $logger ) {
 		$this->sync     = $sync;
 		$this->resolver = $resolver;
 		$this->api      = $api;
@@ -32,8 +32,8 @@ class SEA_OJS_Cron {
 	 * We only need cron for reconciliation and the daily digest.
 	 */
 	public function register() {
-		add_action( 'sea_ojs_daily_reconcile', array( $this, 'daily_reconcile' ) );
-		add_action( 'sea_ojs_daily_digest', array( $this, 'daily_digest' ) );
+		add_action( 'wpojs_daily_reconcile', array( $this, 'daily_reconcile' ) );
+		add_action( 'wpojs_daily_digest', array( $this, 'daily_digest' ) );
 	}
 
 	/**
@@ -83,8 +83,8 @@ class SEA_OJS_Cron {
 
 			if ( ! $has_active ) {
 				$args = array( 'wp_user_id' => $wp_user_id );
-				if ( ! as_has_scheduled_action( 'sea_ojs_sync_activate', $args, 'sea-ojs-sync' ) ) {
-					as_schedule_single_action( time(), 'sea_ojs_sync_activate', $args, 'sea-ojs-sync' );
+				if ( ! as_has_scheduled_action( 'wpojs_sync_activate', $args, 'wpojs-sync' ) ) {
+					as_schedule_single_action( time(), 'wpojs_sync_activate', $args, 'wpojs-sync' );
 					$this->logger->log( $wp_user_id, $email, 'reconcile_activate', 'queued', 0, 'Active member missing OJS subscription' );
 					$queued++;
 				}
@@ -96,7 +96,7 @@ class SEA_OJS_Cron {
 		// Stale access check: find synced users who are no longer active WP members.
 		global $wpdb;
 		$synced_users = $wpdb->get_col(
-			"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = '_sea_ojs_user_id'"
+			"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = '_wpojs_user_id'"
 		);
 		$active_set = array_flip( $active_members );
 		foreach ( $synced_users as $uid ) {
@@ -104,8 +104,8 @@ class SEA_OJS_Cron {
 			if ( ! isset( $active_set[ $uid ] ) ) {
 				// This user was synced but is no longer active -- schedule expire.
 				$args = array( 'wp_user_id' => $uid );
-				if ( ! as_has_scheduled_action( 'sea_ojs_sync_expire', $args, 'sea-ojs-sync' ) ) {
-					as_schedule_single_action( time(), 'sea_ojs_sync_expire', $args, 'sea-ojs-sync' );
+				if ( ! as_has_scheduled_action( 'wpojs_sync_expire', $args, 'wpojs-sync' ) ) {
+					as_schedule_single_action( time(), 'wpojs_sync_expire', $args, 'wpojs-sync' );
 					$this->logger->log( $uid, '', 'reconcile_expire', 'queued', 0, 'Stale access: synced user no longer active member' );
 					$expired++;
 				}
@@ -144,8 +144,8 @@ class SEA_OJS_Cron {
 		$failed_count  = 0;
 		if ( class_exists( 'ActionScheduler' ) ) {
 			$store         = ActionScheduler::store();
-			$pending_count = (int) $store->query_actions_count_by_status( ActionScheduler_Store::STATUS_PENDING, 'sea-ojs-sync' );
-			$failed_count  = (int) $store->query_actions_count_by_status( ActionScheduler_Store::STATUS_FAILED, 'sea-ojs-sync' );
+			$pending_count = (int) $store->query_actions_count_by_status( ActionScheduler_Store::STATUS_PENDING, 'wpojs-sync' );
+			$failed_count  = (int) $store->query_actions_count_by_status( ActionScheduler_Store::STATUS_FAILED, 'wpojs-sync' );
 		}
 
 		$to      = get_option( 'admin_email' );
@@ -162,8 +162,8 @@ class SEA_OJS_Cron {
 			$count,
 			$pending_count,
 			$failed_count,
-			admin_url( 'admin.php?page=sea-ojs-sync-log&status=fail' ),
-			admin_url( 'admin.php?page=action-scheduler&status=pending&group=sea-ojs-sync' )
+			admin_url( 'admin.php?page=wpojs-sync-log&status=fail' ),
+			admin_url( 'admin.php?page=action-scheduler&status=pending&group=wpojs-sync' )
 		);
 
 		wp_mail( $to, $subject, $message );

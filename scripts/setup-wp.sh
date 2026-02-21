@@ -21,7 +21,7 @@ done
 if ! wp core is-installed --allow-root 2>/dev/null; then
   wp core install \
     --url="${WP_HOME}" \
-    --title="SEA Community" \
+    --title="${WP_SITE_TITLE:-My Community}" \
     --admin_user=admin \
     --admin_password="${WP_ADMIN_PASSWORD:-admin123}" \
     --admin_email=admin@example.com \
@@ -37,16 +37,16 @@ wp plugin activate \
   ultimate-member \
   um-notifications \
   um-woocommerce \
-  sea-ojs-sync \
+  wpojs-sync \
   --allow-root 2>/dev/null || true
 
 # Critical WooCommerce settings
 wp option update woocommerce_currency GBP --allow-root
 wp option update woocommerce_default_country GB --allow-root
 
-# SEA OJS sync settings — set defaults if not already configured
-wp option get sea_ojs_base_url --allow-root 2>/dev/null || \
-  wp option update sea_ojs_base_url "${SEA_OJS_BASE_URL}" --allow-root
+# WP-OJS sync settings — set defaults if not already configured
+wp option get wpojs_base_url --allow-root 2>/dev/null || \
+  wp option update wpojs_base_url "${WPOJS_BASE_URL}" --allow-root
 
 # Permalink structure (required for REST API)
 wp rewrite structure '/%postname%/' --allow-root
