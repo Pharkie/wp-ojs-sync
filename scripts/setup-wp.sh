@@ -45,8 +45,8 @@ wp option update woocommerce_currency GBP --allow-root
 wp option update woocommerce_default_country GB --allow-root
 
 # WP-OJS sync settings — set defaults if not already configured
-wp option get wpojs_base_url --allow-root 2>/dev/null || \
-  wp option update wpojs_base_url "${WPOJS_BASE_URL}" --allow-root
+wp option get wpojs_url --allow-root 2>/dev/null || \
+  wp option update wpojs_url "${WPOJS_BASE_URL}" --allow-root
 
 # Permalink structure (required for REST API)
 wp rewrite structure '/%postname%/' --allow-root
@@ -79,6 +79,9 @@ if [ "$SAMPLE_DATA" = true ]; then
     # so we imported as 'subscriber' and now update wp_usermeta directly via PHP.
     echo "Applying original roles (UM/WCS)..."
     wp eval-file /var/www/html/scripts/apply-roles.php "$CSV" --allow-root
+
+    echo "Seeding WooCommerce subscriptions..."
+    wp eval-file /var/www/html/scripts/seed-subscriptions.php "$CSV" --allow-root
 
     TOTAL=$(wp user list --format=count --allow-root 2>/dev/null)
     echo "Total WP users: $TOTAL"
