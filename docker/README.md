@@ -128,6 +128,10 @@ Step 3 inserts the minimum rows needed for `wcs_get_subscriptions()` to find act
 
 All three steps are idempotent — running `setup-wp.sh --with-sample-data` again skips already-imported data.
 
+### Bulk sync on Apple Silicon
+
+The OJS image is amd64-only and runs under Rosetta emulation, which is ~3–5x slower than native. The first `wp ojs-sync sync` may produce 500 errors from OJS because user creation is too slow under emulation. This is expected — re-run the sync and it will succeed because `find-or-create` is idempotent (the first run creates the users despite the timeout responses, the second run finds them and creates subscriptions). This does not happen on native amd64 servers.
+
 ## Resetting OJS
 
 If OJS gets into a broken state (failed install, version change, corrupt DB), run:
