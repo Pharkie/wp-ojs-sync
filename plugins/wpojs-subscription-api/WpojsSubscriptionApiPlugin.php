@@ -9,7 +9,11 @@
  * Also adds UI messages: login hint, paywall hint, and site footer.
  *
  * Deploy to: plugins/generic/wpojsSubscriptionApi/ in OJS installation.
- * Requires OJS 3.5+ for plugin API extensibility (pkp-lib #9434).
+ * Requires OJS 3.5+.
+ *
+ * API endpoints are registered via api/v1/wpojs/index.php (mounted into
+ * the OJS installation). This plugin handles UI messages only; the API
+ * controller is loaded directly by OJS's APIRouter.
  *
  * Configuration in config.inc.php:
  *   [wpojs]
@@ -22,7 +26,6 @@ namespace APP\plugins\generic\wpojsSubscriptionApi;
 
 use APP\core\Application;
 use PKP\config\Config;
-use PKP\core\APIRouter;
 use PKP\db\DAORegistry;
 use PKP\plugins\GenericPlugin;
 use PKP\plugins\Hook;
@@ -38,17 +41,6 @@ class WpojsSubscriptionApiPlugin extends GenericPlugin
         if (!$success || !$this->getEnabled()) {
             return $success;
         }
-
-        // API endpoints
-        Hook::add('APIHandler::endpoints::plugin', function (
-            string $hookName,
-            APIRouter $apiRouter
-        ): bool {
-            $apiRouter->registerPluginApiControllers([
-                new WpojsApiController(),
-            ]);
-            return Hook::CONTINUE;
-        });
 
         // UI messages
         Hook::add('TemplateManager::display', $this->addLoginMessage(...));

@@ -14,9 +14,9 @@ use Illuminate\Support\Facades\Route;
 use PKP\config\Config;
 use PKP\core\Core;
 use PKP\core\PKPBaseController;
+use PKP\core\PKPRequest;
 use PKP\db\DAORegistry;
 use PKP\mail\mailables\PasswordResetRequested;
-use PKP\security\AccessKeyManager;
 use PKP\security\Role;
 use PKP\security\Validation;
 
@@ -33,18 +33,29 @@ class WpojsApiController extends PKPBaseController
 
     public function getRouteGroupMiddleware(): array
     {
-        return [
-            'has.user',
-            'has.context',
-        ];
+        // No OJS middleware needed — this is a machine-to-machine API.
+        // Auth is handled per-endpoint via checkIp() (IP allowlist) and
+        // checkApiKey() (shared-secret Bearer token comparison).
+        return [];
+    }
+
+    public function authorize(PKPRequest $request, array &$args, array $roleAssignments): bool
+    {
+        // OJS's default policy for API controllers is DENY unless a
+        // role-based policy explicitly grants access. This controller
+        // is a machine-to-machine API (WP→OJS) with no OJS user session,
+        // so role-based auth doesn't apply. Instead, every endpoint
+        // enforces its own auth via checkIp() (IP allowlist) and
+        // checkAuth() (API key verification). Permit here so the
+        // PolicyAuthorizer middleware doesn't block us before our
+        // endpoint-level auth runs.
+        return true;
     }
 
     public function getGroupRoutes(): void
     {
         // Ping bypasses auth — reachability check only
-        Route::get('ping', $this->ping(...))
-            ->name('wpojs.ping')
-            ->withoutMiddleware(['has.user', 'has.context']);
+        Route::get('ping', $this->ping(...))->name('wpojs.ping');
 
         Route::get('preflight', $this->preflight(...))->name('wpojs.preflight');
         Route::get('users', $this->findUser(...))->name('wpojs.users.find');
@@ -81,7 +92,26 @@ class WpojsApiController extends PKPBaseController
         $allowed = array_map('trim', explode(',', $allowedIps));
         $clientIp = $request->server('REMOTE_ADDR');
 
-        if (!in_array($clientIp, $allowed, true)) {
+        $matched = false;
+        foreach ($allowed as $entry) {
+            if (str_contains($entry, '/')) {
+                // CIDR notation (e.g. 172.16.0.0/12)
+                [$subnet, $bits] = explode('/', $entry, 2);
+                $subnetLong = ip2long($subnet);
+                $clientLong = ip2long($clientIp);
+                $mask = -1 << (32 - (int)$bits);
+                if ($subnetLong !== false && $clientLong !== false
+                    && ($clientLong & $mask) === ($subnetLong & $mask)) {
+                    $matched = true;
+                    break;
+                }
+            } elseif ($entry === $clientIp) {
+                $matched = true;
+                break;
+            }
+        }
+
+        if (!$matched) {
             return response()->json(
                 ['error' => 'IP not allowed'],
                 Response::HTTP_FORBIDDEN
@@ -92,35 +122,33 @@ class WpojsApiController extends PKPBaseController
     }
 
     /**
-     * Verify authenticated user has Journal Manager or Site Admin role.
+     * Verify Bearer token matches the shared API key secret.
+     * This is a machine-to-machine API — no OJS user session needed.
      */
-    private function checkRole(): ?JsonResponse
+    private function checkApiKey(Request $request): ?JsonResponse
     {
-        $user = Application::get()->getRequest()->getUser();
-        if (!$user) {
+        $secret = Config::getVar('wpojs', 'api_key_secret', '');
+        if (empty($secret)) {
+            $secret = Config::getVar('security', 'api_key_secret', '');
+        }
+
+        if (empty($secret)) {
             return response()->json(
-                ['error' => 'Authentication required'],
-                Response::HTTP_UNAUTHORIZED
+                ['error' => 'API key secret not configured'],
+                Response::HTTP_INTERNAL_SERVER_ERROR
             );
         }
 
-        $contextId = $this->getJournalId();
-        $authorized = DB::table('user_user_groups')
-            ->join('user_groups', 'user_user_groups.user_group_id', '=', 'user_groups.user_group_id')
-            ->where('user_user_groups.user_id', $user->getId())
-            ->where(function ($query) use ($contextId) {
-                $query->where('user_groups.role_id', Role::ROLE_ID_SITE_ADMIN)
-                      ->orWhere(function ($q) use ($contextId) {
-                          $q->where('user_groups.role_id', Role::ROLE_ID_MANAGER)
-                            ->where('user_groups.context_id', $contextId);
-                      });
-            })
-            ->exists();
+        $authHeader = $request->header('Authorization', '');
+        $token = '';
+        if (str_starts_with($authHeader, 'Bearer ')) {
+            $token = substr($authHeader, 7);
+        }
 
-        if (!$authorized) {
+        if (empty($token) || !hash_equals($secret, $token)) {
             return response()->json(
-                ['error' => 'Insufficient permissions — requires Journal Manager or Site Admin role'],
-                Response::HTTP_FORBIDDEN
+                ['error' => 'Invalid or missing API key'],
+                Response::HTTP_UNAUTHORIZED
             );
         }
 
@@ -128,12 +156,12 @@ class WpojsApiController extends PKPBaseController
     }
 
     /**
-     * Combined authorization: IP allowlist + role check.
+     * Combined authorization: IP allowlist + API key.
      * Call at the start of every protected endpoint.
      */
     private function checkAuth(Request $request): ?JsonResponse
     {
-        return $this->checkIp($request) ?? $this->checkRole();
+        return $this->checkIp($request) ?? $this->checkApiKey($request);
     }
 
     private function getJournalId(): int
@@ -239,15 +267,9 @@ class WpojsApiController extends PKPBaseController
             }
         }
 
-        // AccessKeyManager (needed for welcome email password reset links)
-        $ok = class_exists(AccessKeyManager::class);
-        $checks[] = ['name' => 'AccessKeyManager class', 'ok' => $ok];
-        if (!$ok) {
-            $compatible = false;
-        }
-
-        $ok = class_exists(AccessKeyManager::class) && method_exists(AccessKeyManager::class, 'createKey');
-        $checks[] = ['name' => 'AccessKeyManager::createKey()', 'ok' => $ok];
+        // Validation::generatePasswordResetHash (for welcome email reset links)
+        $ok = method_exists(Validation::class, 'generatePasswordResetHash');
+        $checks[] = ['name' => 'Validation::generatePasswordResetHash()', 'ok' => $ok];
         if (!$ok) {
             $compatible = false;
         }
@@ -503,9 +525,6 @@ class WpojsApiController extends PKPBaseController
             $sub->setStatus(self::STATUS_OTHER);
             $dao->updateObject($sub);
         }
-
-        // Remove access keys (password reset tokens)
-        DB::table('access_keys')->where('user_id', $userId)->delete();
 
         // Remove all user_settings (may contain PII like preferredPublicName)
         DB::table('user_settings')->where('user_id', $userId)->delete();
@@ -828,19 +847,8 @@ class WpojsApiController extends PKPBaseController
             $context = $ojsRequest->getContext();
             $site = $ojsRequest->getSite();
 
-            // Generate password reset access key so the email link works
-            $expiryDays = Config::getVar('security', 'password_reset_timeout');
-            if (!$expiryDays) {
-                $expiryDays = 7; // Default: 7 days for bulk welcome emails
-            }
-
-            $accessKeyManager = new AccessKeyManager();
-            $accessKey = $accessKeyManager->createKey(
-                'LoginHandler',
-                $user->getId(),
-                null,
-                $expiryDays
-            );
+            // Generate password reset hash (OJS 3.5 uses Validation, not AccessKeyManager)
+            $resetHash = Validation::generatePasswordResetHash($user->getId());
 
             // Record that a password reset was requested (mirrors OJS login handler)
             Repo::user()->edit($user, [
@@ -856,7 +864,7 @@ class WpojsApiController extends PKPBaseController
                 'login',
                 'resetPassword',
                 [$user->getUsername()],
-                ['confirm' => $accessKey]
+                ['confirm' => $resetHash]
             );
 
             // Build the mailable

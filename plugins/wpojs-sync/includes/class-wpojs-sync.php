@@ -61,6 +61,9 @@ class WPOJS_Sync {
 		// Step 1: Find or create OJS user.
 		$result = $this->api->find_or_create_user( $email, $first_name, $last_name, true );
 		if ( ! $result['success'] ) {
+			$result = $this->find_after_fail( $result, $email );
+		}
+		if ( ! $result['success'] ) {
 			$this->logger->log( $wp_user_id, $email, 'activate', 'fail', $result['code'], $result['error'] );
 			if ( $this->api->is_permanent_fail( $result['code'] ) ) {
 				$this->send_admin_alert(
@@ -282,6 +285,38 @@ class WPOJS_Sync {
 	}
 
 	/**
+	 * After a retryable find_or_create_user failure, check whether the user
+	 * was actually created (common under Rosetta emulation where OJS commits
+	 * the DB write but the HTTP response times out or 500s).
+	 *
+	 * Returns a synthetic success result if the user is found, or the
+	 * original failure result unchanged.
+	 */
+	private function find_after_fail( $original_result, $email ) {
+		if ( ! $this->api->is_retryable( $original_result['code'] ) ) {
+			return $original_result;
+		}
+
+		// Brief pause — give OJS a moment to finish if it's still writing.
+		usleep( 500000 ); // 500ms.
+
+		$find = $this->api->find_user( $email );
+		if ( $find['success'] && ! empty( $find['body']['found'] ) ) {
+			return array(
+				'success' => true,
+				'code'    => $find['code'],
+				'body'    => array(
+					'userId'  => $find['body']['userId'],
+					'created' => true,
+				),
+				'error'   => '',
+			);
+		}
+
+		return $original_result;
+	}
+
+	/**
 	 * Send an admin alert email.
 	 */
 	private function send_admin_alert( $subject, $message ) {
@@ -327,6 +362,9 @@ class WPOJS_Sync {
 
 		// Step 1: Find or create OJS user.
 		$result = $this->api->find_or_create_user( $email, $first_name, $last_name, $send_welcome_email );
+		if ( ! $result['success'] ) {
+			$result = $this->find_after_fail( $result, $email );
+		}
 		if ( ! $result['success'] ) {
 			$this->logger->log( $wp_user_id, $email, 'activate', 'fail', $result['code'], $result['error'] );
 			return array( 'success' => false, 'message' => 'Find-or-create failed: ' . $result['error'] );

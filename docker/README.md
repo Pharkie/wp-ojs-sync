@@ -130,7 +130,17 @@ All three steps are idempotent — running `setup-wp.sh --with-sample-data` agai
 
 ### Bulk sync on Apple Silicon
 
-The OJS image is amd64-only and runs under Rosetta emulation, which is ~3–5x slower than native. The first `wp ojs-sync sync` may produce 500 errors from OJS because user creation is too slow under emulation. This is expected — re-run the sync and it will succeed because `find-or-create` is idempotent (the first run creates the users despite the timeout responses, the second run finds them and creates subscriptions). This does not happen on native amd64 servers.
+The OJS image is amd64-only and runs under Rosetta emulation, which is ~3–5x slower than native. The default sync speed (500ms delay) can overwhelm OJS during user creation. Use `--delay` to throttle:
+
+```bash
+# First run (creates OJS users — slow under emulation)
+docker compose exec wp wp ojs-sync sync --delay=2000 --allow-root
+
+# If some fail, re-run — find-or-create is idempotent
+docker compose exec wp wp ojs-sync sync --allow-root
+```
+
+This does not happen on native amd64 servers where the default 500ms delay is sufficient.
 
 ## Resetting OJS
 

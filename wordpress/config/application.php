@@ -67,10 +67,9 @@ Config::define('LOGGED_IN_SALT', env('LOGGED_IN_SALT'));
 Config::define('NONCE_SALT', env('NONCE_SALT'));
 
 /**
- * SEA OJS integration
+ * WP-OJS integration
  */
-Config::define('SEA_OJS_API_KEY', env('SEA_OJS_API_KEY'));
-Config::define('SEA_OJS_BASE_URL', env('SEA_OJS_BASE_URL'));
+Config::define('WPOJS_API_KEY', env('WPOJS_API_KEY'));
 
 /**
  * WordPress settings

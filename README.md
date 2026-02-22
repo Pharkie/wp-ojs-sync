@@ -108,9 +108,9 @@ Navigate to **Settings -> OJS Sync** in WP Admin and configure:
 All commands are available under the `wp ojs-sync` namespace.
 
 ```
-wp ojs-sync sync [--dry-run] [--user=<id-or-email>]
+wp ojs-sync sync [--dry-run] [--user=<id-or-email>] [--batch-size=<n>] [--delay=<ms>]
 ```
-Bulk sync all active members to OJS, or sync a single user. Use `--dry-run` to preview without making changes.
+Bulk sync all active members to OJS, or sync a single user. Use `--dry-run` to preview without making changes. `--delay` controls the pause between API calls (default 500ms); increase on slow environments.
 
 ```
 wp ojs-sync send-welcome-emails [--dry-run]

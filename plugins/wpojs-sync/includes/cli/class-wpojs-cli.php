@@ -48,12 +48,20 @@ class WPOJS_CLI {
 	 * [--user=<id-or-email>]
 	 * : Sync a single user by WP user ID or email.
 	 *
+	 * [--batch-size=<number>]
+	 * : Number of users per batch before pausing. Default 50.
+	 *
+	 * [--delay=<ms>]
+	 * : Delay in milliseconds between each API call. Default 500.
+	 * Increase on slow environments (e.g. OJS under Rosetta emulation).
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp ojs-sync sync --dry-run
 	 *     wp ojs-sync sync
 	 *     wp ojs-sync sync --user=42
 	 *     wp ojs-sync sync --user=member@example.com
+	 *     wp ojs-sync sync --delay=2000 --batch-size=10
 	 *
 	 * @param array $args
 	 * @param array $assoc_args
@@ -68,7 +76,9 @@ class WPOJS_CLI {
 		}
 
 		// Bulk sync.
-		$this->sync_bulk( $dry_run );
+		$batch_size = isset( $assoc_args['batch-size'] ) ? absint( $assoc_args['batch-size'] ) : 50;
+		$delay_ms   = isset( $assoc_args['delay'] ) ? absint( $assoc_args['delay'] ) : 500;
+		$this->sync_bulk( $dry_run, $batch_size, $delay_ms );
 	}
 
 	private function sync_single_user( $user_ref, $dry_run ) {
@@ -92,7 +102,8 @@ class WPOJS_CLI {
 		}
 	}
 
-	private function sync_bulk( $dry_run ) {
+	private function sync_bulk( $dry_run, $batch_size = 50, $delay_ms = 500 ) {
+		WP_CLI::log( 'Resolving active members (this may take a few minutes)...' );
 		$members = $this->resolver->get_all_active_members();
 		$total   = count( $members );
 
@@ -103,15 +114,23 @@ class WPOJS_CLI {
 
 		WP_CLI::log( sprintf( 'Found %d active members.', $total ) );
 
+		if ( ! $dry_run ) {
+			// Each user requires ~2 API calls (find-or-create + subscription).
+			// Estimate includes the configured delay plus ~1s overhead per call.
+			$per_user_secs = ( $delay_ms / 1000 ) + 1;
+			$eta_mins      = ceil( ( $total * $per_user_secs ) / 60 );
+			WP_CLI::log( sprintf( 'Estimated time: ~%d minutes (%dms delay per call).', $eta_mins, $delay_ms ) );
+		}
+
 		if ( $dry_run ) {
 			WP_CLI::log( 'Dry run -- no changes will be made.' );
 		}
 
-		$batch_size = 50;
-		$delay_ms   = 500000; // 500ms in microseconds.
+		$delay_us = $delay_ms * 1000; // Convert ms to microseconds for usleep().
 		$success    = 0;
 		$skipped    = 0;
 		$failed     = 0;
+		$start_time = microtime( true );
 
 		$progress = \WP_CLI\Utils\make_progress_bar( 'Syncing members', $total );
 
@@ -140,14 +159,15 @@ class WPOJS_CLI {
 				WP_CLI::log( sprintf( '  Batch %d complete. Pausing...', ceil( ( $index + 1 ) / $batch_size ) ) );
 			}
 			if ( ! $dry_run ) {
-				usleep( $delay_ms );
+				usleep( $delay_us );
 			}
 		}
 
 		$progress->finish();
 
+		$elapsed = microtime( true ) - $start_time;
 		WP_CLI::log( '' );
-		WP_CLI::log( sprintf( 'Results: %d synced, %d skipped, %d failed out of %d total.', $success, $skipped, $failed, $total ) );
+		WP_CLI::log( sprintf( 'Results: %d synced, %d skipped, %d failed out of %d total. (%.0fs elapsed)', $success, $skipped, $failed, $total, $elapsed ) );
 
 		if ( $failed > 0 ) {
 			WP_CLI::warning( sprintf( '%d members failed to sync. Check the sync log for details.', $failed ) );
@@ -254,6 +274,7 @@ class WPOJS_CLI {
 	 */
 	public function reconcile( $args, $assoc_args ) {
 		WP_CLI::log( 'Running reconciliation...' );
+		WP_CLI::log( 'Resolving active members (this may take a few minutes)...' );
 
 		$members = $this->resolver->get_all_active_members();
 		$total   = count( $members );
@@ -369,7 +390,10 @@ class WPOJS_CLI {
 			foreach ( $statuses as $label => $status ) {
 				$rows[] = array(
 					'Status' => $label,
-					'Count'  => (int) $store->query_actions_count_by_status( $status, 'wpojs-sync' ),
+					'Count'  => (int) $store->query_actions( array(
+						'status' => $status,
+						'group'  => 'wpojs-sync',
+					), 'count' ),
 				);
 			}
 			WP_CLI\Utils\format_items( 'table', $rows, array( 'Status', 'Count' ) );
@@ -378,6 +402,7 @@ class WPOJS_CLI {
 		}
 
 		// Active members.
+		WP_CLI::log( 'Resolving active members...' );
 		$members = $this->resolver->get_all_active_members();
 		WP_CLI::log( '' );
 		WP_CLI::log( sprintf( 'Active WP members: %d', count( $members ) ) );

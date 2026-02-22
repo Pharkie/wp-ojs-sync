@@ -144,8 +144,8 @@ class WPOJS_Cron {
 		$failed_count  = 0;
 		if ( class_exists( 'ActionScheduler' ) ) {
 			$store         = ActionScheduler::store();
-			$pending_count = (int) $store->query_actions_count_by_status( ActionScheduler_Store::STATUS_PENDING, 'wpojs-sync' );
-			$failed_count  = (int) $store->query_actions_count_by_status( ActionScheduler_Store::STATUS_FAILED, 'wpojs-sync' );
+			$pending_count = (int) $store->query_actions( array( 'status' => ActionScheduler_Store::STATUS_PENDING, 'group' => 'wpojs-sync' ), 'count' );
+			$failed_count  = (int) $store->query_actions( array( 'status' => ActionScheduler_Store::STATUS_FAILED, 'group' => 'wpojs-sync' ), 'count' );
 		}
 
 		$to      = get_option( 'admin_email' );
