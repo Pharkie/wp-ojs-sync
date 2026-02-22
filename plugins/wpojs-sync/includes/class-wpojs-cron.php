@@ -50,47 +50,40 @@ class WPOJS_Cron {
 		$expired = 0;
 		$errors  = 0;
 
-		// Missing access check: ensure every active WP member has an active OJS subscription.
+		// Build email→user_id map for all active members.
+		$email_to_user_id = array();
 		foreach ( $active_members as $wp_user_id ) {
 			$user = get_userdata( $wp_user_id );
-			if ( ! $user ) {
-				continue;
+			if ( $user ) {
+				$email_to_user_id[ $user->user_email ] = $wp_user_id;
 			}
+		}
 
-			$email = $user->user_email;
-
-			// Check OJS subscription status.
-			$result = $this->api->get_subscriptions( array( 'email' => $email ) );
+		// Missing access check: batch-query OJS for subscription status.
+		$email_chunks = array_chunk( array_keys( $email_to_user_id ), 100 );
+		foreach ( $email_chunks as $chunk ) {
+			$result = $this->api->get_subscription_status_batch( $chunk );
 
 			if ( ! $result['success'] ) {
-				$errors++;
-				usleep( 100000 ); // 100ms delay between API calls.
+				$errors += count( $chunk );
 				continue;
 			}
 
-			$subscriptions = $result['body'];
+			$statuses = isset( $result['body']['results'] ) ? $result['body']['results'] : array();
 
-			// If no active subscription on OJS, schedule an activate.
-			$has_active = false;
-			if ( is_array( $subscriptions ) ) {
-				foreach ( $subscriptions as $sub ) {
-					if ( isset( $sub['status'] ) && (int) $sub['status'] === 1 ) {
-						$has_active = true;
-						break;
+			foreach ( $chunk as $email ) {
+				$wp_user_id = $email_to_user_id[ $email ];
+				$has_active = isset( $statuses[ $email ]['active'] ) && $statuses[ $email ]['active'];
+
+				if ( ! $has_active ) {
+					$args = array( 'wp_user_id' => $wp_user_id );
+					if ( ! as_has_scheduled_action( 'wpojs_sync_activate', $args, 'wpojs-sync' ) ) {
+						as_schedule_single_action( time(), 'wpojs_sync_activate', $args, 'wpojs-sync' );
+						$this->logger->log( $wp_user_id, $email, 'reconcile_activate', 'queued', 0, 'Active member missing OJS subscription' );
+						$queued++;
 					}
 				}
 			}
-
-			if ( ! $has_active ) {
-				$args = array( 'wp_user_id' => $wp_user_id );
-				if ( ! as_has_scheduled_action( 'wpojs_sync_activate', $args, 'wpojs-sync' ) ) {
-					as_schedule_single_action( time(), 'wpojs_sync_activate', $args, 'wpojs-sync' );
-					$this->logger->log( $wp_user_id, $email, 'reconcile_activate', 'queued', 0, 'Active member missing OJS subscription' );
-					$queued++;
-				}
-			}
-
-			usleep( 100000 ); // 100ms delay between API calls.
 		}
 
 		// Stale access check: find synced users who are no longer active WP members.

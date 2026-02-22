@@ -106,6 +106,18 @@ class WPOJS_API_Client {
     }
 
     /**
+     * Batch subscription status check. Accepts up to 500 emails.
+     *
+     * @param array $emails Array of email addresses.
+     * @return array ['success' => bool, 'body' => ['results' => ['email' => ['active' => bool, ...]]]]
+     */
+    public function get_subscription_status_batch( $emails ) {
+        return $this->post( '/wpojs/subscriptions/status-batch', array(
+            'emails' => $emails,
+        ) );
+    }
+
+    /**
      * Test connection: ping then preflight. Returns diagnostic array.
      */
     public function test_connection() {

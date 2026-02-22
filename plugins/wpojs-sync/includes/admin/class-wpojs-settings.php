@@ -173,17 +173,30 @@ class WPOJS_Settings {
         ?>
         <script>
         jQuery(function($) {
-            var counter = 100;
             $('#wpojs-add-mapping').on('click', function() {
-                var key = 'new_' + counter++;
                 var html = '<div class="wpojs-mapping-row" style="margin-bottom:5px;">' +
-                    '<input type="number" name="wpojs_type_mapping_keys[]" value="" placeholder="WC Product ID" style="width:120px;" /> → ' +
-                    '<input type="number" name="wpojs_type_mapping_vals[]" value="" placeholder="OJS Type ID" style="width:120px;" />' +
+                    '<input type="number" class="wpojs-mapping-pid" value="" placeholder="WC Product ID" style="width:120px;" /> → ' +
+                    '<input type="number" class="wpojs-mapping-tid" value="" placeholder="OJS Type ID" style="width:120px;" />' +
                     ' <button type="button" class="button wpojs-remove-mapping" style="margin-left:5px;">Remove</button></div>';
                 $('#wpojs-type-mapping').append(html);
             });
             $(document).on('click', '.wpojs-remove-mapping', function() {
                 $(this).closest('.wpojs-mapping-row').remove();
+            });
+            // On submit, rewrite new-row inputs to name="wpojs_type_mapping[{pid}]"
+            // so they match the format the sanitize callback expects.
+            $('form').on('submit', function() {
+                $('#wpojs-type-mapping .wpojs-mapping-row').each(function() {
+                    var $pid = $(this).find('.wpojs-mapping-pid');
+                    var $tid = $(this).find('.wpojs-mapping-tid');
+                    if ($pid.length && $tid.length) {
+                        var pid = $pid.val();
+                        if (pid) {
+                            $tid.attr('name', 'wpojs_type_mapping[' + pid + ']');
+                        }
+                        $pid.removeAttr('name');
+                    }
+                });
             });
         });
         </script>

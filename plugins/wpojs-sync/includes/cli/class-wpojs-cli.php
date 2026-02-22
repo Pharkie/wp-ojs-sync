@@ -282,46 +282,52 @@ class WPOJS_CLI {
 		$errors  = 0;
 		$ok      = 0;
 
-		$progress = \WP_CLI\Utils\make_progress_bar( 'Checking members', $total );
-
+		// Build email→user_id map.
+		$email_to_user_id = array();
 		foreach ( $members as $wp_user_id ) {
 			$user = get_userdata( $wp_user_id );
-			if ( ! $user ) {
-				$progress->tick();
-				continue;
+			if ( $user ) {
+				$email_to_user_id[ $user->user_email ] = $wp_user_id;
 			}
+		}
 
-			$result = $this->api->get_subscriptions( array( 'email' => $user->user_email ) );
+		$checked = count( $email_to_user_id );
+		WP_CLI::log( sprintf( 'Checking %d members in batches of 100...', $checked ) );
+		$progress = \WP_CLI\Utils\make_progress_bar( 'Checking members', $checked );
+
+		// Batch-query OJS for subscription status.
+		$email_chunks = array_chunk( array_keys( $email_to_user_id ), 100 );
+		foreach ( $email_chunks as $chunk ) {
+			$result = $this->api->get_subscription_status_batch( $chunk );
+
 			if ( ! $result['success'] ) {
-				$errors++;
-				WP_CLI::warning( sprintf( 'API error for %s: %s', $user->user_email, $result['error'] ) );
-				$progress->tick();
+				$errors += count( $chunk );
+				WP_CLI::warning( sprintf( 'Batch API error: %s', $result['error'] ) );
+				for ( $i = 0; $i < count( $chunk ); $i++ ) {
+					$progress->tick();
+				}
 				continue;
 			}
 
-			$has_active = false;
-			if ( is_array( $result['body'] ) ) {
-				foreach ( $result['body'] as $sub ) {
-					if ( isset( $sub['status'] ) && (int) $sub['status'] === 1 ) {
-						$has_active = true;
-						break;
+			$statuses = isset( $result['body']['results'] ) ? $result['body']['results'] : array();
+
+			foreach ( $chunk as $email ) {
+				$wp_user_id = $email_to_user_id[ $email ];
+				$has_active = isset( $statuses[ $email ]['active'] ) && $statuses[ $email ]['active'];
+
+				if ( ! $has_active ) {
+					$as_args = array( 'wp_user_id' => $wp_user_id );
+					if ( ! as_has_scheduled_action( 'wpojs_sync_activate', $as_args, 'wpojs-sync' ) ) {
+						as_schedule_single_action( time(), 'wpojs_sync_activate', $as_args, 'wpojs-sync' );
 					}
+					$queued++;
+					WP_CLI::log( sprintf( '  Queued activate for %s (no active OJS subscription)', $email ) );
+				} else {
+					$ok++;
 				}
-			}
 
-			if ( ! $has_active ) {
-				$as_args = array( 'wp_user_id' => $wp_user_id );
-				if ( ! as_has_scheduled_action( 'wpojs_sync_activate', $as_args, 'wpojs-sync' ) ) {
-					as_schedule_single_action( time(), 'wpojs_sync_activate', $as_args, 'wpojs-sync' );
-				}
-				$queued++;
-				WP_CLI::log( sprintf( '  Queued activate for %s (no active OJS subscription)', $user->user_email ) );
-			} else {
-				$ok++;
+				$progress->tick();
 			}
-
-			$progress->tick();
-			usleep( 100000 ); // 100ms delay to avoid hammering OJS.
 		}
 
 		$progress->finish();

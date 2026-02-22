@@ -147,7 +147,7 @@ class WPOJS_Resolver {
 
         return array(
             'type_id'    => $default_type,
-            'date_start' => gmdate( 'Y-m-d' ),
+            'date_start' => gmdate( 'Y-m-d', strtotime( $user->user_registered ) ),
             'date_end'   => null, // Manual roles are always non-expiring.
         );
     }

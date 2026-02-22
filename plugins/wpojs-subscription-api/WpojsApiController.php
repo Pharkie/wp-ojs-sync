@@ -66,6 +66,7 @@ class WpojsApiController extends PKPBaseController
         Route::put('subscriptions/expire-by-user/{userId}', $this->expireSubscriptionByUser(...))->name('wpojs.subscriptions.expireByUser');
         Route::put('subscriptions/{subscriptionId}/expire', $this->expireSubscription(...))->name('wpojs.subscriptions.expire');
         Route::get('subscriptions', $this->getSubscriptions(...))->name('wpojs.subscriptions.list');
+        Route::post('subscriptions/status-batch', $this->getSubscriptionStatusBatch(...))->name('wpojs.subscriptions.statusBatch');
         Route::post('welcome-email', $this->sendWelcomeEmail(...))->name('wpojs.welcomeEmail');
     }
 
@@ -410,6 +411,18 @@ class WpojsApiController extends PKPBaseController
             // Duplicate key = race condition: another request created this user
             $raceUser = Repo::user()->getByEmail($email, true);
             if ($raceUser) {
+                // Ensure Reader role is assigned (idempotent — safe if already assigned)
+                $contextId = $this->getJournalId();
+                $readerGroup = Repo::userGroup()
+                    ->getByRoleIds([Role::ROLE_ID_READER], $contextId)
+                    ->first();
+                if ($readerGroup) {
+                    Repo::userGroup()->assignUserToGroup(
+                        userId: $raceUser->getId(),
+                        userGroupId: $readerGroup->getId()
+                    );
+                }
+
                 return response()->json([
                     'userId' => $raceUser->getId(),
                     'created' => false,
@@ -612,6 +625,12 @@ class WpojsApiController extends PKPBaseController
                 }
                 // If existing is non-expiring and new has a date: keep non-expiring
                 // If new dateEnd <= existing dateEnd: keep existing (no-op)
+
+                // Update typeId if membership tier changed (upgrade/downgrade)
+                if ((int) $existingSub->getTypeId() !== $typeId) {
+                    $existingSub->setTypeId($typeId);
+                    $needsUpdate = true;
+                }
             }
 
             if ($needsUpdate) {
@@ -624,20 +643,45 @@ class WpojsApiController extends PKPBaseController
         }
 
         // Create new subscription
-        $sub = new IndividualSubscription();
-        $sub->setJournalId($journalId);
-        $sub->setUserId($userId);
-        $sub->setTypeId($typeId);
-        $sub->setStatus(self::STATUS_ACTIVE);
-        $sub->setDateStart($dateStart);
-        $sub->setDateEnd($dateEnd);
-        $sub->setNotes('Synced from WP');
+        // Note: the subscriptions table may lack a unique constraint on (user_id, journal_id)
+        // in some OJS versions. We guard against duplicate inserts with try/catch rather than
+        // altering the schema (OJS upgrade path concern).
+        try {
+            $sub = new IndividualSubscription();
+            $sub->setJournalId($journalId);
+            $sub->setUserId($userId);
+            $sub->setTypeId($typeId);
+            $sub->setStatus(self::STATUS_ACTIVE);
+            $sub->setDateStart($dateStart);
+            $sub->setDateEnd($dateEnd);
+            $sub->setNotes('Synced from WP');
 
-        $dao->insertObject($sub);
+            $dao->insertObject($sub);
 
-        return response()->json([
-            'subscriptionId' => $sub->getId(),
-        ], Response::HTTP_OK);
+            return response()->json([
+                'subscriptionId' => $sub->getId(),
+            ], Response::HTTP_OK);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Race condition: another request inserted a subscription concurrently.
+            // Re-read and update the existing subscription instead.
+            $raceSub = $dao->getByUserIdForJournal($userId, $journalId);
+            if ($raceSub) {
+                $raceSub->setStatus(self::STATUS_ACTIVE);
+                $raceSub->setTypeId($typeId);
+                $raceSub->setDateStart($dateStart);
+                $raceSub->setDateEnd($dateEnd);
+                $dao->updateObject($raceSub);
+
+                return response()->json([
+                    'subscriptionId' => $raceSub->getId(),
+                ], Response::HTTP_OK);
+            }
+
+            return response()->json(
+                ['error' => 'Failed to create subscription'],
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
     }
 
     // ---------------------------------------------------------------
@@ -705,6 +749,76 @@ class WpojsApiController extends PKPBaseController
         $dao->updateObject($sub);
 
         return response()->json(['subscriptionId' => $sub->getId()], Response::HTTP_OK);
+    }
+
+    // ---------------------------------------------------------------
+    // POST /wpojs/subscriptions/status-batch
+    // Batch subscription status check. Accepts up to 500 emails.
+    // ---------------------------------------------------------------
+
+    public function getSubscriptionStatusBatch(Request $request): JsonResponse
+    {
+        $authError = $this->checkAuth($request);
+        if ($authError) {
+            return $authError;
+        }
+
+        $emails = $request->input('emails', []);
+
+        if (!is_array($emails) || empty($emails)) {
+            return response()->json(
+                ['error' => 'Provide a non-empty emails array'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        if (count($emails) > 500) {
+            return response()->json(
+                ['error' => 'Maximum 500 emails per batch'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        $journalId = $this->getJournalId();
+        $results = [];
+
+        // Batch-lookup users by email
+        $emailToUserId = [];
+        foreach ($emails as $email) {
+            $email = trim($email);
+            if (empty($email)) {
+                continue;
+            }
+            $user = Repo::user()->getByEmail($email, true);
+            if ($user) {
+                $emailToUserId[$email] = $user->getId();
+            } else {
+                $results[$email] = ['active' => false, 'found' => false];
+            }
+        }
+
+        // Batch-lookup subscriptions for found users
+        $dao = DAORegistry::getDAO('IndividualSubscriptionDAO');
+        foreach ($emailToUserId as $email => $userId) {
+            $sub = $dao->getByUserIdForJournal($userId, $journalId);
+            if ($sub && (int) $sub->getStatus() === self::STATUS_ACTIVE) {
+                $results[$email] = [
+                    'active' => true,
+                    'found' => true,
+                    'subscriptionId' => $sub->getId(),
+                    'typeId' => $sub->getTypeId(),
+                    'dateEnd' => $sub->getDateEnd(),
+                ];
+            } else {
+                $results[$email] = [
+                    'active' => false,
+                    'found' => true,
+                    'userId' => $userId,
+                ];
+            }
+        }
+
+        return response()->json(['results' => $results], Response::HTTP_OK);
     }
 
     // ---------------------------------------------------------------
