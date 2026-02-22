@@ -5,6 +5,13 @@
  * Creates subscription products and active subscription records for test users
  * with um_custom_role_1–6, so the resolver finds them as active members.
  *
+ * Uses direct SQL batch inserts (~1.5s for ~683 subscriptions) rather than
+ * the WCS API (~10min — every save() fires hooks, recalculates totals, and
+ * triggers WC Memberships/UM cascades). The tradeoff is that this script is
+ * coupled to the WCS database schema (wp_posts, wp_postmeta,
+ * wp_woocommerce_order_items, wp_woocommerce_order_itemmeta). If WCS changes
+ * its storage model (e.g. HPOS migration), this script will need updating.
+ *
  * This is test data seeding only — production has real WCS subscriptions.
  *
  * Usage:
