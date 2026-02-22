@@ -413,7 +413,7 @@ class WpojsApiController extends PKPBaseController
             if ($readerGroup) {
                 Repo::userGroup()->assignUserToGroup(
                     userId: $userId,
-                    userGroupId: $readerGroup->getId()
+                    userGroupId: $readerGroup->getKey()
                 );
             }
         } catch (\Illuminate\Database\QueryException $e) {
@@ -428,7 +428,7 @@ class WpojsApiController extends PKPBaseController
                 if ($readerGroup) {
                     Repo::userGroup()->assignUserToGroup(
                         userId: $raceUser->getId(),
-                        userGroupId: $readerGroup->getId()
+                        userGroupId: $readerGroup->getKey()
                     );
                 }
 
