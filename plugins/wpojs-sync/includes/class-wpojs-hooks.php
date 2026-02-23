@@ -60,7 +60,7 @@ class WPOJS_Hooks {
 			return;
 		}
 
-		$args = array( 'wp_user_id' => $wp_user_id );
+		$args = array( array( 'wp_user_id' => $wp_user_id ) );
 		if ( ! as_has_scheduled_action( 'wpojs_sync_activate', $args, 'wpojs-sync' ) ) {
 			as_schedule_single_action( time(), 'wpojs_sync_activate', $args, 'wpojs-sync' );
 		}
@@ -91,7 +91,7 @@ class WPOJS_Hooks {
 			return;
 		}
 
-		$args = array( 'wp_user_id' => $wp_user_id );
+		$args = array( array( 'wp_user_id' => $wp_user_id ) );
 		if ( ! as_has_scheduled_action( 'wpojs_sync_expire', $args, 'wpojs-sync' ) ) {
 			as_schedule_single_action( time(), 'wpojs_sync_expire', $args, 'wpojs-sync' );
 		}
@@ -119,11 +119,11 @@ class WPOJS_Hooks {
 			return;
 		}
 
-		$args = array(
+		$args = array( array(
 			'wp_user_id' => $user_id,
 			'old_email'  => $old_email,
 			'new_email'  => $new_email,
-		);
+		) );
 		if ( ! as_has_scheduled_action( 'wpojs_sync_email_change', $args, 'wpojs-sync' ) ) {
 			as_schedule_single_action( time(), 'wpojs_sync_email_change', $args, 'wpojs-sync' );
 		}
@@ -160,10 +160,10 @@ class WPOJS_Hooks {
 		$data = self::$pending_deletions[ $user_id ];
 		unset( self::$pending_deletions[ $user_id ] );
 
-		as_schedule_single_action( time(), 'wpojs_sync_delete_user', array(
+		as_schedule_single_action( time(), 'wpojs_sync_delete_user', array( array(
 			'wp_user_id'  => $user_id,
 			'email'       => $data['email'],
 			'ojs_user_id' => $data['ojs_user_id'] ? (int) $data['ojs_user_id'] : null,
-		), 'wpojs-sync' );
+		) ), 'wpojs-sync' );
 	}
 }

@@ -76,7 +76,7 @@ class WPOJS_Cron {
 				$has_active = isset( $statuses[ $email ]['active'] ) && $statuses[ $email ]['active'];
 
 				if ( ! $has_active ) {
-					$args = array( 'wp_user_id' => $wp_user_id );
+					$args = array( array( 'wp_user_id' => $wp_user_id ) );
 					if ( ! as_has_scheduled_action( 'wpojs_sync_activate', $args, 'wpojs-sync' ) ) {
 						as_schedule_single_action( time(), 'wpojs_sync_activate', $args, 'wpojs-sync' );
 						$this->logger->log( $wp_user_id, $email, 'reconcile_activate', 'queued', 0, 'Active member missing OJS subscription' );
@@ -96,7 +96,7 @@ class WPOJS_Cron {
 			$uid = (int) $uid;
 			if ( ! isset( $active_set[ $uid ] ) ) {
 				// This user was synced but is no longer active -- schedule expire.
-				$args = array( 'wp_user_id' => $uid );
+				$args = array( array( 'wp_user_id' => $uid ) );
 				if ( ! as_has_scheduled_action( 'wpojs_sync_expire', $args, 'wpojs-sync' ) ) {
 					as_schedule_single_action( time(), 'wpojs_sync_expire', $args, 'wpojs-sync' );
 					$this->logger->log( $uid, '', 'reconcile_expire', 'queued', 0, 'Stale access: synced user no longer active member' );

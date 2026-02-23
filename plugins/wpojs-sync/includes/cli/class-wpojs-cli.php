@@ -45,8 +45,8 @@ class WPOJS_CLI {
 	 * [--dry-run]
 	 * : Report what would happen without making changes.
 	 *
-	 * [--user=<id-or-email>]
-	 * : Sync a single user by WP user ID or email.
+	 * [--member=<id-or-email>]
+	 * : Sync a single member by WP user ID or email.
 	 *
 	 * [--batch-size=<number>]
 	 * : Number of users per batch before pausing. Default 50.
@@ -59,8 +59,8 @@ class WPOJS_CLI {
 	 *
 	 *     wp ojs-sync sync --dry-run
 	 *     wp ojs-sync sync
-	 *     wp ojs-sync sync --user=42
-	 *     wp ojs-sync sync --user=member@example.com
+	 *     wp ojs-sync sync --member=42
+	 *     wp ojs-sync sync --member=member@example.com
 	 *     wp ojs-sync sync --delay=2000 --batch-size=10
 	 *
 	 * @param array $args
@@ -70,8 +70,8 @@ class WPOJS_CLI {
 		$dry_run = isset( $assoc_args['dry-run'] );
 
 		// Single user sync.
-		if ( isset( $assoc_args['user'] ) ) {
-			$this->sync_single_user( $assoc_args['user'], $dry_run );
+		if ( isset( $assoc_args['member'] ) ) {
+			$this->sync_single_user( $assoc_args['member'], $dry_run );
 			return;
 		}
 
@@ -316,7 +316,7 @@ class WPOJS_CLI {
 				$has_active = isset( $statuses[ $email ]['active'] ) && $statuses[ $email ]['active'];
 
 				if ( ! $has_active ) {
-					$as_args = array( 'wp_user_id' => $wp_user_id );
+					$as_args = array( array( 'wp_user_id' => $wp_user_id ) );
 					if ( ! as_has_scheduled_action( 'wpojs_sync_activate', $as_args, 'wpojs-sync' ) ) {
 						as_schedule_single_action( time(), 'wpojs_sync_activate', $as_args, 'wpojs-sync' );
 					}
@@ -346,7 +346,7 @@ class WPOJS_CLI {
 		foreach ( $synced_users as $uid ) {
 			$uid = (int) $uid;
 			if ( ! isset( $active_set[ $uid ] ) ) {
-				$as_args = array( 'wp_user_id' => $uid );
+				$as_args = array( array( 'wp_user_id' => $uid ) );
 				if ( ! as_has_scheduled_action( 'wpojs_sync_expire', $as_args, 'wpojs-sync' ) ) {
 					as_schedule_single_action( time(), 'wpojs_sync_expire', $as_args, 'wpojs-sync' );
 				}

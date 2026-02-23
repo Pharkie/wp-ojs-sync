@@ -35,7 +35,9 @@ class WPOJS_Sync {
 	 * Handle activate: find-or-create user + create subscription.
 	 *
 	 * Called by Action Scheduler. On failure, throws an exception so AS
-	 * retries automatically (default: 5 retries with exponential backoff).
+	 * marks the action as failed. Recovery is handled by the daily
+	 * reconciliation cron, which detects missing OJS subscriptions and
+	 * schedules fresh activate actions.
 	 *
 	 * We pass sendWelcomeEmail: true here. This is intentional -- the OJS
 	 * endpoint only honours it when the user is newly created (created: true).
