@@ -90,12 +90,22 @@ SUB_TYPE_EXISTS=$($MARIADB -N -e "SELECT COUNT(*) FROM subscription_types WHERE 
 
 if [ "$SUB_TYPE_EXISTS" = "0" ]; then
   echo "[OJS] Creating subscription type..."
+  # duration = NULL means non-expiring. OJS validates subscriptions by checking
+  # (st.duration IS NULL OR (checkDate >= s.date_start AND checkDate <= s.date_end)).
+  # With duration = NULL, subscriptions with date_end = NULL pass validation.
+  # With duration = 365, OJS would require date_end to be set on every subscription.
   $MARIADB <<'SQL'
     INSERT INTO subscription_types (journal_id, cost, currency_code_alpha, duration, format, institutional, membership, disable_public_display, seq)
-    VALUES (1, 0.00, 'GBP', 365, 1, 0, 0, 1, 1);
+    VALUES (1, 0.00, 'GBP', NULL, 1, 0, 0, 1, 1);
 SQL
   echo "[OJS] Subscription type created."
 else
+  # Fix existing type if it has a duration set (breaks non-expiring subscriptions).
+  WRONG_DURATION=$($MARIADB -N -e "SELECT COUNT(*) FROM subscription_types WHERE journal_id=1 AND duration IS NOT NULL")
+  if [ "$WRONG_DURATION" -gt "0" ]; then
+    echo "[OJS] Fixing subscription type duration (NULL = non-expiring)..."
+    $MARIADB -e "UPDATE subscription_types SET duration = NULL WHERE journal_id = 1"
+  fi
   echo "[OJS] Subscription type already exists, skipping."
 fi
 
@@ -106,6 +116,19 @@ $MARIADB <<SQL
   INSERT IGNORE INTO plugin_settings (plugin_name, context_id, setting_name, setting_value, setting_type)
   VALUES ('wpojssubscriptionapiplugin', $JOURNAL_ID, 'enabled', '1', 'bool');
 SQL
+
+# --- Enable subscription (paywall) mode ---
+# publishingMode: 0 = open access, 1 = subscription, 2 = none.
+# OJS won't enforce the paywall without this.
+PUB_MODE=$($MARIADB -N -e "SELECT setting_value FROM journal_settings WHERE journal_id=$JOURNAL_ID AND setting_name='publishingMode'" 2>/dev/null)
+
+if [ "$PUB_MODE" != "1" ]; then
+  echo "[OJS] Setting publishing mode to 'Subscription'..."
+  ojs_api PUT "/$JOURNAL_PATH/api/v1/contexts/$JOURNAL_ID" '{"publishingMode": 1}' > /dev/null
+  echo "[OJS] Publishing mode set."
+else
+  echo "[OJS] Publishing mode already set to 'Subscription', skipping."
+fi
 
 echo "[OJS] OJS setup complete."
 
@@ -126,5 +149,16 @@ if [ "$SAMPLE_DATA" = true ]; then
     php /var/www/html/tools/importExport.php NativeImportExportPlugin import "$IMPORT_XML" "$JOURNAL_PATH"
     NEW_COUNT=$($MARIADB -N -e "SELECT COUNT(*) FROM publications WHERE submission_id > 0")
     echo "[OJS] Import complete. Publications: $NEW_COUNT"
+  fi
+
+  # Set issues to require subscription (access_status: 1 = open, 2 = subscription).
+  # Without this, articles stay open access even when the journal is in subscription mode.
+  # Runs every time (not just on fresh import) so re-running the script fixes issues that
+  # were imported before paywall mode was configured.
+  OPEN_ISSUES=$($MARIADB -N -e "SELECT COUNT(*) FROM issues WHERE journal_id=$JOURNAL_ID AND access_status != 2")
+  if [ "$OPEN_ISSUES" -gt "0" ]; then
+    echo "[OJS] Setting $OPEN_ISSUES issue(s) to require subscription..."
+    $MARIADB -e "UPDATE issues SET access_status = 2 WHERE journal_id=$JOURNAL_ID"
+    echo "[OJS] Issue access updated."
   fi
 fi

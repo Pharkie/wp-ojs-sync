@@ -30,6 +30,13 @@
 - [x] OJS down → queued → OJS up → retried → synced
 - [x] Bulk sync dry-run → full run → counts match (683/683)
 
+### Playwright E2E browser tests (`e2e/`)
+
+- [x] Sync lifecycle — WCS activate/expire → OJS subscription status
+- [x] OJS login — synced user sets password + logs in
+- [x] WP dashboard — My Account journal access widget (active + inactive)
+- [x] OJS UI messages — login hint, footer, paywall hint
+
 ## Future improvements
 
 - Rate limiting on OJS endpoints

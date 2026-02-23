@@ -402,9 +402,18 @@ The WP plugin's critical logic is the queue state machine, multi-subscription re
 - WP Cron scheduling mechanics (trust WordPress)
 - CSS, template rendering, UI layout
 
-### End-to-end smoke tests (manual)
+### End-to-end smoke tests
 
-The smoke test checklist in TODO.md covers the full integration path. These run manually on staging after both plugins are deployed — they exercise the real WP→OJS flow and can't be meaningfully automated without both systems running together.
+The smoke test checklist in TODO.md covers the full integration path. Most are now automated as Playwright browser tests in `e2e/`:
+
+| Spec file | What it tests |
+|---|---|
+| `sync-lifecycle.spec.ts` | WCS activate → OJS user + subscription created; WCS expire → OJS status 16 |
+| `ojs-login.spec.ts` | Synced user sets OJS password and logs in |
+| `wp-dashboard.spec.ts` | My Account journal access widget (active member + non-member) |
+| `ojs-ui-messages.spec.ts` | Login hint, footer message, paywall hint for non-subscriber |
+
+Tests run against the Docker dev environment (`--with-sample-data`). Each test creates unique users, processes the Action Scheduler queue, and cleans up in `afterAll`. Serial execution (`workers: 1`) avoids data conflicts. Run with `cd e2e && npm test`.
 
 ---
 

@@ -92,9 +92,9 @@ docker compose exec wp bash /var/www/html/scripts/setup-wp.sh
 # ...with ~1400 anonymised test users + WCS subscriptions:
 docker compose exec wp bash /var/www/html/scripts/setup-wp.sh --with-sample-data
 
-# Run OJS setup (create journal, subscription type, enable plugin)
+# Run OJS setup (create journal, subscription type, enable plugin, enable paywall)
 docker compose exec ojs bash /scripts/setup-ojs.sh
-# ...with 2 issues + 43 articles from live:
+# ...with 2 issues + 43 articles from live (issues set to require subscription):
 docker compose exec ojs bash /scripts/setup-ojs.sh --with-sample-data
 
 # View logs

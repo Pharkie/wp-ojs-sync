@@ -136,6 +136,17 @@ Verify OJS connectivity, API key validity, and version compatibility.
 
 A `docker-compose.yml` is included that provides a local development setup with WordPress, OJS, and MariaDB. See [docker/README.md](./docker/README.md) for setup instructions and usage.
 
+## E2E tests
+
+Playwright browser tests in `e2e/` verify the full integration: sync lifecycle, OJS login, WP dashboard widget, and OJS UI messages (login hint, paywall, footer). Requires the Docker dev environment with `--with-sample-data`.
+
+```bash
+cd e2e && npm install && npx playwright install chromium
+npm test                    # all tests (headless)
+npm run test:headed         # watch in browser
+npx playwright test tests/wp-dashboard.spec.ts  # single file
+```
+
 ## Architecture
 
 For the full implementation plan, see [docs/plan.md](./docs/plan.md).
@@ -160,6 +171,7 @@ For the decision trail -- what was tried, what was eliminated, and why -- see [d
 ├── plugins/
 │   ├── wpojs-sync/                        # WP plugin
 │   └── wpojs-subscription-api/            # OJS plugin
+├── e2e/                                   # Playwright E2E browser tests
 ├── docker/                                # Docker config and Dockerfiles
 ├── scripts/                               # Setup and bootstrap scripts
 └── launch/                                # Pre-launch deliverables (email copy, FAQ, runbook)
