@@ -25,7 +25,10 @@ export function dockerExec(
   if (workdir) {
     parts.push('-w', workdir);
   }
-  parts.push(service, 'bash', '-c', JSON.stringify(command));
+  // Single-quote the command so $ and other special characters are passed
+  // literally to the container's shell (no host-side expansion).
+  const escaped = command.replace(/'/g, "'\\''");
+  parts.push(service, 'bash', '-c', `'${escaped}'`);
 
   try {
     return execSync(parts.join(' '), {
