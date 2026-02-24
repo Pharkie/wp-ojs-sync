@@ -161,22 +161,10 @@ The point of moving isn't to get a shinier UI. It's to get off a platform that f
 
 **Replace WordPress for membership management.** The current stack is not viable long-term. Six plugins from three vendors, paid licences, role assignment chains that break during bootstrap, no native API, test data that can't be seeded without SQL workarounds. This is technical debt, not a platform.
 
-The OJS sync is being built against the current stack because it exists today, but the push-sync pattern (event → API call → OJS) would work the same against any platform with an API. The sync is the easy part. The membership platform is the hard part.
-
-### Top candidates
-
-1. **WildApricot** (~£1,200/yr) — all-in-one SaaS. Lowest setup effort. Mature REST API with native webhooks. No servers to manage. The strongest option if SEA wants a clean break with minimal technical overhead. Trade-off: vendor lock-in, US-hosted data, no custom code.
-
-2. **CiviCRM standalone** (~£60-600/yr hosting; software free) — open-source, self-hosted. Best API and most extensible. Strongest membership and event features. No vendor lock-in, data ownership. Strong UK partner ecosystem. The strongest option if SEA wants maximum capability and is willing to invest in professional implementation upfront (~£1,000-5,000 one-off). Trade-off: not turnkey, needs ongoing technical maintenance.
-
-3. **Beacon CRM** (~£936/yr excl. VAT) — UK-native SaaS. REST API, Stripe, zero transaction fees. Less proven for association management — membership and events are paid add-ons, not core features. Worth investigating further but the weakest of the three shortlisted options.
-
-### What to do next
-
 This is a decision for SEA, not a technical call. Three paths:
 
-- **Stay on WordPress** — the current stack is working, the OJS sync is built, the cost is ~£400-500/yr in plugin licences plus hosting. It's fragile but functional. Don't migrate to another WP plugin (PMPro, MemberPress) — same infrastructure, all migration cost, no architectural benefit.
-- **WildApricot** — highest ongoing cost but lowest setup effort. Infrastructure burden goes to zero. The OJS sync would need rebuilding against WildApricot's API.
-- **CiviCRM standalone** — lowest ongoing cost (~£60-600/yr hosting depending on self-managed vs specialist) but highest upfront investment (~£1,000-5,000 one-off implementation). Best API and extensibility. Open source, data ownership, strong UK support ecosystem. The OJS sync would need rebuilding as a CiviCRM extension. Next step: contact Circle Interactive or Third Sector Design (UK-based CiviCRM partners) for a scoping conversation.
+- **Stay on WordPress** (~£400-500/yr in plugin licences plus hosting) — the current stack is working and the OJS sync is built. It's fragile but functional. Don't migrate to another WP plugin (PMPro, MemberPress) — same infrastructure, all migration cost, no architectural benefit.
+- **WildApricot** (~£1,200/yr) — all-in-one SaaS. Lowest setup effort, highest ongoing cost. Mature REST API with native webhooks. No servers to manage. Trade-off: vendor lock-in, US-hosted data, no custom code.
+- **CiviCRM standalone** (~£60-600/yr hosting; software free; ~£1,000-5,000 one-off implementation) — open-source, self-hosted. Best API and most extensible. Strongest membership and event features. No vendor lock-in, data ownership. Strong UK partner ecosystem. Trade-off: not turnkey, needs ongoing technical maintenance. Next step if interested: contact Circle Interactive or Third Sector Design (UK-based CiviCRM partners) for a scoping conversation.
 
-The OJS sync work is not wasted regardless of which path SEA chooses — the push-sync pattern ports to any platform with an API.
+Beacon CRM (~£936/yr excl. VAT) is also shortlisted but is the weakest of the three — less proven for association management, with membership and events as paid add-ons rather than core features.
