@@ -254,6 +254,16 @@ class WPOJS_API_Client {
         $raw  = wp_remote_retrieve_body( $response );
         $body = json_decode( $raw, true );
 
+        // If json_decode failed, try extracting JSON from the end of
+        // the response body. PHP deprecation notices (display_errors=On)
+        // can prepend HTML to the JSON, breaking the parser.
+        if ( ! is_array( $body ) && ! empty( $raw ) ) {
+            $json_start = strrpos( $raw, '{' );
+            if ( $json_start !== false ) {
+                $body = json_decode( substr( $raw, $json_start ), true );
+            }
+        }
+
         if ( ! is_array( $body ) ) {
             $body = array();
         }

@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { resolve } from 'path';
 
 const REPO_ROOT = resolve(__dirname, '..', '..');
@@ -10,6 +10,8 @@ export interface DockerExecOptions {
   timeout?: number;
   /** Suppress errors and return empty string on failure */
   ignoreError?: boolean;
+  /** Data to write to the container process's stdin */
+  stdin?: string;
 }
 
 /**
@@ -20,23 +22,28 @@ export function dockerExec(
   command: string,
   opts: DockerExecOptions = {},
 ): string {
-  const { workdir, timeout = 30_000, ignoreError = false } = opts;
-  const parts = ['docker', 'compose', 'exec', '-T'];
+  const { workdir, timeout = 30_000, ignoreError = false, stdin } = opts;
+  const args = ['compose', 'exec', '-T'];
   if (workdir) {
-    parts.push('-w', workdir);
+    args.push('-w', workdir);
   }
-  // Single-quote the command so $ and other special characters are passed
-  // literally to the container's shell (no host-side expansion).
-  const escaped = command.replace(/'/g, "'\\''");
-  parts.push(service, 'bash', '-c', `'${escaped}'`);
+  args.push(service, 'bash', '-c', command);
 
   try {
-    return execSync(parts.join(' '), {
+    const result = spawnSync('docker', args, {
       cwd: REPO_ROOT,
       timeout,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim();
+      input: stdin,
+    });
+
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+      throw new Error(result.stderr || result.stdout || 'Command failed');
+    }
+
+    return result.stdout.trim();
   } catch (err) {
     if (ignoreError) return '';
     throw err;

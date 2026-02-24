@@ -9,6 +9,19 @@ export function wpCli(command: string): string {
 }
 
 /**
+ * Evaluate PHP code inside the wp container.
+ * Pipes PHP via stdin into a temp file, then runs wp eval-file on it.
+ * This completely avoids shell quoting issues with embedded single quotes.
+ */
+export function wpEval(php: string): string {
+  return dockerExec(
+    'wp',
+    'cat > /tmp/_wpojs_eval.php && wp eval-file /tmp/_wpojs_eval.php --allow-root; rm -f /tmp/_wpojs_eval.php',
+    { stdin: `<?php\n${php}` },
+  );
+}
+
+/**
  * Create a WordPress user. Returns the user ID.
  */
 export function createUser(
@@ -42,20 +55,20 @@ export function createSubscription(
   // wcs_create_subscription() creates the subscription and fires hooks.
   // We then add a line item for the product so the type mapping works.
   const php = `
-    \$sub = wcs_create_subscription([
+    $sub = wcs_create_subscription([
       'customer_id' => ${userId},
       'status' => '${status}',
       'billing_period' => 'year',
       'billing_interval' => 1,
       'start_date' => gmdate('Y-m-d H:i:s'),
     ]);
-    if (is_wp_error(\$sub)) { echo 'ERROR:' . \$sub->get_error_message(); exit(1); }
-    \$product = wc_get_product(${productId});
-    \$item_id = \$sub->add_product(\$product, 1);
-    echo \$sub->get_id();
-  `.replace(/\n/g, ' ');
+    if (is_wp_error($sub)) { echo 'ERROR:' . $sub->get_error_message(); exit(1); }
+    $product = wc_get_product(${productId});
+    $item_id = $sub->add_product($product, 1);
+    echo $sub->get_id();
+  `;
 
-  const out = wpCli(`eval '${php}'`);
+  const out = wpEval(php);
   if (out.startsWith('ERROR:')) {
     throw new Error(`Failed to create subscription: ${out}`);
   }
@@ -77,7 +90,7 @@ export function updateSubscriptionStatus(
   status: string,
 ): void {
   const php = `wcs_get_subscription(${subId})->update_status('${status}');`;
-  wpCli(`eval '${php}'`);
+  wpEval(php);
 }
 
 /**
@@ -86,9 +99,7 @@ export function updateSubscriptionStatus(
 export function getSubscriptionProductId(
   sku = 'wpojs-uk-no-listing',
 ): number {
-  const out = wpCli(
-    `eval 'echo wc_get_product_id_by_sku("${sku}");'`,
-  );
+  const out = wpEval(`echo wc_get_product_id_by_sku("${sku}");`);
   const id = parseInt(out, 10);
   if (!id) throw new Error(`Product not found for SKU: ${sku}`);
   return id;
@@ -102,11 +113,30 @@ export async function wpLogin(
   username: string,
   password: string,
 ): Promise<void> {
-  await page.goto('/wp/wp-login.php');
-  await page.locator('#user_login').fill(username);
-  await page.locator('#user_pass').fill(password);
-  await page.locator('#wp-submit').click();
-  await page.waitForURL(/wp-admin|my-account/);
+  await page.goto('/wp/wp-login.php', { waitUntil: 'networkidle' });
+
+  const loginField = page.locator('#user_login');
+  const passField = page.locator('#user_pass');
+
+  await loginField.waitFor({ state: 'visible' });
+
+  // Disable autocomplete to prevent browser from overwriting values.
+  await loginField.evaluate(el => el.setAttribute('autocomplete', 'off'));
+  await passField.evaluate(el => el.setAttribute('autocomplete', 'off'));
+
+  await loginField.fill(username);
+  await passField.fill(password);
+
+  // Submit and wait for navigation away from the login page.
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: 'networkidle' }),
+    page.locator('#wp-submit').click(),
+  ]);
+
+  // Verify we left the login page (subscriber users may redirect to homepage).
+  if (/wp-login\.php/.test(page.url())) {
+    throw new Error(`Login failed: still at ${page.url()}`);
+  }
 }
 
 /**
@@ -144,8 +174,8 @@ export function insertLogEntry(
       ['%d','%s','%s','%s','%d','%s','%d','%s']
     );
     echo $wpdb->insert_id;
-  `.replace(/\n/g, ' ');
-  const out = wpCli(`eval '${php}'`);
+  `;
+  const out = wpEval(php);
   return parseInt(out, 10);
 }
 
@@ -156,8 +186,8 @@ export function deleteLogEntries(email: string): void {
   const php = `
     global $wpdb;
     $wpdb->delete($wpdb->prefix . 'wpojs_sync_log', ['email' => '${email}'], ['%s']);
-  `.replace(/\n/g, ' ');
-  wpCli(`eval '${php}'`);
+  `;
+  wpEval(php);
 }
 
 /**
@@ -174,7 +204,7 @@ export function getActionSchedulerCount(
       "SELECT COUNT(*) FROM {$table} WHERE hook = %s AND status = %s",
       '${hook}', '${status}'
     ));
-  `.replace(/\n/g, ' ');
-  const out = wpCli(`eval '${php}'`);
+  `;
+  const out = wpEval(php);
   return parseInt(out, 10);
 }

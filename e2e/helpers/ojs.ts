@@ -2,11 +2,13 @@ import { dockerExec } from './docker';
 
 /**
  * Run a SQL query against the OJS database. Returns stdout.
+ * Uses stdin to avoid shell quoting issues with SQL containing special chars.
  */
 export function ojsQuery(sql: string): string {
   return dockerExec(
     'ojs-db',
-    `mariadb -u ojs -pdevpass123 ojs -N -e "${sql.replace(/"/g, '\\"')}"`,
+    'mariadb -u ojs -pdevpass123 ojs -N',
+    { stdin: sql },
   );
 }
 
@@ -52,6 +54,18 @@ export function getOjsUsername(userId: number): string {
 }
 
 /**
+ * Run a PHP script inside the OJS container via stdin (avoids shell quoting).
+ * The PHP code must include the <?php tag.
+ */
+export function ojsPhp(php: string, timeout = 15_000): string {
+  return dockerExec(
+    'ojs',
+    'cat > /tmp/_ojs_eval.php && php /tmp/_ojs_eval.php; rm -f /tmp/_ojs_eval.php',
+    { stdin: php, timeout },
+  );
+}
+
+/**
  * Generate a password reset hash for an OJS user via PHP inside the container.
  */
 export function getPasswordResetHash(userId: number): string {
@@ -59,14 +73,10 @@ export function getPasswordResetHash(userId: number): string {
   ojsQuery(
     `UPDATE users SET date_password_reset_requested = NOW() WHERE user_id = ${userId}`,
   );
-  const hash = dockerExec(
-    'ojs',
-    `php -r "
-      require_once('/var/www/html/tools/bootstrap.php');
-      echo PKP\\\\security\\\\Validation::generatePasswordResetHash(${userId});
-    "`,
-    { timeout: 15_000 },
-  );
+  const hash = ojsPhp(`<?php
+require_once('/var/www/html/tools/bootstrap.php');
+echo PKP\\security\\Validation::generatePasswordResetHash(${userId});
+`);
   return hash.trim();
 }
 
@@ -79,15 +89,11 @@ export function setOjsPassword(
   username: string,
   password: string,
 ): void {
-  dockerExec(
-    'ojs',
-    `php -r "
-      require_once('/var/www/html/tools/bootstrap.php');
-      \\\$hash = PKP\\\\security\\\\Validation::encryptCredentials('${username}', '${password}');
-      Illuminate\\\\Support\\\\Facades\\\\DB::table('users')->where('user_id', ${userId})->update(['password' => \\\$hash, 'must_change_password' => 0]);
-    "`,
-    { timeout: 15_000 },
-  );
+  ojsPhp(`<?php
+require_once('/var/www/html/tools/bootstrap.php');
+$hash = PKP\\security\\Validation::encryptCredentials('${username}', '${password}');
+Illuminate\\Support\\Facades\\DB::table('users')->where('user_id', ${userId})->update(['password' => $hash, 'must_change_password' => 0]);
+`);
 }
 
 /**

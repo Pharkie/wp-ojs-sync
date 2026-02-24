@@ -80,6 +80,7 @@ services:
       - ./plugins/wpojs-subscription-api/api/v1/wpojs:/var/www/html/api/v1/wpojs:ro
       - ./docker/ojs/entrypoint.sh:/etc/ojs/entrypoint.sh:ro
       - ./docker/ojs/config.inc.php.tmpl:/etc/ojs/config.inc.php.tmpl:ro
+      - ./docker/ojs/php-overrides.ini:/usr/local/etc/php/conf.d/zz-overrides.ini:ro
       - ./docker/ojs/apache.conf:/etc/apache2/conf-enabled/sea-cgipassauth.conf:ro
       - ./scripts:/scripts:ro
       - ./data export/ojs-import-clean.xml:/data/ojs-import-clean.xml:ro

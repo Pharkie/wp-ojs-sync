@@ -77,6 +77,9 @@ test.describe('Admin monitoring: Sync Log page', () => {
     test('bulk retry with checkboxes shows success alert', async ({
       page,
     }) => {
+      // Clean up any entries from previous tests to avoid duplicate rows
+      deleteLogEntries(FAIL_EMAIL_1);
+      deleteLogEntries(FAIL_EMAIL_2);
       insertLogEntry(FAIL_EMAIL_1, 'activate', 'fail');
       insertLogEntry(FAIL_EMAIL_2, 'activate', 'fail');
 

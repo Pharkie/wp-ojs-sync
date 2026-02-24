@@ -84,10 +84,24 @@ All-in-one SaaS: members, payments, events, email, website, API. The best-docume
 Open-source CRM (AGPL). Since v6.0 (March 2025) can run standalone — no WordPress/Drupal required. CiviMember for memberships, CiviEvent for events, CiviMail for email. Used by Amnesty International, EFF, Wikimedia Foundation, and over 9,000 organisations worldwide. Ranked #1 for cost-effectiveness in the 2025 UK Charity CRM Survey.
 
 - **Pricing:** Software is free. Hosting ~£115/yr (DigitalOcean droplet, $12/mo — 2GB RAM for PHP + MySQL on one server). CiviCRM Spark (managed cloud) is $15-50/mo but too limited for SEA — can't install custom extensions needed for OJS integration and CPD tracking.
-- **Pro:** Best API in this comparison (APIv4 — full CRUD on all entities, API Explorer built in). Strong UK ecosystem (Circle Interactive, Third Sector Design, artfulrobot). Stripe + GoCardless for GBP recurring payments. CiviMember handles tiered memberships, auto-renewal, manual/honorary members, status lifecycle. CiviEvent is mature for workshops/conferences. No vendor lock-in. Data ownership. Standalone mode eliminates WordPress entirely.
-- **Con:** Not turnkey — requires professional implementation and ongoing technical maintenance. No native outbound webhooks (membership lifecycle hooks exist for building custom extensions, and CiviRules can automate actions on triggers). Member directory requires configuration (SearchKit + FormBuilder) rather than being built-in. Admin interface is functional rather than polished. CPD/accreditation tracking has no production-ready extension — would need custom build using CiviCase or custom fields.
+- **Pro:** Best API in this comparison (APIv4 — full CRUD on all entities, API Explorer built in). Properly normalised relational schema (not serialised PHP blobs like WordPress's `wp_usermeta`). Symfony DI container and EventDispatcher. Stripe + GoCardless for GBP recurring payments. CiviMember handles tiered memberships, auto-renewal, manual/honorary members, status lifecycle. CiviEvent is mature for workshops/conferences. No vendor lock-in. Data ownership. Standalone mode eliminates WordPress entirely. Strong UK ecosystem.
+- **Con:** Not turnkey — requires implementation and ongoing technical maintenance. No native outbound webhooks (membership lifecycle hooks exist for building custom extensions, and CiviRules can automate actions on triggers). Member directory requires configuration (SearchKit + FormBuilder) rather than being built-in. Admin interface is functional rather than polished. CPD/accreditation tracking has no production-ready extension — would need custom build using CiviCase or custom fields.
 - **OJS integration:** Build a custom CiviCRM extension using `hook_civicrm_post` on Membership entity changes to push updates to OJS via HTTP. Architecturally identical to the current WP push-sync — replacing the WP side with CiviCRM. API and hooks to support this exist; integration code does not.
 - **UK tech partners** available if needed (e.g. Circle Interactive, Third Sector Design).
+
+**Architecture: genuinely better than WordPress, but not without risk.**
+
+CiviCRM is still PHP/MySQL — but the problem with the current WP stack is WordPress's architecture on top of PHP/MySQL, not PHP/MySQL itself. CiviCRM has a properly normalised relational schema (dedicated tables for contacts, memberships, contributions — not serialised arrays in `wp_usermeta`), a Symfony DI container, a well-designed APIv4 with full CRUD, and a real event system. These are genuine architectural improvements over WordPress.
+
+However:
+
+- **Bus factor is high.** Two developers (Eileen McNaughton and Coleman Watts) account for 43% of all 72,704 commits and dominate current weekly activity. Core team is 7 people. Only 19 contributors active in the last month. If key contributors stopped, the project would be in trouble.
+- **Financial health is weak.** Charitable income down ~30% YoY. Running a budget deficit. Health score 60/100. Subscription income is growing but not enough to offset the decline.
+- **Mid-modernisation codebase.** Legacy `CRM_*` classes (no namespaces, 2000s-era PHP) coexist with modern `\Civi\*` code (namespaces, PSR-0, Symfony components). The transition has been going on for years and is not complete. You will encounter both styles.
+- **Upgrades can break things.** Monthly releases with forward-only migrations (no rollback). Users report "after every update there are things that break" (Capterra: 3.9/5 stars). Better than WordPress's complete lack of migrations, but not modern.
+- **Tiny community.** 718 GitHub stars, ~41 active contributors per year. If you hit a bug, the pool of people who can help is vastly smaller than WordPress's ecosystem. Documentation is adequate but uneven.
+
+**Bottom line:** CiviCRM is architecturally better than WordPress in the areas that matter (data model, API, DI, events). But it's a 20-year-old application maintained by a small, financially stressed team. You'd be trading WordPress's problems (terrible data model, six-plugin fragility, no API) for CiviCRM's problems (small community, key-person dependency risk, mid-modernisation inconsistency, financial fragility). The architecture is better; the ecosystem is worse.
 
 #### Beacon CRM (~£936/yr excl. VAT)
 
@@ -165,6 +179,6 @@ This is a decision for SEA, not a technical call. Three paths:
 
 - **Stay on WordPress** (~£400-500/yr in plugin licences plus hosting) — the current stack is working and the OJS sync is built. It's fragile but functional. Don't migrate to another WP plugin (PMPro, MemberPress) — same infrastructure, all migration cost, no architectural benefit.
 - **WildApricot** (~£1,200/yr) — all-in-one SaaS. Lowest setup effort, highest ongoing cost. Mature REST API with native webhooks. No servers to manage. Trade-off: vendor lock-in, US-hosted data, no custom code.
-- **CiviCRM standalone** (~£115/yr hosting; software free) — open-source, self-hosted on a DigitalOcean droplet. Best API and most extensible. Strongest membership and event features. No vendor lock-in, data ownership. Trade-off: not turnkey, needs ongoing technical maintenance.
+- **CiviCRM standalone** (~£115/yr hosting; software free) — open-source, self-hosted on a DigitalOcean droplet. Best API and most extensible. Genuinely better architecture than WordPress (proper schema, Symfony DI, APIv4). No vendor lock-in, data ownership. Trade-off: small community (7-person core team, key-person dependency risk), financial health concerns, mid-modernisation codebase, needs ongoing technical maintenance.
 
 Beacon CRM (~£936/yr excl. VAT) is also shortlisted but is the weakest of the three — less proven for association management, with membership and events as paid add-ons rather than core features.

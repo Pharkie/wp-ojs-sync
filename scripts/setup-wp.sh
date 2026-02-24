@@ -29,6 +29,11 @@ if ! wp core is-installed --allow-root 2>/dev/null; then
     --allow-root
 fi
 
+# Ensure a theme is installed (Bedrock doesn't bundle themes)
+if ! wp theme is-installed twentytwentyfive --allow-root 2>/dev/null; then
+  wp theme install twentytwentyfive --activate --allow-root
+fi
+
 # Activate plugins (idempotent — already-active plugins are skipped)
 wp plugin activate \
   woocommerce \
