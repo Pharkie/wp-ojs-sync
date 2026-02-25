@@ -212,6 +212,34 @@ export function clearTestSyncData(): void {
 }
 
 /**
+ * Change a WP user's email address.
+ * Fires the profile_update hook which our plugin listens on.
+ */
+export function changeUserEmail(userId: number, newEmail: string): void {
+  const php = `
+    wp_update_user([
+      'ID' => ${userId},
+      'user_email' => '${newEmail}',
+    ]);
+  `;
+  wpEval(php);
+}
+
+/**
+ * Get the OJS URL setting value.
+ */
+export function getOjsSetting(): string {
+  return wpEval(`echo get_option('wpojs_url', '');`);
+}
+
+/**
+ * Set the OJS URL setting value.
+ */
+export function setOjsSetting(url: string): void {
+  wpEval(`update_option('wpojs_url', '${url}');`);
+}
+
+/**
  * Count Action Scheduler actions matching a hook and status.
  */
 export function getActionSchedulerCount(
@@ -228,4 +256,19 @@ export function getActionSchedulerCount(
   `;
   const out = wpEval(php);
   return parseInt(out, 10);
+}
+
+/**
+ * Run the daily reconciliation synchronously.
+ * Fires the wpojs_daily_reconcile action which compares WP members vs OJS subs.
+ */
+export function runReconciliation(): void {
+  wpEval(`do_action('wpojs_daily_reconcile');`);
+}
+
+/**
+ * Get a WP user meta value.
+ */
+export function getUserMeta(userId: number, key: string): string {
+  return wpEval(`echo get_user_meta(${userId}, '${key}', true);`);
 }

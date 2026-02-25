@@ -148,3 +148,87 @@ export function getOjsUserSetting(
 export function clearOjsApiLog(): void {
   ojsQuery('DELETE FROM wpojs_api_log');
 }
+
+/**
+ * Get the email address for an OJS user by user_id.
+ */
+export function getOjsUserEmail(userId: number): string | null {
+  const out = ojsQuery(
+    `SELECT email FROM users WHERE user_id = ${userId}`,
+  );
+  return out.trim() || null;
+}
+
+/**
+ * Check if an OJS user account is disabled.
+ */
+export function isOjsUserDisabled(userId: number): boolean {
+  const out = ojsQuery(
+    `SELECT disabled FROM users WHERE user_id = ${userId}`,
+  );
+  return parseInt(out, 10) === 1;
+}
+
+/**
+ * Get the username for an OJS user by user_id.
+ */
+export function getOjsUserUsername(userId: number): string | null {
+  const out = ojsQuery(
+    `SELECT username FROM users WHERE user_id = ${userId}`,
+  );
+  return out.trim() || null;
+}
+
+/**
+ * Delete an OJS subscription directly (bypass API — for creating test drift).
+ */
+export function deleteOjsSubscription(userId: number): void {
+  ojsQuery(`DELETE FROM subscriptions WHERE user_id = ${userId}`);
+}
+
+/**
+ * Make a direct HTTP call to the OJS API (for validation tests).
+ * Uses curl inside the wp container (has network access to OJS).
+ * Reads OJS base URL and API key from WP config.
+ */
+export function ojsApiCall(
+  method: string,
+  path: string,
+  body?: object,
+): { status: number; body: any } {
+  // Read OJS URL and API key from WP in a single eval
+  const config = dockerExec(
+    'wp',
+    "wp eval 'echo get_option(\"wpojs_url\", \"\") . \"\\n\" . (defined(\"WPOJS_API_KEY\") ? WPOJS_API_KEY : \"\");' --allow-root 2>/dev/null | tail -2",
+    { timeout: 10_000 },
+  ).trim();
+  const [baseUrl, apiKey] = config.split('\n');
+
+  const apiUrl = `${baseUrl}/api/v1${path}`;
+
+  const curlCmd = [
+    'curl -s',
+    `-X ${method}`,
+    `-H 'Authorization: Bearer ${apiKey}'`,
+    body ? "-H 'Content-Type: application/json'" : '',
+    body ? `-d '${JSON.stringify(body).replace(/'/g, "'\\''")}'` : '',
+    `-w '\\n%{http_code}'`,
+    `'${apiUrl}'`,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const out = dockerExec('wp', curlCmd, { timeout: 15_000 });
+  const lines = out.trimEnd().split('\n');
+  const statusCode = parseInt(lines.pop()!, 10);
+  const responseBody = lines.join('\n');
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(responseBody);
+  } catch {
+    parsed = responseBody;
+  }
+
+  return { status: statusCode, body: parsed };
+}
