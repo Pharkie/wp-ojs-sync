@@ -63,88 +63,12 @@ Pricing originally verified 2026-02-21 from official websites. Vendor risk and a
 
 All prices excl. VAT (20% applies to all — WildApricot and Outseta as reverse-charge on imported services, Beacon and CiviCRM hosting as UK VAT).
 
-| Platform | Cost (~500 members, excl. VAT) | API | Verdict |
-|----------|-------------------------------|-----|---------|
-| **WildApricot** | ~$125/mo (~£1,200/yr, rising ~25% every 2yr) | Yes (REST, Swagger docs) | Turnkey, all features included, lowest setup effort. But private-equity-owned with aggressive price increases and serious support problems (Trustpilot: 1.6/5). |
-| **CiviCRM** (self-hosted standalone) | ~£115/yr (DigitalOcean droplet; software is free) | Yes (REST APIv4, full CRUD) | Most capable and extensible. Best API. Cheapest ongoing cost. But highest setup complexity. |
-| **Beacon CRM** | ~£78/mo (~£936/yr) | Yes (REST) | UK-native charity CRM with REST API. Membership features are add-ons — less proven for association management than WildApricot or CiviCRM. |
-| **Outseta** | ~$67/mo (~£640/yr) + 1% transaction surcharge | Yes (REST + webhooks) | All-in-one SaaS like WildApricot but cheaper, bootstrapped, no PE risk. Good API. Missing member directory and events. |
-
-### Detailed notes
-
-#### WildApricot (~£1,200/yr)
-
-All-in-one SaaS: members, payments, events, email, website, API. Swagger-documented REST API. Tiers are by contact count only — all features included at every tier. Founded 2006 in Canada.
-
-- **Pro:** All features included, large user base (15,000-32,000 organisations). Supports GBP billing via Stripe. No server to manage. Lowest setup effort. REST API with webhooks covers the OJS integration use case.
-- **Con:** Platform subscription billed in USD (~$125/mo for 500 contacts, 2yr prepay). No single-operation full backup (must export each data type separately; supports CSV, XLS, and XML). North American company — data hosted in US/Canada (AWS). API rate limits are tight (40 requests/min for contact lists). No SLA or uptime guarantee.
-- **OJS integration:** Rebuild sync against WildApricot API (webhooks + REST). Same push-sync pattern, different source.
-
-**Vendor risk: private equity ownership and declining support.**
-
-WildApricot was acquired by Personify in 2017 (backed by private equity firm Rubicon), then Personify was sold to another private equity firm (Pamlico Capital) in 2018. The original founder (Dmitry Buterin) left after the acquisition. Two private equity flips in two years.
-
-- **Support quality has declined significantly post-acquisition.** This is the most consistent complaint across review sites. Trustpilot: 1.6/5 (154 reviews). Capterra: 4.4/5 (554 reviews). The gap is stark — Trustpilot captures more complaint-driven reviews, but 1.6/5 with 154 reviews is not noise. Users describe email/chat-only support with weeks-long response times.
-- **Aggressive price increases.** ~25% increases every two years with 60 days notice. At this rate, prices roughly double every 6 years. Users report "zero product improvement despite multiple large price increases."
-- **Team size is uncertain.** Reports range from 17 to 200 employees. Glassdoor reviews describe layoffs and loss of engineering staff post-acquisition. One review described "only 8-9 people in an office space designed for 150+."
-- **No contractual data portability after termination.** Data is exportable while your account is active, but the Terms of Use contain no provisions for data export after account termination.
-- **Another acquisition is likely.** Pamlico has held Personify since 2018 (7+ years, approaching typical private equity hold period). Another sale could mean price hikes, product sunset, or absorption into a larger platform.
-
-**Bottom line:** WildApricot works well as a turnkey membership platform today. But the private equity ownership model is optimised for revenue extraction, not product investment. The risks are corporate/commercial (declining support, price instability, potential acquisition, no source code access) rather than CiviCRM's community/sustainability risks (small team, key-person dependency, financial stress). Neither is risk-free; they fail in different ways.
-
-#### CiviCRM (~£115/yr self-hosted)
-
-Open-source CRM (AGPL). Since v6.0 (March 2025) can run standalone — no WordPress/Drupal required. CiviMember for memberships, CiviEvent for events, CiviMail for email. Used by Amnesty International, EFF, Wikimedia Foundation, and over 9,000 organisations worldwide. Ranked #1 for cost-effectiveness in the 2025 UK Charity CRM Survey.
-
-- **Pricing:** Software is free. Hosting ~£115/yr (DigitalOcean droplet, $12/mo — 2GB RAM for PHP + MySQL on one server). CiviCRM Spark (managed cloud) is $15-50/mo but too limited for SEA — can't install custom extensions needed for OJS integration and CPD tracking.
-- **Pro:** Best API in this comparison (APIv4 — full CRUD on all entities, API Explorer built in). Stripe + GoCardless for GBP recurring payments. CiviMember handles tiered memberships, auto-renewal, manual/honorary members, status lifecycle. CiviEvent is mature for workshops/conferences. No vendor lock-in. Data ownership. Standalone mode eliminates WordPress entirely. Strong UK ecosystem. See "Architecture" section below for detailed comparison with WordPress.
-- **Con:** Not turnkey — requires implementation and ongoing technical maintenance. No native outbound webhooks (membership lifecycle hooks exist for building custom extensions, and CiviRules can automate actions on triggers). Member directory requires configuration (SearchKit + FormBuilder) rather than being built-in. Admin interface is functional rather than polished. CPD/accreditation tracking has no production-ready extension — would need custom build using CiviCase or custom fields.
-- **OJS integration:** Build a custom CiviCRM extension using `hook_civicrm_post` on Membership entity changes to push updates to OJS via HTTP. Architecturally identical to the current WP push-sync — replacing the WP side with CiviCRM. API and hooks to support this exist; integration code does not.
-- **UK tech partners** available if needed (e.g. Circle Interactive, Third Sector Design).
-
-**Architecture: genuinely better than WordPress, but not without risk.**
-
-CiviCRM is still PHP/MySQL — but the problem with the current WP stack is WordPress's architecture on top of PHP/MySQL, not PHP/MySQL itself. CiviCRM has a properly normalised relational schema (dedicated tables for contacts, memberships, contributions — not serialised arrays in `wp_usermeta`), a Symfony DI container, a well-designed APIv4 with full CRUD, and a real event system. These are genuine architectural improvements over WordPress.
-
-However:
-
-- **Key-person dependency is high.** Two developers (Eileen McNaughton and Coleman Watts) account for 43% of all 72,704 commits and dominate current weekly activity. Core team is 7 people. Only 19 contributors active in the last month. If key contributors stopped, the project would be in trouble.
-- **Financial health is weak.** Charitable income down ~30% YoY. Running a budget deficit. Health score 60/100. Subscription income is growing but not enough to offset the decline.
-- **Mid-modernisation codebase.** Legacy `CRM_*` classes (no namespaces, 2000s-era PHP) coexist with modern `\Civi\*` code (namespaces, PSR-0, Symfony components). The transition has been going on for years and is not complete. You will encounter both styles.
-- **Upgrades can break things.** Monthly releases with forward-only migrations (no rollback). Users report "after every update there are things that break" (Capterra: 3.9/5 stars). Better than WordPress's complete lack of migrations, but not modern.
-- **Tiny community.** 718 GitHub stars, ~41 active contributors per year. If you hit a bug, the pool of people who can help is vastly smaller than WordPress's ecosystem. Documentation is adequate but uneven.
-
-**Bottom line:** CiviCRM is architecturally better than WordPress in the areas that matter (data model, API, DI, events). But it's a 20-year-old application maintained by a small, financially stressed team. You'd be trading WordPress's problems (terrible data model, six-plugin fragility, no API) for CiviCRM's problems (small community, key-person dependency risk, mid-modernisation inconsistency, financial fragility). The architecture is better; the ecosystem is worse.
-
-#### Beacon CRM (~£936/yr excl. VAT)
-
-UK-built charity CRM with membership management. Designed for UK charities and nonprofits.
-
-- **Pricing:** Starter plan £59.50/mo + Memberships add-on £11/mo + Events & ticketing £7.50/mo = **£78/mo (£936/yr)** on annual billing (10% discount). Excludes VAT. Up to 1,000 contacts. 25 custom fields included.
-- **Pro:** UK-native, GBP billing. REST API. Stripe integration. Zero transaction surcharges on payments. Built for UK charities.
-- **Con:** Leans more charity/fundraising than association management. Memberships and Events are paid add-ons, not included in base price. Less feature depth than WildApricot or CiviCRM for tiered membership levels and member directories.
-- **OJS integration:** Possible via REST API. Would need investigation.
-
-#### Outseta (~£640/yr + 1% surcharge)
-
-All-in-one SaaS: billing, CRM, email marketing, authentication, help desk. All features included at every tier — no add-ons. Tiers are by contact count only. Founded 2016 in San Diego, USA. Bootstrapped (no VC, no private equity). ~6,000 customers. Team of 7 with equity stakes. Profitable.
-
-- **Pricing:** Start-up plan $87/mo ($67/mo on annual billing) for up to 5,000 contacts. All features included. Billed in USD. **1% transaction surcharge** on top of Stripe's standard payment processing fees (1.5% + 20p for UK cards). The Founder tier ($37/mo, 1,000 contacts) is cheaper but has a 2% surcharge — and SEA would likely exceed 1,000 contacts once lapsed members, prospects, and admin accounts are counted. At $67/mo annual, that's ~$804/yr (~£640/yr). The 1% surcharge on ~£32,500/yr of membership revenue (~650 members x ~£50 avg) adds ~£325/yr, making the **effective cost ~£965/yr** — comparable to Beacon, cheaper than WildApricot. **Nuance on transaction fees:** Outseta handles subscription/recurring logic itself and only uses Stripe Payments to process each charge — so you don't pay Stripe Billing's additional 0.7% fee. Outseta claims most other membership platforms create Stripe Subscription objects under the hood, triggering that hidden 0.7%. If true, the real gap between Outseta's 1% surcharge and a platform with no surcharge but Stripe Billing is only ~0.3%. However, we haven't confirmed whether WildApricot, Beacon, or other shortlisted platforms actually use Stripe Billing — so take Outseta's comparison at face value but verify before relying on it.
-- **Pro:** Genuinely all-in-one at a fraction of WildApricot's price. REST API with webhooks (POST callbacks on membership events, SHA256 signature verification, 20 retries at 20-minute intervals on failure). GBP billing supported (any Stripe-supported currency). Email marketing with drip sequences and CRM segmentation. Self-service member portal (profile management, subscription management, payment updates). Team/group memberships supported. Bootstrapped and profitable — no private equity risk, no aggressive price increases, founders have a track record (co-founder Dimitris Georgakopoulos previously co-founded Buildium, acquired by RealPage for $580M). Reviews are positive: Capterra 4.4/5, Product Hunt 4.9/5 — though review volume is low across all platforms.
-- **Con:** **No member directory** — this is a real gap for SEA, which needs a public opt-in/opt-out directory. Outseta provides self-service profiles and a CRM, but no public-facing directory page. Building one would mean querying the API externally and rendering it yourself. **No event management** — SEA runs workshops and conferences; would need a separate tool (e.g. Eventbrite, Tito). **1% transaction surcharge** on the Start-up tier. Outseta claims this is partially offset because they don't use Stripe Billing (saving 0.7% that other platforms incur silently) — but we haven't verified which competitors actually use Stripe Billing (see pricing note above). **Honorary/manual members require a workaround** — create a $0 plan or apply a 100% discount code; not a first-class feature. **API documentation has gaps** — rate limits are not documented, webhook event types are not fully enumerated, Postman collection is the best reference. **Data export is limited** — CSV export from CRM, API-based extraction possible, but no "export everything" button. **Small team** (7 people) — same bus-factor concern as CiviCRM. **SaaS-startup roots** — originally built for SaaS companies, not associations, though they now actively market to associations and have 24+ association/club customers (BHRLA, NIFA, IADS, Mezcla Media Collective, UK Soul Choirs, etc.). **US-hosted** — data sovereignty same concern as WildApricot. **No Trustpilot presence** — too small for independent review volume.
-- **OJS integration:** Rebuild sync against Outseta API. Webhooks fire on subscription events → push to OJS. REST API for bulk member reads. Same push-sync pattern as the current WP approach. The API is adequate for this; the real question is whether it handles edge cases (subscription status transitions, multiple subscriptions per person) cleanly. Outseta uses one subscription per account, which is cleaner than WCS's multiple-subscription model.
-
-**Vendor risk: small but stable.**
-
-Outseta is the anti-WildApricot in terms of ownership structure. Bootstrapped for 9 years, no external investors, all 7 team members hold equity. Revenue growing 55% YoY. The founders have significant SaaS experience (Buildium exit). There's no PE firm optimising for revenue extraction.
-
-However:
-
-- **Team of 7.** If Outseta were acquired, wound down, or lost key people, there's no open-source code to fork and no large community to fall back on. You'd need to migrate away, same as any SaaS.
-- **Young product.** Founded 2016, ~6,000 customers. WildApricot has 15,000-32,000. CiviCRM has 9,000+. Outseta is smaller and less proven at scale.
-- **Low review volume.** Capterra: 9 reviews. G2: minimal. Product Hunt: 17. The positive sentiment is real, but the sample size is small. Hard to know how it performs under stress (platform outages, billing disputes, complex migrations).
-
-**Bottom line:** Outseta is a compelling WildApricot alternative — same all-in-one model, much cheaper, better ownership structure. The API and webhooks cover the OJS integration use case. The two real gaps are **no member directory** (SEA needs this) and **no event management** (SEA needs this). If those can be solved externally (custom directory page via API, separate events tool), Outseta deserves serious consideration. The 1% transaction surcharge is a cost to factor in but doesn't change the overall value proposition. The biggest risk is the small team and young product — you're betting on a 7-person company being around in 10 years.
+| Platform | Cost (~500 members, excl. VAT) | API | Verdict | Details |
+|----------|-------------------------------|-----|---------|---------|
+| **WildApricot** | ~$125/mo (~£1,200/yr, rising ~25% every 2yr) | Yes (REST, Swagger docs) | Turnkey, all features included, lowest setup effort. But private-equity-owned with aggressive price increases and serious support problems (Trustpilot: 1.6/5). | [Full assessment →](membership-platform-wildapricot.md) |
+| **CiviCRM** (self-hosted standalone) | ~£115/yr (DigitalOcean droplet; software is free) | Yes (REST APIv4, full CRUD) | Most capable and extensible. Best API. Cheapest ongoing cost. But highest setup complexity. | [Full assessment →](membership-platform-civicrm.md) |
+| **Beacon CRM** | ~£78/mo (~£936/yr) | Yes (REST) | UK-native charity CRM with REST API. Membership features are add-ons — less proven for association management than WildApricot or CiviCRM. | [Full assessment →](membership-platform-beacon.md) |
+| **Outseta** | ~$67/mo (~£640/yr) + 1% transaction surcharge | Yes (REST + webhooks) | All-in-one SaaS like WildApricot but cheaper, bootstrapped, no PE risk. Good API. Missing member directory and events. | [Full assessment →](membership-platform-outseta.md) |
 
 ### Also evaluated (not shortlisted)
 

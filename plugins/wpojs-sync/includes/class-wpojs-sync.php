@@ -56,7 +56,7 @@ class WPOJS_Sync {
 			return;
 		}
 
-		$email      = $user->user_email;
+		$email      = strtolower( $user->user_email );
 		$first_name = $user->first_name ?: $user->display_name;
 		$last_name  = $user->last_name ?: '';
 
@@ -77,7 +77,11 @@ class WPOJS_Sync {
 			throw new Exception( 'find_or_create_user failed: ' . $result['error'] );
 		}
 
-		$ojs_user_id = $result['body']['userId'];
+		$ojs_user_id = $result['body']['userId'] ?? null;
+		if ( ! $ojs_user_id ) {
+			$this->logger->log( $wp_user_id, $email, 'activate', 'fail', $result['code'], 'Unexpected API response: missing userId' );
+			throw new Exception( 'find_or_create_user returned success but no userId' );
+		}
 
 		// Cache OJS userId in usermeta.
 		update_user_meta( $wp_user_id, '_wpojs_user_id', $ojs_user_id );
@@ -169,8 +173,8 @@ class WPOJS_Sync {
 	 */
 	public function handle_email_change( $args ) {
 		$wp_user_id = isset( $args['wp_user_id'] ) ? (int) $args['wp_user_id'] : 0;
-		$old_email  = isset( $args['old_email'] ) ? $args['old_email'] : '';
-		$new_email  = isset( $args['new_email'] ) ? $args['new_email'] : '';
+		$old_email  = isset( $args['old_email'] ) ? strtolower( $args['old_email'] ) : '';
+		$new_email  = isset( $args['new_email'] ) ? strtolower( $args['new_email'] ) : '';
 
 		if ( ! $old_email || ! $new_email ) {
 			$this->logger->log( $wp_user_id, $old_email, 'email_change', 'fail', 0, 'Missing old/new email in args' );
@@ -358,7 +362,7 @@ class WPOJS_Sync {
 			);
 		}
 
-		$email      = $user->user_email;
+		$email      = strtolower( $user->user_email );
 		$first_name = $user->first_name ?: $user->display_name;
 		$last_name  = $user->last_name ?: '';
 
@@ -372,7 +376,11 @@ class WPOJS_Sync {
 			return array( 'success' => false, 'message' => 'Find-or-create failed: ' . $result['error'] );
 		}
 
-		$ojs_user_id = $result['body']['userId'];
+		$ojs_user_id = $result['body']['userId'] ?? null;
+		if ( ! $ojs_user_id ) {
+			$this->logger->log( $wp_user_id, $email, 'activate', 'fail', $result['code'], 'Unexpected API response: missing userId' );
+			return array( 'success' => false, 'message' => 'Find-or-create returned success but no userId' );
+		}
 		update_user_meta( $wp_user_id, '_wpojs_user_id', $ojs_user_id );
 
 		if ( ! empty( $result['body']['created'] ) ) {

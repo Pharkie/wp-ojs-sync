@@ -34,7 +34,7 @@
 - [x] OJS down → queued → OJS up → retried → synced
 - [x] Bulk sync dry-run → full run → counts match (683/683)
 
-### Playwright E2E browser tests (`e2e/`) — 14/14 passing
+### Playwright E2E browser tests (`e2e/`)
 
 - [x] Sync lifecycle — WCS activate/expire → OJS subscription status
 - [x] OJS login — synced user sets password + logs in
@@ -42,10 +42,15 @@
 - [x] OJS UI messages — login hint, footer, paywall hint
 - [x] Admin monitoring — Sync Log page stats, nonce, retry actions
 - [x] OJS API request logging — log table + `wpojs_created_by_sync` flag
+- [x] Email change sync — WP email change → OJS email updated
+- [x] User deletion / GDPR — WP user delete → OJS user anonymised + disabled
+- [x] Test connection — settings page AJAX test reports success
+- [x] Error recovery — sync fails when OJS unreachable, succeeds on retry
 
 ## Future improvements
 
-- [ ] Rate limiting on OJS API — defense in depth beyond IP allowlist + API key. Protects against runaway sync loops or misconfiguration, not just external abuse.
+- [x] Rate limiting on OJS API — implemented: per-IP rate limiting using the API log table, configurable via `rate_limit_requests` / `rate_limit_window` in `config.inc.php [wpojs]`.
+- [x] Automatic API log cleanup — runs at most once per hour during API requests, deletes entries older than 30 days.
 - [ ] Admin per-member sync status — the Sync Log page shows global stats but no per-user view. Data already exists in `wp_wpojs_sync_log` + `_wpojs_user_id` usermeta; just needs a UI. Useful for support ("is this member synced?").
 - [ ] Follow-up email for members who haven't set OJS password — requires a new OJS endpoint to query users with `must_change_password=true`, or direct DB query. Implement post-launch once you have data on how many members actually set their passwords.
 

@@ -165,9 +165,12 @@ class WpojsApiController extends PKPBaseController
      * Combined authorization: IP allowlist + API key + rate limit.
      * Call at the start of every protected endpoint.
      * Logs the request on both success and auth failure.
+     * Also triggers periodic log cleanup (at most once per hour).
      */
     private function checkAuth(Request $request): ?JsonResponse
     {
+        $this->maybeCleanupLogs();
+
         $ipError = $this->checkIp($request);
         if ($ipError) {
             $this->logRequest($request, $ipError->getStatusCode());
@@ -188,6 +191,39 @@ class WpojsApiController extends PKPBaseController
 
         $this->logRequest($request, 200);
         return null;
+    }
+
+    /**
+     * Run log cleanup at most once per hour.
+     * Uses a plugin setting to track the last run timestamp.
+     */
+    private function maybeCleanupLogs(): void
+    {
+        static $checked = false;
+        if ($checked) {
+            return;
+        }
+        $checked = true;
+
+        try {
+            $lastCleanup = (int) DB::table('plugin_settings')
+                ->where('plugin_name', 'wpojssubscriptionapiplugin')
+                ->where('setting_name', 'last_log_cleanup')
+                ->value('setting_value');
+
+            if (time() - $lastCleanup < 3600) {
+                return;
+            }
+
+            WpojsApiLog::cleanup(30);
+
+            DB::table('plugin_settings')->updateOrInsert(
+                ['plugin_name' => 'wpojssubscriptionapiplugin', 'setting_name' => 'last_log_cleanup', 'context_id' => 0],
+                ['setting_value' => (string) time()]
+            );
+        } catch (\Exception $e) {
+            // Cleanup is best-effort — don't break the API request.
+        }
     }
 
     /**
@@ -234,11 +270,18 @@ class WpojsApiController extends PKPBaseController
         WpojsApiLog::log($endpoint, $method, $sourceIp, $httpStatus);
     }
 
-    private function getJournalId(): int
+    /**
+     * Get the journal ID from the request context.
+     * Returns a JsonResponse error if no journal context is available.
+     */
+    private function getJournalIdOrFail(): int|JsonResponse
     {
         $context = Application::get()->getRequest()->getContext();
         if (!$context) {
-            throw new \RuntimeException('No journal context');
+            return response()->json(
+                ['error' => 'No journal context — request must target a journal-scoped URL'],
+                Response::HTTP_BAD_REQUEST
+            );
         }
         return $context->getId();
     }
@@ -475,7 +518,8 @@ class WpojsApiController extends PKPBaseController
             $userId = Repo::user()->add($user);
 
             // Assign Reader role for this journal
-            $contextId = $this->getJournalId();
+            $contextId = $this->getJournalIdOrFail();
+            if ($contextId instanceof JsonResponse) return $contextId;
             $readerGroup = Repo::userGroup()
                 ->getByRoleIds([Role::ROLE_ID_READER], $contextId)
                 ->first();
@@ -498,7 +542,8 @@ class WpojsApiController extends PKPBaseController
             $raceUser = Repo::user()->getByEmail($email, true);
             if ($raceUser) {
                 // Ensure Reader role is assigned (idempotent — safe if already assigned)
-                $contextId = $this->getJournalId();
+                $contextId = $this->getJournalIdOrFail();
+                if ($contextId instanceof JsonResponse) return $contextId;
                 $readerGroup = Repo::userGroup()
                     ->getByRoleIds([Role::ROLE_ID_READER], $contextId)
                     ->first();
@@ -617,7 +662,8 @@ class WpojsApiController extends PKPBaseController
         ]);
 
         // Expire any active subscription in this journal
-        $journalId = $this->getJournalId();
+        $journalId = $this->getJournalIdOrFail();
+        if ($journalId instanceof JsonResponse) return $journalId;
         $dao = DAORegistry::getDAO('IndividualSubscriptionDAO');
         $sub = $dao->getByUserIdForJournal($userId, $journalId);
         if ($sub && (int) $sub->getStatus() === self::STATUS_ACTIVE) {
@@ -663,6 +709,9 @@ class WpojsApiController extends PKPBaseController
         if ($dateEnd !== null && !$this->isValidDate($dateEnd)) {
             return response()->json(['error' => 'Invalid dateEnd (expected Y-m-d or null)'], Response::HTTP_BAD_REQUEST);
         }
+        if ($dateEnd !== null && $dateEnd < $dateStart) {
+            return response()->json(['error' => 'dateEnd must not be before dateStart'], Response::HTTP_BAD_REQUEST);
+        }
 
         // Verify user exists
         $user = Repo::user()->get($userId);
@@ -670,7 +719,8 @@ class WpojsApiController extends PKPBaseController
             return response()->json(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
         }
 
-        $journalId = $this->getJournalId();
+        $journalId = $this->getJournalIdOrFail();
+        if ($journalId instanceof JsonResponse) return $journalId;
 
         // Verify subscription type exists for this journal
         $typeDao = DAORegistry::getDAO('SubscriptionTypeDAO');
@@ -787,7 +837,8 @@ class WpojsApiController extends PKPBaseController
             return response()->json(['error' => 'Invalid subscriptionId'], Response::HTTP_BAD_REQUEST);
         }
 
-        $journalId = $this->getJournalId();
+        $journalId = $this->getJournalIdOrFail();
+        if ($journalId instanceof JsonResponse) return $journalId;
         $dao = DAORegistry::getDAO('IndividualSubscriptionDAO');
         $sub = $dao->getById($subscriptionId);
 
@@ -820,7 +871,8 @@ class WpojsApiController extends PKPBaseController
             return response()->json(['error' => 'Invalid userId'], Response::HTTP_BAD_REQUEST);
         }
 
-        $journalId = $this->getJournalId();
+        $journalId = $this->getJournalIdOrFail();
+        if ($journalId instanceof JsonResponse) return $journalId;
         $dao = DAORegistry::getDAO('IndividualSubscriptionDAO');
         $sub = $dao->getByUserIdForJournal($userId, $journalId);
 
@@ -865,7 +917,8 @@ class WpojsApiController extends PKPBaseController
             );
         }
 
-        $journalId = $this->getJournalId();
+        $journalId = $this->getJournalIdOrFail();
+        if ($journalId instanceof JsonResponse) return $journalId;
         $results = [];
 
         // Batch-lookup users by email
@@ -873,6 +926,10 @@ class WpojsApiController extends PKPBaseController
         foreach ($emails as $email) {
             $email = trim($email);
             if (empty($email)) {
+                continue;
+            }
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $results[$email] = ['active' => false, 'found' => false, 'error' => 'invalid email'];
                 continue;
             }
             $user = Repo::user()->getByEmail($email, true);
@@ -936,7 +993,8 @@ class WpojsApiController extends PKPBaseController
             return response()->json(['error' => 'Invalid userId'], Response::HTTP_BAD_REQUEST);
         }
 
-        $journalId = $this->getJournalId();
+        $journalId = $this->getJournalIdOrFail();
+        if ($journalId instanceof JsonResponse) return $journalId;
 
         $resolvedUserId = null;
         if (!empty($email)) {

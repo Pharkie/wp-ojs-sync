@@ -55,6 +55,7 @@ Installed in `plugins/generic/wpojsSubscriptionApi/`:
 - "Set your password" welcome email: generates reset token, sends branded email on user creation
 - UI messages via plugin hooks: login hint, paywall hint for non-subscribers, site footer. Config: `[wpojs] wp_member_url`, `support_email`
 - Delete-user endpoint for GDPR erasure propagation from WP
+- **API log auto-cleanup**: old log entries (>30 days) are automatically deleted during API requests (at most once per hour). Manual cleanup also runs when an admin opens the status page.
 
 ### WP plugin (`wpojs-sync`)
 
@@ -412,6 +413,12 @@ The smoke test checklist in TODO.md covers the full integration path. Most are n
 | `ojs-login.spec.ts` | Synced user sets OJS password and logs in |
 | `wp-dashboard.spec.ts` | My Account journal access widget (active member + non-member) |
 | `ojs-ui-messages.spec.ts` | Login hint, footer message, paywall hint for non-subscriber |
+| `admin-monitoring.spec.ts` | Sync Log page stats, nonce, retry actions (single + bulk) |
+| `ojs-api-log.spec.ts` | OJS API request logging and `wpojs_created_by_sync` flag |
+| `email-change.spec.ts` | WP email change → OJS user email updated |
+| `user-deletion.spec.ts` | WP user deletion → OJS user anonymised, disabled, subscription expired |
+| `test-connection.spec.ts` | Settings page "Test Connection" AJAX reports success |
+| `error-recovery.spec.ts` | Sync fails when OJS URL is bad, succeeds after restoring |
 
 Tests run against the Docker dev environment (`--with-sample-data`). Each test creates unique users, processes the Action Scheduler queue, and cleans up in `afterAll`. Serial execution (`workers: 1`) avoids data conflicts. Run with `npm test`.
 

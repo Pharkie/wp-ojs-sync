@@ -56,7 +56,7 @@ class WPOJS_Cron {
 		foreach ( $active_members as $wp_user_id ) {
 			$user = get_userdata( $wp_user_id );
 			if ( $user ) {
-				$email_to_user_id[ $user->user_email ] = $wp_user_id;
+				$email_to_user_id[ strtolower( $user->user_email ) ] = $wp_user_id;
 			}
 		}
 

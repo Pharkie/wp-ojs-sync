@@ -177,6 +177,9 @@ class WPOJS_API_Client {
     // -------------------------------------------------------------------------
 
     private function get( $endpoint, $query_args = array(), $auth = true ) {
+        if ( empty( $this->base_url ) ) {
+            return array( 'success' => false, 'code' => 0, 'body' => array(), 'error' => 'OJS URL not configured' );
+        }
         $url = $this->build_url( $endpoint );
         if ( ! empty( $query_args ) ) {
             $url = add_query_arg( $query_args, $url );
@@ -192,6 +195,9 @@ class WPOJS_API_Client {
     }
 
     private function post( $endpoint, $body = array() ) {
+        if ( empty( $this->base_url ) ) {
+            return array( 'success' => false, 'code' => 0, 'body' => array(), 'error' => 'OJS URL not configured' );
+        }
         $url  = $this->build_url( $endpoint );
         $args = array(
             'timeout' => $this->timeout,
@@ -206,6 +212,9 @@ class WPOJS_API_Client {
     }
 
     private function request( $method, $endpoint, $body = null ) {
+        if ( empty( $this->base_url ) ) {
+            return array( 'success' => false, 'code' => 0, 'body' => array(), 'error' => 'OJS URL not configured' );
+        }
         $url  = $this->build_url( $endpoint );
         $args = array(
             'method'  => $method,

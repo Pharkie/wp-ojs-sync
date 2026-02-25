@@ -36,11 +36,12 @@ class WPOJS_Log_Actions {
 		}
 
 		$log_id = isset( $_GET['log_id'] ) ? absint( $_GET['log_id'] ) : 0;
+
+		check_ajax_referer( 'wpojs_retry_' . $log_id );
+
 		if ( ! $log_id ) {
 			wp_send_json_error( 'Invalid log ID.' );
 		}
-
-		check_ajax_referer( 'wpojs_retry_' . $log_id );
 
 		$result = $this->schedule_retry( $log_id );
 		if ( $result['success'] ) {
