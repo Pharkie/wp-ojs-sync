@@ -4,29 +4,43 @@ What we need to deploy, test, and maintain the WP-OJS sync integration.
 
 ---
 
-## OJS hosting (new — we can specify)
+## Recommended provider setup
 
-OJS is a fresh deployment. The dev environment runs OJS in Docker, and production should match that as closely as possible.
+| System | Provider | Plan | Why |
+|---|---|---|---|
+| **OJS** | **DigitalOcean** (London region) | Droplet, 2 GB RAM / 1 vCPU / 25 GB SSD (~$12/mo) | Full root access, Docker support, UK data centre. OJS is a fresh deployment — we can specify exactly what we need. |
+| **WP** | **Krystal** (existing) | Current shared hosting plan | Already running. Has SSH, WP-CLI, file access — everything the sync plugin needs. No migration required. |
 
-### Recommended setup
+The two systems communicate over standard HTTPS on the public internet. No VPN, shared network, or same-provider requirement. This is the same way WP already talks to Stripe, payment gateways, and other external services.
 
-Run OJS as a Docker container on a Linux VPS (e.g. DigitalOcean droplet, Hetzner, Linode). This mirrors the dev environment exactly and makes upgrades, backups, and troubleshooting straightforward.
+---
 
-**Minimum spec:** 2 GB RAM, 1 vCPU, 25 GB SSD. OJS is a PHP/MySQL app with light traffic (~700 members, not concurrent). This is comfortable for staging and production. Scale up if article traffic grows significantly.
+## OJS on DigitalOcean
 
-### What we need
+OJS is a fresh deployment. A DigitalOcean droplet in the London region mirrors the Docker dev environment exactly and gives us full control over the server.
 
-| Requirement | Why |
+**Spec:** 2 GB RAM, 1 vCPU, 25 GB SSD (~$12/mo). OJS is a PHP/MySQL app with light traffic (~700 members, not concurrent). This is comfortable for staging and production. Scale up if article traffic grows significantly. Two droplets needed — one for staging, one for production.
+
+### What DigitalOcean provides (all included with a standard droplet)
+
+| Requirement | DigitalOcean | Notes |
+|---|---|---|
+| **SSH access** | Yes — root by default | Deploy plugin files, edit `config.inc.php`, restart services |
+| **Docker + Docker Compose** | Yes — one-click Docker image or install manually | Run OJS the same way as dev |
+| **Root access** | Yes | Full control over the server |
+| **MariaDB/MySQL access** | Yes — runs in Docker container | For troubleshooting and data verification |
+| **Firewall control** | Yes — UFW on server + DigitalOcean cloud firewall | Accept HTTPS on 443, restrict SSH |
+| **SSL/TLS certificate** | Yes — Let's Encrypt via Caddy or nginx | HTTPS required (WP plugin rejects `http://`) |
+| **DNS control** | Yes — DigitalOcean DNS or external | Point journal subdomain at droplet |
+| **Automated backups** | Yes — droplet backups ($2.40/mo) or manual snapshots | Database + uploaded files, daily |
+
+### What we configure ourselves
+
+| Item | Detail |
 |---|---|
-| **SSH access** | Deploy plugin files, edit `config.inc.php`, restart services, troubleshoot |
-| **Docker + Docker Compose** | Run OJS the same way as dev — reproducible, easy upgrades |
-| **Root or sudo** | Manage containers, install packages, configure firewall |
-| **MariaDB/MySQL access** | Not for normal operations (the plugin uses the OJS API), but essential for troubleshooting sync issues, verifying data, and running the `/preflight` health check |
-| **Firewall control** | OJS needs to accept traffic on port 443 (HTTPS). The API IP allowlist is handled in `config.inc.php`, but the server firewall should also be configured |
-| **SSL/TLS certificate** | HTTPS required — the WP plugin rejects `http://` URLs. Let's Encrypt via Caddy or nginx reverse proxy |
-| **SMTP relay** | Transactional email (Mailgun, SES, or Postmark) with SPF/DKIM/DMARC configured for the OJS sending domain. Required for welcome emails and password resets |
-| **DNS control** | Point the journal subdomain at the server, configure MX/SPF/DKIM records for email |
-| **Automated backups** | Database + uploaded files. Daily, retained for 30 days minimum |
+| **SMTP relay** | Transactional email (Mailgun, SES, or Postmark) with SPF/DKIM/DMARC for the OJS sending domain. Required for welcome emails and password resets. |
+| **OJS `config.inc.php`** | `[wpojs]` section: `allowed_ips` (Krystal's outbound IP), `wp_member_url`, `support_email`, `api_key_secret` |
+| **OJS subscription type** | Create in OJS admin, record the `type_id` for WP plugin config |
 
 ### Docker architecture
 
@@ -58,27 +72,27 @@ This is why Docker matters — you can test the upgrade on staging by rebuilding
 
 ---
 
-## WP hosting (existing — what access we need)
+## WP on Krystal (existing — no migration needed)
 
-WP is on existing hosting. We don't need to change the hosting setup, but we need specific access to deploy and configure the sync plugin.
+WP stays on its current Krystal shared hosting. Krystal provides everything the sync plugin needs — no hosting changes required.
 
-### Access required
+### What Krystal provides
 
-| Requirement | Why |
-|---|---|
-| **SSH access** | Deploy plugin files, run WP-CLI commands (bulk sync, test connection, reconciliation) |
-| **WP-CLI** | All sync operations are WP-CLI commands. Without it, bulk sync and troubleshooting become much harder. Most hosts have it or it can be installed. |
-| **WP Admin access** (Administrator role) | Configure plugin settings (OJS URL, type mapping), view sync log, test connection |
-| **`wp-config.php` edit access** | Add `WPOJS_API_KEY` constant. This is a one-time change. |
-| **File upload to `wp-content/plugins/`** | Deploy the `wpojs-sync` plugin. Can be done via SSH, SFTP, or WP Admin plugin upload. |
-| **Outbound HTTPS from WP server** | WP needs to reach the OJS server on port 443. Some managed hosts restrict outbound connections — verify this works. |
+| Requirement | Krystal shared hosting | Notes |
+|---|---|---|
+| **SSH access** | Yes (all plans except Amethyst) | Deploy files, run WP-CLI |
+| **WP-CLI** | Yes — installed by default | Bulk sync, test connection, reconciliation |
+| **WP Admin access** | Yes | Configure plugin settings, view sync log |
+| **`wp-config.php` edit access** | Yes — via SSH or cPanel file manager | Add `WPOJS_API_KEY` constant (one-time) |
+| **File upload to plugins dir** | Yes — SSH, SFTP, or cPanel | Deploy the `wpojs-sync` plugin |
+| **Outbound HTTPS** | Yes — not restricted | WP calls OJS API over standard HTTPS |
 
-### What we do NOT need
+### What we do NOT need from Krystal
 
-- Direct database access (all WP operations go through WP-CLI and the WP plugin API)
+- Direct database access (all WP operations go through WP-CLI and the plugin)
 - Root/sudo access
-- PHP version changes (plugin works with PHP 7.4+, which any current WP host supports)
-- Server configuration changes (no Apache/nginx changes needed on the WP side)
+- PHP version changes (plugin works with PHP 7.4+, Krystal supports this)
+- Server configuration changes (no Apache/nginx changes on the WP side)
 
 ### WP server IP
 
@@ -107,16 +121,16 @@ wp ojs-sync test-connection
 
 ---
 
-## Can OJS and WP be on different providers?
+## How the two systems connect
 
-Yes. OJS and WP do not need to be on the same host, network, or data centre. The entire integration is authenticated HTTPS requests over the public internet — the same way WP already talks to Stripe, payment gateways, and other external services.
+Krystal (WP) and DigitalOcean (OJS) communicate over standard HTTPS on the public internet. No VPN, shared network, or same-provider requirement.
 
-For example, WP on Krystal shared hosting and OJS on a DigitalOcean droplet works fine. The only configuration needed:
+Configuration needed:
 
-1. **WP side:** Set the OJS URL in plugin settings (e.g. `https://journal.example.org/index.php/journal`)
-2. **OJS side:** Add the WP server's outbound IP to `allowed_ips` in `config.inc.php`
+1. **WP side (Krystal):** Set the OJS URL in plugin settings (e.g. `https://journal.example.org/index.php/journal`) and add `WPOJS_API_KEY` to `wp-config.php`
+2. **OJS side (DigitalOcean):** Add Krystal's outbound IP to `allowed_ips` in `config.inc.php` and set the same API key
 
-To find WP's outbound IP:
+To find Krystal's outbound IP:
 
 ```bash
 wp eval 'echo file_get_contents("https://api.ipify.org");' --allow-root
