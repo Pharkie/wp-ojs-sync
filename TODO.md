@@ -10,7 +10,7 @@
 
 ## Before deploying to production
 
-- [ ] Upgrade OJS to 3.5 (required for the plugin API)
+- [ ] Set up OJS 3.5 production server — new DigitalOcean droplet running OJS 3.5 in Docker (staging already on 3.5.0.3). This replaces the current 3.4 server, not an in-place upgrade. See `docs/hosting-requirements.md` for full specs.
 - [ ] Set up transactional email relay on OJS server (SPF/DKIM/DMARC) — verify welcome email delivery end-to-end
 - [ ] Configure WP settings: type mapping, manual roles, OJS URL
 - [ ] Configure OJS `config.inc.php` `[wpojs]` section: allowed IPs, WP member URL, support email
