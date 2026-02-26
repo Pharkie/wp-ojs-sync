@@ -181,6 +181,16 @@ class WPOJS_Sync {
 			return; // Permanent: bad data, don't retry.
 		}
 
+		// Staleness check: if the user's current WP email no longer matches
+		// new_email, a newer email change has superseded this one.
+		$current_user = get_userdata( $wp_user_id );
+		if ( $current_user && strtolower( $current_user->user_email ) !== $new_email ) {
+			$this->logger->log( $wp_user_id, $old_email, 'email_change', 'success', 0,
+				sprintf( 'Superseded by newer change (current email: %s)', $current_user->user_email )
+			);
+			return;
+		}
+
 		$ojs_user_id = $this->resolve_ojs_user_id( $wp_user_id, $old_email );
 		if ( ! $ojs_user_id ) {
 			$this->logger->log( $wp_user_id, $old_email, 'email_change', 'success', 0, 'User not found on OJS -- nothing to update' );
@@ -239,6 +249,8 @@ class WPOJS_Sync {
 
 		if ( ! $ojs_user_id ) {
 			$this->logger->log( $wp_user_id, $email, 'delete_user', 'success', 0, 'User not found on OJS -- nothing to delete' );
+			// Anonymize sync log entries even if user wasn't on OJS.
+			$this->logger->anonymize_user_logs( $wp_user_id, $email );
 			return;
 		}
 
@@ -251,6 +263,8 @@ class WPOJS_Sync {
 					'OJS Sync: GDPR Delete Failed',
 					sprintf( "Action: delete_user\nEmail: %s\nOJS User ID: %d\nHTTP %d: %s", $email, $ojs_user_id, $result['code'], $result['error'] )
 				);
+				// Anonymize even on failure — the WP user is already gone.
+				$this->logger->anonymize_user_logs( $wp_user_id, $email );
 				return;
 			}
 			throw new Exception( 'delete_user failed: ' . $result['error'] );
@@ -258,6 +272,8 @@ class WPOJS_Sync {
 
 		// User is already deleted from WP, so no usermeta to clean up.
 		$this->logger->log( $wp_user_id, $email, 'delete_user', 'success', $result['code'], wp_json_encode( $result['body'] ) );
+		// Anonymize all sync log entries for this user (GDPR).
+		$this->logger->anonymize_user_logs( $wp_user_id, $email );
 	}
 
 	/**

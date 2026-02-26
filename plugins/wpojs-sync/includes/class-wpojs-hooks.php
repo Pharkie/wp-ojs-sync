@@ -119,14 +119,29 @@ class WPOJS_Hooks {
 			return;
 		}
 
+		// Cancel any pending email change actions for this user — a newer change
+		// supersedes them. Without this, rapid changes A→B→C would queue two
+		// actions with different args (dedup doesn't catch them because args differ).
+		$store = ActionScheduler::store();
+		$pending = $store->query_actions( array(
+			'hook'   => 'wpojs_sync_email_change',
+			'status' => \ActionScheduler_Store::STATUS_PENDING,
+			'group'  => 'wpojs-sync',
+		) );
+		foreach ( $pending as $action_id ) {
+			$action = $store->fetch_action( $action_id );
+			$action_args = $action->get_args();
+			if ( isset( $action_args[0]['wp_user_id'] ) && (int) $action_args[0]['wp_user_id'] === $user_id ) {
+				$store->cancel_action( $action_id );
+			}
+		}
+
 		$args = array( array(
 			'wp_user_id' => $user_id,
 			'old_email'  => $old_email,
 			'new_email'  => $new_email,
 		) );
-		if ( ! as_has_scheduled_action( 'wpojs_sync_email_change', $args, 'wpojs-sync' ) ) {
-			as_schedule_single_action( time(), 'wpojs_sync_email_change', $args, 'wpojs-sync' );
-		}
+		as_schedule_single_action( time(), 'wpojs_sync_email_change', $args, 'wpojs-sync' );
 	}
 
 	/**

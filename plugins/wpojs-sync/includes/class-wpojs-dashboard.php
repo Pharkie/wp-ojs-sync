@@ -9,11 +9,15 @@ class WPOJS_Dashboard {
     /** @var WPOJS_Resolver */
     private $resolver;
 
+    /** @var WPOJS_Logger|null */
+    private $logger;
+
     /** @var string */
     private $ojs_url;
 
-    public function __construct( WPOJS_Resolver $resolver ) {
+    public function __construct( WPOJS_Resolver $resolver, ?WPOJS_Logger $logger = null ) {
         $this->resolver = $resolver;
+        $this->logger   = $logger;
         $this->ojs_url  = untrailingslashit( get_option( 'wpojs_url', '' ) );
     }
 
@@ -52,6 +56,23 @@ class WPOJS_Dashboard {
             $status_class = 'wpojs-status--inactive';
         }
 
+        // Query last successful sync timestamp for this user.
+        $last_synced = null;
+        if ( $this->logger ) {
+            $entries = $this->logger->get_entries( array(
+                'status'   => 'success',
+                'per_page' => 1,
+                'offset'   => 0,
+            ) );
+            // Filter to this user's entries via a direct query for efficiency.
+            global $wpdb;
+            $table = $wpdb->prefix . 'wpojs_sync_log';
+            $last_synced = $wpdb->get_var( $wpdb->prepare(
+                "SELECT created_at FROM {$table} WHERE wp_user_id = %d AND status = 'success' ORDER BY created_at DESC LIMIT 1",
+                $user_id
+            ) );
+        }
+
         $journal_url  = $this->ojs_url ?: '#';
         $journal_name = get_option( 'wpojs_journal_name', 'Journal' );
         ?>
@@ -66,6 +87,11 @@ class WPOJS_Dashboard {
                     <?php echo esc_html( $status_text ); ?>
                 </span>
             </p>
+            <?php if ( $is_member && $last_synced ) : ?>
+                <p style="margin:0 0 12px;font-size:12px;color:#888;">
+                    <?php echo esc_html( sprintf( __( 'Last synced: %s', 'wpojs-sync' ), date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $last_synced ) ) ) ); ?>
+                </p>
+            <?php endif; ?>
             <?php if ( $is_member && $this->ojs_url ) : ?>
                 <p style="margin:0 0 12px;font-size:14px;color:#555;">
                     <?php echo esc_html( sprintf( __( 'Your membership includes access to %s.', 'wpojs-sync' ), $journal_name ) ); ?>

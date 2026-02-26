@@ -1,3 +1,4 @@
+import { execSync } from 'child_process';
 import { dockerExec } from './docker';
 
 /**
@@ -118,6 +119,7 @@ export function waitForSync(): void {
     { timeout: 30_000 },
   );
   // Small buffer for OJS API to finish processing.
+  execSync('sleep 0.5');
 }
 
 /**

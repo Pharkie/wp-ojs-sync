@@ -9,8 +9,12 @@ class WPOJS_Settings {
     /** @var WPOJS_API_Client */
     private $api;
 
-    public function __construct( WPOJS_API_Client $api ) {
-        $this->api = $api;
+    /** @var WPOJS_Logger|null */
+    private $logger;
+
+    public function __construct( WPOJS_API_Client $api, ?WPOJS_Logger $logger = null ) {
+        $this->api    = $api;
+        $this->logger = $logger;
     }
 
     /**
@@ -20,6 +24,7 @@ class WPOJS_Settings {
         add_action( 'admin_menu', array( $this, 'add_menu' ) );
         add_action( 'admin_init', array( $this, 'register_settings' ) );
         add_action( 'wp_ajax_wpojs_test_connection', array( $this, 'ajax_test_connection' ) );
+        add_action( 'admin_notices', array( $this, 'render_failure_notice' ) );
     }
 
     public function add_menu() {
@@ -331,6 +336,44 @@ class WPOJS_Settings {
     }
 
     /**
+     * Show admin notice when recent sync failures exceed threshold.
+     */
+    public function render_failure_notice() {
+        if ( ! $this->logger || ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        // Only show on dashboard and OJS Sync pages.
+        $screen = get_current_screen();
+        if ( ! $screen ) {
+            return;
+        }
+        $show_on = array( 'dashboard', 'toplevel_page_wpojs-sync' );
+        if ( ! in_array( $screen->id, $show_on, true ) && strpos( $screen->id, 'wpojs' ) === false ) {
+            return;
+        }
+
+        // Cache the failure count for 15 minutes to avoid repeated DB queries.
+        $count = get_transient( 'wpojs_failure_count_24h' );
+        if ( $count === false ) {
+            $since = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
+            $count = $this->logger->get_failure_count_since( $since );
+            set_transient( 'wpojs_failure_count_24h', $count, 15 * MINUTE_IN_SECONDS );
+        }
+
+        if ( (int) $count < 5 ) {
+            return;
+        }
+
+        $log_url = admin_url( 'admin.php?page=wpojs-sync-log&status=fail' );
+        printf(
+            '<div class="notice notice-warning"><p><strong>OJS Sync:</strong> %d sync failures in the last 24 hours. <a href="%s">View sync log</a></p></div>',
+            (int) $count,
+            esc_url( $log_url )
+        );
+    }
+
+    /**
      * AJAX handler for test connection.
      */
     public function ajax_test_connection() {
@@ -344,7 +387,32 @@ class WPOJS_Settings {
         $client = new WPOJS_API_Client();
         $result = $client->test_connection();
 
+        // Validate type mapping configuration.
+        $warnings = array();
+        $mapping     = get_option( 'wpojs_type_mapping', array() );
+        $default_tid = get_option( 'wpojs_default_type_id', 0 );
+
+        if ( empty( $mapping ) && empty( $default_tid ) ) {
+            $warnings[] = 'No subscription type mapping configured and no default type set. Sync will fail for all members.';
+        }
+
+        if ( ! empty( $mapping ) && function_exists( 'wc_get_product' ) ) {
+            foreach ( $mapping as $product_id => $type_id ) {
+                $product = wc_get_product( (int) $product_id );
+                if ( ! $product ) {
+                    $warnings[] = sprintf( 'WC Product ID %d in type mapping does not exist.', $product_id );
+                }
+            }
+        }
+
+        if ( ! empty( $warnings ) ) {
+            $result['warnings'] = $warnings;
+        }
+
         if ( $result['ok'] ) {
+            if ( ! empty( $warnings ) ) {
+                $result['message'] .= ' Warnings: ' . implode( ' ', $warnings );
+            }
             wp_send_json_success( $result );
         } else {
             wp_send_json_error( $result );

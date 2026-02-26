@@ -7,7 +7,7 @@
             <label for="wpojs-loginHint" style="display:block;font-weight:600;margin-bottom:4px;">
                 {translate key="plugins.generic.wpojsSubscriptionApi.settings.loginHint"}
             </label>
-            <textarea id="wpojs-loginHint" name="loginHint" rows="3" style="width:100%;font-family:monospace;font-size:13px;">{$loginHint|escape}</textarea>
+            <textarea id="wpojs-loginHint" name="loginHint" rows="3" maxlength="500" style="width:100%;font-family:monospace;font-size:13px;">{$loginHint|escape}</textarea>
             <small style="color:#666;">Placeholder: <code>{literal}{lostPasswordUrl}{/literal}</code> &mdash; link to the OJS password reset page.</small>
         </div>
 
@@ -15,7 +15,7 @@
             <label for="wpojs-paywallHint" style="display:block;font-weight:600;margin-bottom:4px;">
                 {translate key="plugins.generic.wpojsSubscriptionApi.settings.paywallHint"}
             </label>
-            <textarea id="wpojs-paywallHint" name="paywallHint" rows="3" style="width:100%;font-family:monospace;font-size:13px;">{$paywallHint|escape}</textarea>
+            <textarea id="wpojs-paywallHint" name="paywallHint" rows="3" maxlength="500" style="width:100%;font-family:monospace;font-size:13px;">{$paywallHint|escape}</textarea>
             <small style="color:#666;">Placeholder: <code>{literal}{supportEmail}{/literal}</code> &mdash; value from <code>config.inc.php [wpojs] support_email</code>.</small>
         </div>
 
@@ -23,7 +23,7 @@
             <label for="wpojs-footerMessage" style="display:block;font-weight:600;margin-bottom:4px;">
                 {translate key="plugins.generic.wpojsSubscriptionApi.settings.footerMessage"}
             </label>
-            <textarea id="wpojs-footerMessage" name="footerMessage" rows="3" style="width:100%;font-family:monospace;font-size:13px;">{$footerMessage|escape}</textarea>
+            <textarea id="wpojs-footerMessage" name="footerMessage" rows="3" maxlength="500" style="width:100%;font-family:monospace;font-size:13px;">{$footerMessage|escape}</textarea>
             <small style="color:#666;">Placeholder: <code>{literal}{wpUrl}{/literal}</code> &mdash; value from <code>config.inc.php [wpojs] wp_member_url</code>.</small>
         </div>
 

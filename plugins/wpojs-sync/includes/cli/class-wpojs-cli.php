@@ -59,6 +59,9 @@ class WPOJS_CLI {
 	 * : Delay in milliseconds between each API call. Default 500.
 	 * Increase on slow environments (e.g. OJS under Rosetta emulation).
 	 *
+	 * [--yes]
+	 * : Skip confirmation prompt (for scripting).
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp ojs-sync sync --dry-run
@@ -66,6 +69,7 @@ class WPOJS_CLI {
 	 *     wp ojs-sync sync --member=42
 	 *     wp ojs-sync sync --member=member@example.com
 	 *     wp ojs-sync sync --delay=2000 --batch-size=10
+	 *     wp ojs-sync sync --yes
 	 *
 	 * @param array $args
 	 * @param array $assoc_args
@@ -80,9 +84,10 @@ class WPOJS_CLI {
 		}
 
 		// Bulk sync.
-		$batch_size = isset( $assoc_args['batch-size'] ) ? absint( $assoc_args['batch-size'] ) : 50;
-		$delay_ms   = isset( $assoc_args['delay'] ) ? absint( $assoc_args['delay'] ) : 500;
-		$this->sync_bulk( $dry_run, $batch_size, $delay_ms );
+		$batch_size   = isset( $assoc_args['batch-size'] ) ? absint( $assoc_args['batch-size'] ) : 50;
+		$delay_ms     = isset( $assoc_args['delay'] ) ? absint( $assoc_args['delay'] ) : 500;
+		$skip_confirm = isset( $assoc_args['yes'] );
+		$this->sync_bulk( $dry_run, $batch_size, $delay_ms, $skip_confirm );
 	}
 
 	private function sync_single_user( $user_ref, $dry_run ) {
@@ -106,7 +111,18 @@ class WPOJS_CLI {
 		}
 	}
 
-	private function sync_bulk( $dry_run, $batch_size = 50, $delay_ms = 500 ) {
+	/**
+	 * Bulk sync: processes members sequentially with a configurable delay.
+	 *
+	 * Sequential processing is intentional at ~700 members. Each user requires
+	 * 2 API calls (find-or-create + subscription upsert) and the OJS plugin
+	 * uses individual DB transactions per call. At this scale, sequential with
+	 * 500ms delay completes in ~12 minutes and avoids overwhelming OJS.
+	 *
+	 * If the member count grows past ~10k, consider a batch find-or-create
+	 * endpoint on OJS to reduce the number of HTTP round-trips.
+	 */
+	private function sync_bulk( $dry_run, $batch_size = 50, $delay_ms = 500, $skip_confirm = false ) {
 		WP_CLI::log( 'Resolving active members (this may take a few minutes)...' );
 		$members = $this->resolver->get_all_active_members();
 		$total   = count( $members );
@@ -128,6 +144,11 @@ class WPOJS_CLI {
 
 		if ( $dry_run ) {
 			WP_CLI::log( 'Dry run -- no changes will be made.' );
+		}
+
+		// Confirm before bulk sync (skip in dry-run mode or with --yes).
+		if ( ! $dry_run && ! $skip_confirm ) {
+			WP_CLI::confirm( sprintf( 'Proceed with syncing %d members to OJS?', $total ) );
 		}
 
 		$delay_us = $delay_ms * 1000; // Convert ms to microseconds for usleep().

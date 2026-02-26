@@ -137,6 +137,39 @@ class WPOJS_Logger {
     }
 
     /**
+     * Anonymize log entries for a deleted user (GDPR).
+     * Replaces email with a pseudonym so logs remain useful for diagnostics
+     * without retaining PII.
+     *
+     * @param int    $wp_user_id
+     * @param string $email The user's email to search for.
+     */
+    public function anonymize_user_logs( $wp_user_id, $email ) {
+        global $wpdb;
+
+        $anon_email = sprintf( 'deleted-user-%d@anonymised.invalid', $wp_user_id );
+
+        $wpdb->update(
+            $this->table,
+            array( 'email' => $anon_email ),
+            array( 'wp_user_id' => $wp_user_id ),
+            array( '%s' ),
+            array( '%d' )
+        );
+
+        // Also catch any entries logged with this email but a different user ID (edge case).
+        if ( $email ) {
+            $wpdb->update(
+                $this->table,
+                array( 'email' => $anon_email ),
+                array( 'email' => $email ),
+                array( '%s' ),
+                array( '%s' )
+            );
+        }
+    }
+
+    /**
      * Delete log entries older than N days.
      */
     public function cleanup_old( $days = 90 ) {

@@ -349,6 +349,39 @@ test.describe('Rapid status changes', () => {
     }
   });
 
+  test('concurrent activate and email change — both resolve correctly', () => {
+    const originalEmail = `${PREFIX}_conc@test.invalid`;
+    const newEmail = `${PREFIX}_conc_new@test.invalid`;
+    const login = `${PREFIX}_conc`;
+    let wpUserId: number;
+    let subId: number;
+    const productId = getSubscriptionProductId();
+
+    try {
+      // Create user + subscription, then change email — all before queue processes.
+      // This queues both wpojs_sync_activate and wpojs_sync_email_change.
+      wpUserId = createUser(login, originalEmail);
+      subId = createSubscription(wpUserId, productId, 'active');
+      changeUserEmail(wpUserId, newEmail);
+
+      // Process queue — activate and email change should both resolve.
+      waitForSync();
+      // Run again in case email change was queued after activate.
+      waitForSync();
+
+      // The user should be findable by the new email on OJS.
+      const ojsUser = findOjsUser(newEmail);
+      expect(ojsUser).not.toBeNull();
+      expect(hasActiveSubscription(ojsUser!)).toBe(true);
+    } finally {
+      try { deleteSubscription(subId!); } catch { /* ok */ }
+      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      deleteOjsUser(originalEmail);
+      deleteOjsUser(newEmail);
+      clearTestSyncData();
+    }
+  });
+
   test('email change before queue processes — OJS user gets current email', () => {
     const originalEmail = `${PREFIX}_emailq@test.invalid`;
     const newEmail = `${PREFIX}_emailq_new@test.invalid`;

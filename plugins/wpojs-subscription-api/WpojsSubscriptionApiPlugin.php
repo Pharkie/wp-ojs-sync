@@ -320,9 +320,9 @@ document.addEventListener("DOMContentLoaded", function() {
         $contextId = $context ? $context->getId() : 0;
 
         if ($request->isPost()) {
-            $this->updateSetting($contextId, 'loginHint', strip_tags($request->getUserVar('loginHint') ?? ''));
-            $this->updateSetting($contextId, 'paywallHint', strip_tags($request->getUserVar('paywallHint') ?? ''));
-            $this->updateSetting($contextId, 'footerMessage', strip_tags($request->getUserVar('footerMessage') ?? ''));
+            $this->updateSetting($contextId, 'loginHint', mb_substr(strip_tags($request->getUserVar('loginHint') ?? ''), 0, 500));
+            $this->updateSetting($contextId, 'paywallHint', mb_substr(strip_tags($request->getUserVar('paywallHint') ?? ''), 0, 500));
+            $this->updateSetting($contextId, 'footerMessage', mb_substr(strip_tags($request->getUserVar('footerMessage') ?? ''), 0, 500));
 
             return new \PKP\core\JSONMessage(true);
         }

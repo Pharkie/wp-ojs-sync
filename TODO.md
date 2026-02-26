@@ -51,6 +51,18 @@
 
 - [x] Rate limiting on OJS API — implemented: per-IP rate limiting using the API log table, configurable via `rate_limit_requests` / `rate_limit_window` in `config.inc.php [wpojs]`.
 - [x] Automatic API log cleanup — runs at most once per hour during API requests, deletes entries older than 30 days.
+- [x] 429 rate-limit handling — WP client now treats 429 as retryable (not permanent fail), captures `Retry-After` header.
+- [x] GDPR log anonymization — sync log emails anonymized on WP user deletion (`deleted-user-{id}@anonymised.invalid`).
+- [x] Email change race condition fix — stale pending email change actions cancelled on new change; staleness check in handler skips superseded changes.
+- [x] Bulk sync CLI confirmation — `WP_CLI::confirm()` before bulk sync, skippable with `--yes`.
+- [x] Admin failure notices — warning banner on dashboard/OJS Sync pages when >= 5 failures in last 24h.
+- [x] Dashboard "last synced" timestamp — shows last successful sync date on the journal access card.
+- [x] OJS settings length validation — `mb_substr(..., 0, 500)` on message settings, `maxlength="500"` on textareas.
+- [x] Type mapping validation on test-connection — warns if WC product IDs don't exist or no mapping configured.
+- [x] Rollback runbook — added to `docs/plan.md` covering OJS upgrade, plugin rollback, bulk sync, welcome emails.
+- [x] Support runbook additions — password reset, welcome email customization, monitoring endpoint, email security note.
+- [x] waitForSync E2E buffer — 500ms sleep after Action Scheduler run.
+- [x] Concurrent change E2E test — activate + email change before queue processes.
 - [ ] Admin per-member sync status — the Sync Log page shows global stats but no per-user view. Data already exists in `wp_wpojs_sync_log` + `_wpojs_user_id` usermeta; just needs a UI. Useful for support ("is this member synced?").
 - [ ] Follow-up email for members who haven't set OJS password — requires a new OJS endpoint to query users with `must_change_password=true`, or direct DB query. Implement post-launch once you have data on how many members actually set their passwords.
 

@@ -70,12 +70,12 @@ function wpojs_init() {
 	$cron->register();
 
 	// Member-facing dashboard widget.
-	$dashboard = new WPOJS_Dashboard( $resolver );
+	$dashboard = new WPOJS_Dashboard( $resolver, $logger );
 	$dashboard->register();
 
 	// Admin pages.
 	if ( is_admin() ) {
-		$settings = new WPOJS_Settings( $api_client );
+		$settings = new WPOJS_Settings( $api_client, $logger );
 		$settings->register();
 
 		$log_page = new WPOJS_Log_Page( $logger, $stats );

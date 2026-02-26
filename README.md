@@ -1,4 +1,4 @@
-# WP OJS Sync -- WordPress <-> OJS Membership Sync
+# WP OJS Sync
 
 A pair of plugins (WordPress + OJS) that sync membership data from WordPress (via WooCommerce Subscriptions) to Open Journal Systems. Members get journal access automatically; non-members can still buy content via OJS's built-in paywall.
 

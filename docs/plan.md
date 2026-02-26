@@ -275,6 +275,43 @@ If the OJS 3.5 upgrade hits serious problems, fallback options are documented in
 
 ---
 
+## Rollback procedures
+
+### OJS 3.5 upgrade rollback
+
+1. **Before upgrading**: take a full DB snapshot and filesystem backup of the OJS installation.
+2. **If the upgrade fails**: restore the DB snapshot and filesystem backup. OJS 3.4 should come up cleanly.
+3. **Go/no-go**: agree a threshold with SEA before starting (e.g. "if any of these 5 acceptance criteria fail on staging, we don't upgrade production").
+
+### OJS plugin rollback (`wpojs-subscription-api`)
+
+1. Disable the plugin via OJS Admin → Website → Plugins → Generic → WP-OJS Subscription API → Disable.
+2. The paywall continues working — subscriptions are real OJS subscription records and are independent of the plugin.
+3. Sync stops (WP calls will return 404), but existing user accounts and subscriptions remain.
+4. To fully remove: delete the `plugins/generic/wpojsSubscriptionApi/` directory.
+
+### WP plugin rollback (`wpojs-sync`)
+
+1. Deactivate via WP Admin → Plugins → WP-OJS Sync → Deactivate.
+2. OJS accounts and subscriptions persist (they're in the OJS database). Sync simply stops.
+3. Pending queue items are abandoned. Daily reconciliation and digest emails stop.
+4. To fully remove: deactivate, then delete. Custom DB tables (`wpojs_sync_log`) are retained for diagnostics.
+
+### Bulk sync partial failure
+
+1. Bulk sync is idempotent — safe to re-run. `find-or-create` returns existing users, `create_subscription` upserts.
+2. Check results: `wp ojs-sync status` shows synced count. Sync log shows per-user success/fail.
+3. Retry failures: `wp ojs-sync sync` again (only processes unsynced members). Or target specific users: `wp ojs-sync sync --member=<email>`.
+
+### Welcome email issues
+
+1. Welcome emails are idempotent — OJS dedup prevents duplicates. Safe to re-run `wp ojs-sync send-welcome-emails`.
+2. If the email template needs changes: OJS Admin → Workflow → Emails → search for "PasswordResetRequested".
+3. If emails aren't arriving: check OJS SMTP config, SPF/DKIM/DMARC records, and the OJS error log.
+4. Members can always use OJS's built-in "Forgot Password" link as a fallback.
+
+---
+
 ## Testing approach
 
 Write tests alongside the code for all logic. Don't test framework glue (hook registration, settings rendering, cron scheduling) — trust WordPress and OJS for that. Focus test coverage on the things we own: idempotency, queue state machine, edge cases, validation, and auth.
@@ -420,7 +457,7 @@ The smoke test checklist in TODO.md covers the full integration path. Most are n
 | `test-connection.spec.ts` | Settings page "Test Connection" AJAX reports success |
 | `error-recovery.spec.ts` | Sync fails when OJS URL is bad, succeeds after restoring |
 
-Tests run against the Docker dev environment (`--with-sample-data`). Each test creates unique users, processes the Action Scheduler queue, and cleans up in `afterAll`. Serial execution (`workers: 1`) avoids data conflicts. Run with `npm test`.
+38 tests across 11 spec files. Tests run against the Docker dev environment (`--with-sample-data`). Each test creates unique users, processes the Action Scheduler queue, and cleans up in `afterAll`. Serial execution (`workers: 1`) avoids data conflicts. Run with `npm test`.
 
 ---
 

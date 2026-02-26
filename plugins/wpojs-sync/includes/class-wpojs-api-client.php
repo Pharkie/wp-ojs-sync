@@ -283,12 +283,20 @@ class WPOJS_API_Client {
             $error = isset( $body['error'] ) ? $body['error'] : "HTTP $code";
         }
 
-        return array(
+        $result = array(
             'success' => $success,
             'code'    => $code,
             'body'    => $body,
             'error'   => $error,
         );
+
+        // Capture Retry-After header for 429 responses.
+        if ( $code === 429 ) {
+            $retry_after = wp_remote_retrieve_header( $response, 'retry-after' );
+            $result['retry_after'] = $retry_after ? (int) $retry_after : 60;
+        }
+
+        return $result;
     }
 
     /**
@@ -296,7 +304,7 @@ class WPOJS_API_Client {
      * 4xx errors except 404 (which means "nothing to do").
      */
     public function is_permanent_fail( $code ) {
-        return $code >= 400 && $code < 500 && $code !== 404;
+        return $code >= 400 && $code < 500 && $code !== 404 && $code !== 429;
     }
 
     /**
@@ -304,6 +312,6 @@ class WPOJS_API_Client {
      * 5xx server errors or 0 (network error / timeout).
      */
     public function is_retryable( $code ) {
-        return $code === 0 || ( $code >= 500 && $code < 600 );
+        return $code === 0 || $code === 429 || ( $code >= 500 && $code < 600 );
     }
 }
