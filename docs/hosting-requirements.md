@@ -169,7 +169,7 @@ Krystal does not offer root access, Docker, or VPS-level control on shared plans
 | DNS control | Yes — DigitalOcean DNS or external | Met |
 | Automated backups | Yes — droplet backups (~$2.40/mo) or manual snapshots | Met |
 
-**Cost:** ~$12/mo per droplet (~£10/mo). Two droplets needed for staging + production = ~$24/mo (~£20/mo). Backups add ~$4.80/mo total.
+**Cost:** ~$12/mo (~£10/mo) for the production droplet + ~$2.40/mo for automated backups. Staging doesn't need to run 24/7 — snapshot the droplet and destroy it when not in use, restore from snapshot when needed (takes a few minutes). Snapshot storage is ~$0.05/GB/mo, so a 25 GB staging snapshot costs ~$1.25/mo idle vs $12/mo running.
 
 **SMTP relay** and **OJS config** are configured by us on the droplet, not provided by DigitalOcean.
 
@@ -179,4 +179,4 @@ Krystal does not offer root access, Docker, or VPS-level control on shared plans
 - OJS gets the Docker/root/DB access it needs on a clean VPS
 - Both in UK data centres (Krystal: UK, DigitalOcean: London)
 - Standard HTTPS between them — no special networking
-- Total additional hosting cost: ~£25/mo for both OJS droplets
+- Total additional hosting cost: ~£15/mo (production droplet + backups + idle staging snapshot)
