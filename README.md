@@ -167,7 +167,9 @@ For the decision trail -- what was tried, what was eliminated, and why -- see [d
 │   ├── discovery.md                       # Decision trail
 │   ├── review-findings.md                 # Plan review findings
 │   ├── ojs-api.md                         # OJS REST API reference
-│   └── wp-integration.md                  # WP membership stack details
+│   ├── wp-integration.md                  # WP membership stack details
+│   ├── hosting-requirements.md            # OJS + WP hosting and access requirements
+│   └── support-runbook.md                 # Support staff quick reference
 ├── plugins/
 │   ├── wpojs-sync/                        # WP plugin
 │   └── wpojs-subscription-api/            # OJS plugin
