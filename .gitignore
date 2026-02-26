@@ -27,5 +27,7 @@ docker/snapshots/
 
 # E2E test artifacts
 node_modules/
+test-results/
+playwright-report/
 e2e/test-results/
 e2e/playwright-report/
