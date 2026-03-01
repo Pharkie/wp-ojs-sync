@@ -24,6 +24,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
        docker-ce-cli docker-compose-plugin \
     && rm -rf /var/lib/apt/lists/*
 
+# GitHub CLI + Python pip
+RUN apt-get update && apt-get install -y --no-install-recommends gh python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
 # Claude Code CLI (update npm first to suppress version warnings)
 RUN npm install -g npm@latest && npm install -g @anthropic-ai/claude-code
 
