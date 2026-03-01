@@ -1,4 +1,3 @@
-import { execSync } from 'child_process';
 import { dockerExec } from './docker';
 
 /**
@@ -61,7 +60,7 @@ export function getOjsUsername(userId: number): string {
 export function ojsPhp(php: string, timeout = 15_000): string {
   return dockerExec(
     'ojs',
-    'cat > /tmp/_ojs_eval.php && php /tmp/_ojs_eval.php; rm -f /tmp/_ojs_eval.php',
+    'f=$(mktemp /tmp/_ojs_eval_XXXXXX.php) && cat > "$f" && php "$f"; rm -f "$f"',
     { stdin: php, timeout },
   );
 }
@@ -115,11 +114,9 @@ export function deleteOjsUser(email: string): void {
 export function waitForSync(): void {
   dockerExec(
     'wp',
-    'wp action-scheduler run --allow-root',
+    'wp action-scheduler run --allow-root 2>/dev/null',
     { timeout: 30_000 },
   );
-  // Small buffer for OJS API to finish processing.
-  execSync('sleep 0.5');
 }
 
 /**

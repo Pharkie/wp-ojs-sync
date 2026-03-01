@@ -16,7 +16,7 @@ export function wpCli(command: string): string {
 export function wpEval(php: string): string {
   return dockerExec(
     'wp',
-    'cat > /tmp/_wpojs_eval.php && wp eval-file /tmp/_wpojs_eval.php --allow-root; rm -f /tmp/_wpojs_eval.php',
+    'f=$(mktemp /tmp/_wpojs_eval_XXXXXX.php) && cat > "$f" && wp eval-file "$f" --allow-root; rm -f "$f"',
     { stdin: `<?php\n${php}` },
   );
 }

@@ -24,8 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
        docker-ce-cli docker-compose-plugin \
     && rm -rf /var/lib/apt/lists/*
 
-# GitHub CLI + Python pip + DNS tools
-RUN apt-get update && apt-get install -y --no-install-recommends gh python3-pip dnsutils \
+# GitHub CLI + Python pip + DNS tools + socat (for port forwarding to compose services)
+RUN apt-get update && apt-get install -y --no-install-recommends gh python3-pip dnsutils socat \
     && rm -rf /var/lib/apt/lists/*
 
 # Claude Code CLI (update npm first to suppress version warnings)

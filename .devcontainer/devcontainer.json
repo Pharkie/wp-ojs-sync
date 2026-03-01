@@ -24,7 +24,7 @@
     "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
   },
 
-  "postCreateCommand": "sudo groupadd -f docker && sudo usermod -aG docker vscode && sudo chown vscode:vscode node_modules /home/vscode/.cache/ms-playwright && npm install && npx playwright install chromium && bash setup-hooks.sh",
+  "postCreateCommand": "sudo groupadd -f docker && sudo usermod -aG docker vscode && sudo chown vscode:vscode node_modules /home/vscode/.cache/ms-playwright && npm install && npx playwright install chromium && bash setup-hooks.sh && docker network connect wp-ojs-sync_sea-net $(hostname) 2>/dev/null || true",
 
   // Forward the WP and OJS ports from compose services
   "forwardPorts": [8080, 8081],
@@ -33,6 +33,9 @@
     "vscode": {
       "settings": {
         "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.hideOnStartup": "always",
+        "workbench.startupEditor": "none",
+        "workbench.welcomePage.walkthroughs.openOnInstall": false,
         "claudeCode.initialPermissionMode": "bypassPermissions"
       },
       "extensions": [
