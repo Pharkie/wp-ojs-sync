@@ -24,8 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
        docker-ce-cli docker-compose-plugin \
     && rm -rf /var/lib/apt/lists/*
 
-# Claude Code CLI
-RUN npm install -g @anthropic-ai/claude-code
+# Claude Code CLI (update npm first to suppress version warnings)
+RUN npm install -g npm@latest && npm install -g @anthropic-ai/claude-code
 
 # Playwright system deps (for running e2e tests)
 RUN npx playwright install-deps chromium 2>/dev/null || true
