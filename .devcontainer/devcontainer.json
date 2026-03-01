@@ -1,0 +1,30 @@
+{
+  "name": "WP-OJS Sync (Claude Code)",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  // Mount Docker socket so we can manage the project's compose stack
+  // Mount ~/.claude so Claude Code picks up your existing auth
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind"
+  ],
+
+  // Add vscode user to docker group so docker commands work without sudo
+  "postCreateCommand": "sudo groupadd -f docker && sudo usermod -aG docker vscode && npm install && npx playwright install chromium",
+
+  // Forward the WP and OJS ports from compose services
+  "forwardPorts": [8080, 8081],
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      },
+      "extensions": [
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  }
+}
