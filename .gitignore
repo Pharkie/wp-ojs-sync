@@ -1,3 +1,6 @@
+# Claude Code runtime data
+.claude-home/
+
 # Environment
 .env
 .env.staging
