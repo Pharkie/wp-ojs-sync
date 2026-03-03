@@ -79,6 +79,8 @@ Primary integration: hook into **WooCommerce Subscriptions** status events (`woo
 - Log all sync operations — failures must be visible in WP admin
 - API key stored as `wp-config.php` constant (`WPOJS_API_KEY`), not in the database
 - Settings page for OJS URL, subscription type mapping (WooCommerce Product -> OJS Subscription Type), journal ID(s)
+- **No raw SQL in plugin code.** Plugins use their respective frameworks (WordPress HTTP API, OJS DAOs/services, REST endpoints). Direct DB queries are only acceptable in setup/migration scripts (dev environment bootstrapping), never in runtime plugin code.
+- **Setup scripts are infrastructure automation** — they bootstrap dev/staging environments with direct DB calls where APIs don't exist (OJS subscription types, plugin settings). This is acceptable because they run once, not on every request.
 
 ## Dev environment
 

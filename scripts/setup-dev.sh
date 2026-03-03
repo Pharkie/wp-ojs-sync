@@ -7,7 +7,7 @@
 #   scripts/setup-dev.sh --with-sample-data # Base + test data
 #
 # Requires: containers already running ($DC up -d).
-set -e
+set -eo pipefail
 
 DC="docker compose --project-directory /Users/adamknowles/dev/SEA/wp-ojs-sync -f /workspaces/wp-ojs-sync/docker-compose.yml --env-file /workspaces/wp-ojs-sync/.env"
 
@@ -22,7 +22,9 @@ echo "=== Dev environment setup ==="
 
 # --- Verify containers are running ---
 for SVC in ojs wp ojs-db wp-db; do
-  if ! $DC ps --status running 2>/dev/null | grep -q "$SVC"; then
+  # Capture ps output first (pipefail would trigger on grep miss otherwise)
+  PS_OUTPUT=$($DC ps --status running 2>/dev/null) || true
+  if ! echo "$PS_OUTPUT" | grep -q "$SVC"; then
     echo "ERROR: Container '$SVC' is not running."
     echo "Start containers first:  \$DC up -d"
     exit 1
@@ -47,12 +49,12 @@ echo "[ok] OJS responding."
 # --- Run OJS setup ---
 echo ""
 echo "=== OJS setup ==="
-$DC exec ojs bash /scripts/setup-ojs.sh $ARGS
+$DC exec -T ojs bash /scripts/setup-ojs.sh $ARGS
 
 # --- Run WP setup ---
 echo ""
 echo "=== WP setup ==="
-$DC exec wp bash /var/www/html/scripts/setup-wp.sh $ARGS
+$DC exec -T wp bash /var/www/html/scripts/setup-wp.sh $ARGS
 
 echo ""
 echo "=== Setup complete ==="

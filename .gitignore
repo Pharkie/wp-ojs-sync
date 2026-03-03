@@ -28,6 +28,9 @@ docker/snapshots/
 # Discovery-phase screenshots (WP admin pages, plugin configs)
 /discovery-screenshots/
 
+# Rebuild logs
+logs/
+
 # E2E test artifacts
 node_modules/
 test-results/

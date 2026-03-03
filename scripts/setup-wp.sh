@@ -8,7 +8,7 @@
 #
 # Run inside the WP container:
 #   docker compose exec wp bash /var/www/html/scripts/setup-wp.sh [--with-sample-data]
-set -e
+set -eo pipefail
 
 SAMPLE_DATA=false
 for arg in "$@"; do
@@ -17,7 +17,45 @@ for arg in "$@"; do
   esac
 done
 
-# Install core if not already (DB healthcheck handled by docker-compose depends_on)
+# --- Helpers ---
+
+# Suppress PHP notices from WP-CLI output. WP 6.7+ emits harmless
+# _load_textdomain_just_in_time notices on every invocation when
+# woocommerce-memberships is active. These flood the log and hide real errors.
+# Filter them out so actual errors are visible.
+wp_quiet() {
+  local TMPOUT
+  TMPOUT=$(mktemp)
+  wp "$@" --allow-root >"$TMPOUT" 2>&1
+  local RC=$?
+  grep -v '_load_textdomain_just_in_time' "$TMPOUT" || true
+  rm -f "$TMPOUT"
+  return $RC
+}
+
+# Run a WP-CLI command with retries. For commands that depend on WC being
+# fully bootstrapped — they can fail intermittently during first-run setup.
+wp_retry() {
+  local MAX_ATTEMPTS=3 ATTEMPT=1
+  while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
+    local TMPOUT
+    TMPOUT=$(mktemp)
+    wp "$@" --allow-root >"$TMPOUT" 2>&1
+    local RC=$?
+    grep -v '_load_textdomain_just_in_time' "$TMPOUT" || true
+    rm -f "$TMPOUT"
+    if [ "$RC" = "0" ]; then
+      return 0
+    fi
+    echo "  [retry $ATTEMPT/$MAX_ATTEMPTS] Command failed (exit $RC): wp $*"
+    ATTEMPT=$((ATTEMPT + 1))
+    sleep 2
+  done
+  echo "ERROR: Command failed after $MAX_ATTEMPTS attempts: wp $*"
+  return 1
+}
+
+# --- Core install ---
 if ! wp core is-installed --allow-root 2>/dev/null; then
   wp core install \
     --url="${WP_HOME}" \
@@ -34,7 +72,8 @@ if ! wp theme is-installed twentytwentyfive --allow-root 2>/dev/null; then
   wp theme install twentytwentyfive --activate --allow-root
 fi
 
-# Activate plugins — each separately so failures are visible.
+# --- Plugin activation ---
+# Activate each plugin separately so failures are visible.
 # "already active" is fine (exit 0); genuine errors (missing plugin, PHP fatal) must fail loud.
 REQUIRED_PLUGINS=(
   woocommerce
@@ -48,30 +87,62 @@ REQUIRED_PLUGINS=(
 for PLUGIN in "${REQUIRED_PLUGINS[@]}"; do
   if ! wp plugin is-active "$PLUGIN" --allow-root 2>/dev/null; then
     echo "Activating $PLUGIN..."
-    wp plugin activate "$PLUGIN" --allow-root
+    wp_quiet plugin activate "$PLUGIN"
   fi
 done
 
-# Critical WooCommerce settings
-wp option update woocommerce_currency GBP --allow-root
-wp option update woocommerce_default_country GB --allow-root
+# --- WooCommerce readiness gate ---
+# After activation, WC defers DB table creation and option seeding to the next
+# page load (or CLI invocation). Verify it actually ran before proceeding.
+# Without this, dependent commands (wp wc hpos, WCS seed scripts) can fail
+# intermittently with "too early" / "table not found" errors.
+echo "Checking WooCommerce readiness..."
+for i in $(seq 1 15); do
+  WC_DB_VER=$(wp option get woocommerce_db_version --allow-root 2>/dev/null) || true
+  if [ -n "$WC_DB_VER" ]; then
+    echo "[ok] WooCommerce ready (DB version: $WC_DB_VER)."
+    break
+  fi
+  if [ "$i" = "1" ]; then
+    echo "WooCommerce DB not initialized yet, triggering install..."
+    # Force WC to run its install routine (creates tables, seeds options).
+    wp eval 'if (class_exists("WC_Install")) { WC_Install::install(); }' --allow-root 2>/dev/null || true
+  fi
+  if [ "$i" = "15" ]; then
+    echo "ERROR: WooCommerce DB version not set after 30s — WC install may have failed."
+    exit 1
+  fi
+  sleep 2
+done
+
+# Verify WC core tables exist (the install routine should have created them).
+WC_TABLE_COUNT=$(wp eval 'global $wpdb; echo $wpdb->get_var("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name LIKE \"{$wpdb->prefix}woocommerce%\"");' --allow-root 2>&1 | grep -v '_load_textdomain' | tr -d '[:space:]') || true
+if [ -z "$WC_TABLE_COUNT" ] || [ "$WC_TABLE_COUNT" -lt "5" ]; then
+  echo "WARNING: Expected >=5 WooCommerce tables, found ${WC_TABLE_COUNT:-0}. Forcing WC install..."
+  wp eval 'WC_Install::install();' --allow-root 2>/dev/null || true
+  sleep 2
+fi
+
+# --- WooCommerce settings ---
+wp_quiet option update woocommerce_currency GBP
+wp_quiet option update woocommerce_default_country GB
 
 # WP-OJS sync settings — set defaults if not already configured
 wp option get wpojs_url --allow-root 2>/dev/null || \
-  wp option update wpojs_url "${WPOJS_BASE_URL}" --allow-root
+  wp_quiet option update wpojs_url "${WPOJS_BASE_URL}"
 
 # Permalink structure (required for REST API)
-wp rewrite structure '/%postname%/' --allow-root
-wp rewrite flush --allow-root
+# rewrite structure already flushes, no separate flush needed.
+wp_quiet rewrite structure '/%postname%/'
 
 # --- Suppress admin notices (dev environment noise) ---
 # Create UM core pages (suppresses "needs to create pages" notice)
-wp eval-file /var/www/html/scripts/create-um-pages.php --allow-root
+wp_quiet eval-file /var/www/html/scripts/create-um-pages.php
 
 # Dismiss UM license + exif notices, WC onboarding/store notices
-wp eval-file /var/www/html/scripts/dismiss-notices.php --allow-root
+wp_quiet eval-file /var/www/html/scripts/dismiss-notices.php
 
-echo "WordPress setup complete."
+echo "[ok] WordPress base setup complete."
 
 # --- Sample data (dev/staging only) ---
 if [ "$SAMPLE_DATA" = true ]; then
@@ -82,6 +153,9 @@ if [ "$SAMPLE_DATA" = true ]; then
     exit 1
   fi
 
+  EXPECTED_USERS=$(tail -n +2 "$CSV" | wc -l | tr -d ' ')
+  echo "Sample data: expecting $EXPECTED_USERS users from CSV."
+
   # Check if users already imported (idempotent check: look for user_0001)
   if wp user get user_0001 --allow-root 2>/dev/null; then
     echo "Sample users already imported, skipping."
@@ -89,18 +163,51 @@ if [ "$SAMPLE_DATA" = true ]; then
     echo "Importing anonymised test users from $CSV..."
     # CSV has 'role' (safe WP role) + 'original_role' (UM/WCS role).
     # wp user import-csv ignores unknown columns, so original_role is skipped.
-    wp user import-csv "$CSV" --allow-root 2>&1 | tail -5
-    echo "Import done."
+    # Capture full output so we can check for errors, show last 5 lines live.
+    IMPORT_LOG=$(mktemp)
+    wp user import-csv "$CSV" --allow-root 2>&1 | tee "$IMPORT_LOG" | tail -5
+    IMPORT_EXIT=${PIPESTATUS[0]}
+    if [ "$IMPORT_EXIT" != "0" ]; then
+      echo "ERROR: User import failed (exit $IMPORT_EXIT). Last 20 lines:"
+      tail -20 "$IMPORT_LOG"
+      rm -f "$IMPORT_LOG"
+      exit 1
+    fi
+    if grep -qi "^error\|^fatal\|PHP Fatal" "$IMPORT_LOG" 2>/dev/null; then
+      echo "ERROR: User import had errors:"
+      grep -i "^error\|^fatal\|PHP Fatal" "$IMPORT_LOG" | head -10
+      rm -f "$IMPORT_LOG"
+      exit 1
+    fi
+    rm -f "$IMPORT_LOG"
+
+    # Validate: check actual user count matches expected
+    # +1 for admin user
+    ACTUAL_USERS=$(wp user list --format=count --allow-root 2>/dev/null) || true
+    EXPECTED_TOTAL=$((EXPECTED_USERS + 1))
+    if [ -n "$ACTUAL_USERS" ] && [ "$ACTUAL_USERS" -lt "$EXPECTED_TOTAL" ]; then
+      echo "WARNING: Expected $EXPECTED_TOTAL users (${EXPECTED_USERS} imported + admin), got $ACTUAL_USERS."
+    else
+      echo "[ok] User import complete: $ACTUAL_USERS users."
+    fi
 
     # Apply original roles via direct DB update (fast — ~2s vs ~10min with wp user set-role).
     # This is test data seeding only — production members already exist in WP.
     # wp user import-csv can't assign UM/WCS roles (validates before UM registers them),
     # so we imported as 'subscriber' and now update wp_usermeta directly via PHP.
     echo "Applying original roles (UM/WCS)..."
-    wp eval-file /var/www/html/scripts/apply-roles.php "$CSV" --allow-root
+    wp_quiet eval-file /var/www/html/scripts/apply-roles.php "$CSV"
 
     echo "Seeding WooCommerce subscriptions..."
-    wp eval-file /var/www/html/scripts/seed-subscriptions.php "$CSV" --allow-root
+    wp_quiet eval-file /var/www/html/scripts/seed-subscriptions.php "$CSV"
+
+    # Validate: check subscription count (use wp eval for reliable cross-version DB access)
+    SUB_COUNT=$(wp eval 'global $wpdb; echo $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type=\"shop_subscription\"");' --allow-root 2>&1 | grep -v '_load_textdomain' | tr -d '[:space:]') || true
+    if [ -z "$SUB_COUNT" ] || [ "$SUB_COUNT" = "0" ]; then
+      echo "ERROR: No subscriptions found after seeding (got: '${SUB_COUNT}')."
+      exit 1
+    fi
+    echo "[ok] $SUB_COUNT subscriptions seeded."
 
     # Sync seeded subscriptions to HPOS (High-Performance Order Storage).
     # seed-subscriptions.php uses direct SQL into wp_posts (legacy storage) for speed.
@@ -108,10 +215,71 @@ if [ "$SAMPLE_DATA" = true ]; then
     # Without syncing, WC throws a fatal: "orders out of sync". This backfills the
     # wp_wc_orders table so HPOS can be enabled cleanly.
     echo "Syncing orders to HPOS..."
-    wp wc hpos sync --allow-root
-    wp wc hpos enable --allow-root
+    wp_retry wc hpos sync
+    wp_retry wc hpos enable
 
-    TOTAL=$(wp user list --format=count --allow-root 2>/dev/null)
-    echo "Total WP users: $TOTAL"
+    # Validate: HPOS is actually enabled
+    HPOS_STATUS=$(wp option get woocommerce_custom_orders_table_enabled --allow-root 2>/dev/null) || true
+    if [ "$HPOS_STATUS" = "yes" ]; then
+      echo "[ok] HPOS enabled."
+    else
+      echo "WARNING: HPOS may not be enabled (status: ${HPOS_STATUS:-unknown})."
+    fi
+
+    TOTAL=$(wp user list --format=count --allow-root 2>/dev/null) || true
+    echo "[ok] Sample data loaded. Total WP users: $TOTAL"
   fi
 fi
+
+# --- Final health check ---
+echo ""
+echo "--- Health check ---"
+HEALTH_FAIL=0
+
+# WordPress responds (301/302 are normal — Bedrock redirects to canonical URL)
+WP_HTTP=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:80/ 2>/dev/null) || true
+if [ "$WP_HTTP" = "200" ] || [ "$WP_HTTP" = "301" ] || [ "$WP_HTTP" = "302" ]; then
+  echo "[ok] WordPress HTTP: $WP_HTTP"
+else
+  echo "[FAIL] WordPress HTTP: ${WP_HTTP:-timeout}"
+  HEALTH_FAIL=1
+fi
+
+# WP REST API responds
+REST_HTTP=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:80/wp-json/wp/v2/posts 2>/dev/null) || true
+if [ "$REST_HTTP" = "200" ]; then
+  echo "[ok] WP REST API: $REST_HTTP"
+else
+  echo "[FAIL] WP REST API: ${REST_HTTP:-timeout}"
+  HEALTH_FAIL=1
+fi
+
+# WP-OJS sync plugin active
+if wp plugin is-active wpojs-sync --allow-root 2>/dev/null; then
+  echo "[ok] wpojs-sync plugin active."
+else
+  echo "[FAIL] wpojs-sync plugin not active."
+  HEALTH_FAIL=1
+fi
+
+# All required plugins active
+ALL_ACTIVE=true
+for PLUGIN in woocommerce woocommerce-subscriptions woocommerce-memberships ultimate-member wpojs-sync; do
+  if ! wp plugin is-active "$PLUGIN" --allow-root 2>/dev/null; then
+    echo "[FAIL] Plugin not active: $PLUGIN"
+    ALL_ACTIVE=false
+    HEALTH_FAIL=1
+  fi
+done
+if [ "$ALL_ACTIVE" = true ]; then
+  echo "[ok] All required plugins active."
+fi
+
+if [ "$HEALTH_FAIL" = "1" ]; then
+  echo ""
+  echo "WARNING: Health check had failures — setup may be incomplete."
+  exit 1
+fi
+
+echo ""
+echo "[ok] WordPress setup complete and healthy."
