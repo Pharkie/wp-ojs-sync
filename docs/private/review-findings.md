@@ -4,7 +4,7 @@ Last updated: 2026-02-17
 
 Six-perspective review of the push-sync plan: senior developer, QA engineer, UX expert, business strategist, security consultant, ops/SRE. Findings deduplicated and grouped by theme.
 
-For the plan itself, see [`plan.md`](./plan.md). For the task checklist, see [`../TODO.md`](../TODO.md).
+For the plan itself, see [`plan.md`](./plan.md). For the task checklist, see [`TODO.md`](../../TODO.md).
 
 ---
 
@@ -75,7 +75,7 @@ The WP plugin makes HTTP calls to OJS within the WCS hook callback. If OJS is sl
 
 The plan says "retry logic for failed API calls" but specifies no strategy. Without backoff, retries during OJS downtime can thundering-herd the server. Without a retry cap, failures loop indefinitely.
 
-**Action:** Implement: 3 retries at 5min / 15min / 1hr intervals via WP Cron. After 3 failures, mark as permanently failed and trigger admin email alert. All retries depend on idempotent OJS endpoints (#5).
+**Action:** Implement: retries via Action Scheduler (up to 5 attempts at 5-minute intervals). Permanent failures (4xx except 404/429) trigger immediate admin alert without retry. All retries depend on idempotent OJS endpoints (#5).
 
 *Flagged by: ops/SRE, security, QA*
 

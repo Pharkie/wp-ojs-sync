@@ -2,7 +2,7 @@
 
 Last updated: 2026-02-20
 
-WP pushes subscription changes to OJS via a custom plugin on each side. For how we arrived at this decision, see [`discovery.md`](./discovery.md). For the full review that shaped this plan, see [`review-findings.md`](./review-findings.md).
+WP pushes subscription changes to OJS via a custom plugin on each side. For how we arrived at this decision, see [`discovery.md`](../discovery.md). For the full review that shaped this plan, see [`review-findings.md`](./review-findings.md).
 
 ---
 
@@ -11,9 +11,8 @@ WP pushes subscription changes to OJS via a custom plugin on each side. For how 
 ```
 Bulk sync (~700 existing members at launch)
   → WP-CLI command reads all active WCS subscriptions + users with manual member roles
-  → For each member: calls OJS endpoint to find-or-create user by email
-  → Calls OJS endpoint: create subscription
-  → "Set your password" welcome email sent to member
+  → For each member: calls OJS endpoint to find-or-create user by email, then creates subscription
+  → Separate WP-CLI command sends "Set your password" welcome emails
   → Member visits OJS, sets password, hits paywalled content:
   → OJS paywall checks its own database → finds valid subscription → access granted
 
@@ -21,13 +20,13 @@ Member signs up / renews on WordPress (ongoing, after launch)
   → WP plugin fires on WooCommerce Subscription status change
   → Schedules sync action via Action Scheduler (not inline HTTP)
   → Action Scheduler calls OJS: find-or-create user + create/renew subscription
-  → If OJS is down: retries 3 times (5min / 15min / 1hr), then alerts admin
+  → If OJS is down: retries via Action Scheduler (up to 5 attempts at 5-minute intervals); permanent failures (4xx) trigger immediate admin alert
   → Member visits OJS, logs in, hits paywalled content → access granted
 
 Member lapses / cancels
   → WP plugin fires on status change → schedules expire action
   → Action Scheduler calls OJS: expire subscription
-  → OJS paywall denies access → shows purchase options + "SEA member? Contact support"
+  → OJS paywall denies access → shows purchase options + "Member? Contact support"
 
 Non-member visits paywalled content
   → No subscription exists in OJS
@@ -65,13 +64,13 @@ Installed like any WP plugin:
 - API key stored as `wp-config.php` constant (`WPOJS_API_KEY`), not in the database
 - Hooks into **WooCommerce Subscriptions** lifecycle events (`status_active`, `status_expired`, `status_cancelled`, `status_on-hold`) as primary triggers
 - **Async dispatch**: hooks schedule sync actions via Action Scheduler (not inline HTTP calls)
-- **Retry logic**: 3 attempts at 5min / 15min / 1hr intervals via Action Scheduler; after 3 failures, mark as permanently failed and email admin
+- **Retry logic**: delegates to Action Scheduler (up to 5 attempts at 5-minute intervals); permanent failures (4xx except 404/429) trigger immediate admin alert without retry
 - **Email change hook**: detects WP email changes, calls OJS to update the corresponding account
 - Bulk sync command (**WP-CLI only**) for initial population and drift correction, with batching and resume
 - **Structured sync log**: custom DB table with per-user success/fail records, searchable in WP admin
 - **Admin email alerts**: immediate notification on sync failure after retries exhausted; daily digest of failure count
-- **Daily reconciliation**: WP Cron job comparing active WCS subscriptions + manual member roles vs OJS, retrying any drift
-- See [`wp-integration.md`](./wp-integration.md) for full hook details and code patterns
+- **Daily reconciliation**: Action Scheduler job comparing active WCS subscriptions + manual member roles vs OJS, retrying any drift
+- See [`wp-integration.md`](../wp-integration.md) for full hook details and code patterns
 
 ---
 
@@ -86,7 +85,7 @@ All endpoints except `/ping` require Bearer token auth + Journal Manager or Site
 | Method | Path | Request body | Response | Notes |
 |---|---|---|---|---|
 | `GET` | `/ping` | — | `200 {status: "ok"}` | **No auth, no IP check** — pure reachability probe. If ping succeeds but preflight returns 403, the IP is not allowlisted. |
-| `GET` | `/preflight` | — | `200 {compatible: bool, checks: [...]}` | Verifies all PHP classes, methods, and DB tables the plugin depends on. Checks: `Repo::user()` methods, `Repo::userGroup()` methods, `Repo::emailTemplate()` methods, `IndividualSubscriptionDAO` methods, `SubscriptionTypeDAO`, `Validation` methods, `AccessKeyManager`, `PasswordResetRequested`, `Core::getCurrentDate()`, `Role::ROLE_ID_READER`, `user_user_groups` table, `wpojs_api_log` table, subscription types exist for journal. |
+| `GET` | `/preflight` | — | `200 {compatible: bool, checks: [...]}` | Verifies all PHP classes, methods, and DB tables the plugin depends on. Checks: `Repo::user()` methods, `Repo::userGroup()` methods, `Repo::emailTemplate()` methods, `IndividualSubscriptionDAO` methods, `SubscriptionTypeDAO`, `Validation` methods, `Validation::generatePasswordResetHash()`, `PasswordResetRequested`, `Core::getCurrentDate()`, `Role::ROLE_ID_READER`, `user_user_groups` table, `wpojs_api_log` table, subscription types exist for journal. |
 | `GET` | `/users?email=` | — | `200 {found, userId, email, username, disabled}` or `200 {found: false}` | Read-only user lookup by email. No side effects. |
 | `POST` | `/users/find-or-create` | `{email, firstName, lastName, sendWelcomeEmail?}` | `200 {userId, created: bool}` | Finds existing user by email or creates new one with Reader role. `sendWelcomeEmail` is only honoured when `created: true` (existing users already have a password). |
 | `PUT` | `/users/{userId}/email` | `{newEmail}` | `200 {userId}` | Checks email uniqueness before updating (OJS doesn't enforce it in `edit()`). Returns `409` if email in use by another account. |
@@ -95,7 +94,8 @@ All endpoints except `/ping` require Bearer token auth + Journal Manager or Site
 | `PUT` | `/subscriptions/{id}/expire` | — | `200 {subscriptionId}` | Sets status to `SUBSCRIPTION_STATUS_OTHER`. Idempotent. |
 | `PUT` | `/subscriptions/expire-by-user/{userId}` | — | `200 {subscriptionId}` | Convenience: expires subscription by userId (saves WP plugin a lookup call). Returns `404` if no subscription found. |
 | `GET` | `/subscriptions?email=&userId=` | — | `200 [{subscriptionId, userId, journalId, typeId, status, dateStart, dateEnd}]` | Returns array with at most one item per user per journal (OJS enforces one-subscription-per-user-per-journal). Returns `[]` if user or subscription not found. |
-| `POST` | `/welcome-email` | `{userId}` | `200 {sent: true}` or `200 {sent: false, reason}` | Generates password reset access key via `AccessKeyManager::createKey()`, builds reset URL, sends `PasswordResetRequested` mailable. Dedup: atomic `insertOrIgnore` on `wpojs_welcome_email_sent` flag — concurrent requests are safe. If mail send fails, dedup flag is removed so it can be retried. Token expiry configured via `password_reset_timeout` in `config.inc.php` (set to 7 for bulk welcome emails). |
+| `POST` | `/subscriptions/status-batch` | `{emails: ["a@b.com", ...]}` | `200 {results: {email: {active: bool, ...}}}` | Check subscription status for multiple users by email. Used by reconciliation to batch-query OJS. |
+| `POST` | `/welcome-email` | `{userId}` | `200 {sent: true}` or `200 {sent: false, reason}` | Generates password reset hash via `Validation::generatePasswordResetHash()`, builds reset URL, sends `PasswordResetRequested` mailable. Dedup: atomic `insertOrIgnore` on `wpojs_welcome_email_sent` flag — concurrent requests are safe. If mail send fails, dedup flag is removed so it can be retried. Token expiry configured via `password_reset_timeout` in `config.inc.php` (set to 7 for bulk welcome emails). |
 
 Error responses: `400` (invalid input), `401` (bad/missing auth), `403` (IP not allowed or insufficient role), `404` (not found), `409` (conflict), `500` (server error). All errors return `{error: "message"}`. Error messages never include internal details (exception messages, stack traces, IP addresses).
 
@@ -212,11 +212,11 @@ Individual sync actions (activate, expire, email_change, delete_user) are proces
 | **Email is the key** | Same email required on both systems. No mapping table. WP email change hook propagates changes to OJS. |
 | **Bulk push creates accounts** | Don't wait for members to self-register. Push user accounts + subscriptions from WP upfront (~700 existing members at launch). |
 | **All tiers grant access** | Any active WCS subscription → OJS access. Multiple WooCommerce products exist but all grant journal access. If a member has multiple subscriptions, use the latest `date_end` across all of them. |
-| **Password via welcome email** | Bulk sync triggers "set your password" email inline per member via `sendWelcomeEmail: true` (not a separate step). Requires transactional email relay on OJS (Mailgun/SES/Postmark). Login page prompt as permanent fallback. |
+| **Password via welcome email** | Separate WP-CLI command (`send-welcome-emails`) sends "set your password" emails after bulk sync. Ongoing sync triggers welcome email inline for new users via `sendWelcomeEmail: true`. Requires transactional email relay on OJS (Mailgun/SES/Postmark). Login page prompt as permanent fallback. |
 | **Content loaded gradually** | Launch with ~60 recent articles. Back issues loaded over time. |
 | **Non-expiring subs** | WCS subscriptions with no end date → OJS subscription with `date_end = NULL` and `non_expiring` subscription type. |
-| **Async sync dispatch** | WCS hooks log intent to a queue table. WP Cron processes the queue. No inline HTTP calls on checkout. |
-| **Daily reconciliation at launch** | Not deferred. A daily WP Cron job compares WCS ↔ OJS and retries any drift. |
+| **Async sync dispatch** | WCS hooks schedule sync actions via Action Scheduler. No inline HTTP calls on checkout. |
+| **Daily reconciliation at launch** | Not deferred. A daily Action Scheduler job compares WCS ↔ OJS and retries any drift. |
 | **Dedicated OJS service account** | API key belongs to a purpose-built OJS account with **Journal Manager** role (minimum required — the OJS plugin enforces Manager or Site Admin). Not a human admin account. |
 
 ---
@@ -231,14 +231,14 @@ Individual sync actions (activate, expire, email_change, delete_user) are proces
 | WP membership stack | Ultimate Member 2.11.2, WooCommerce 10.5.2, WooCommerce Subscriptions 8.4.0, WooCommerce Memberships 1.27.5. WCS is authority on subscription status. |
 | WC Memberships | Active on live site. Handles membership plans and role assignment between WCS and UM. Does not affect our sync — we hook WCS status events directly. |
 | Active subscriptions | 698 (confirmed 2026-02-19). |
-| WC subscription products | 6 products: IDs 1892, 1924, 1927, 23040, 23041, 23042. See [`wp-integration.md`](./wp-integration.md#woocommerce-subscription-products-live-site) for full table. |
+| WC subscription products | 6 products: IDs 1892, 1924, 1927, 23040, 23041, 23042. See [`wp-integration.md`](../wp-integration.md#woocommerce-subscription-products) for full table. |
 | Membership tiers | All nine WP roles grant journal access (six standard, three manual/admin-assigned). |
-| Membership role slugs | Standard: `um_custom_role_1` through `_6`. Manual: `um_custom_role_7`, `_8`, `_9`. See [`wp-integration.md`](./wp-integration.md#membership-roles-on-live-site) for full table. |
+| Membership role slugs | Standard: `um_custom_role_1` through `_6`. Manual: `um_custom_role_7`, `_8`, `_9`. See [`wp-integration.md`](../wp-integration.md#membership-roles) for full table. |
 | Manual member roles | Admin-assigned (Exco/life members). Currently 1 member. Bypass WCS checkout — bulk sync and reconciliation must detect these via WP roles directly. |
 | Non-standard access | Editorial board, reviewers, etc. managed manually in OJS admin UI. Not part of WP sync. |
 | Hosting | Different servers. WP and OJS communicate over HTTP. |
 | OJS state | Live: fresh install, admin logins only, ~60 test articles. Docker dev: 2 issues / 43 articles imported from live export. |
-| OJS journals | One journal (*Existential Analysis*). Sync targets one journal ID. |
+| OJS journals | One journal. Sync targets one journal ID. |
 | OJS self-registration | Enabled. Non-members need it for paywall purchases. |
 | OJS email | Transactional relay (Mailgun/SES/Postmark) required on OJS — hard prerequisite for bulk sync. SPF/DKIM/DMARC must be configured. All ~700 welcome emails sent inline during bulk sync, no batching. |
 | Docker dev environment | Running. WP (localhost:8080) with 727 anonymized test users, WooCommerce, Ultimate Member. OJS (localhost:8081) with 2 issues, 43 articles from live export. See `docker/README.md`. |
@@ -251,18 +251,18 @@ Individual sync actions (activate, expire, email_change, delete_user) are proces
 
 1. **Upgrade OJS 3.4 → 3.5** — the biggest risk. Significant breaking changes (Slim→Laravel, Vue 2→3). Staging upgraded to 3.5.0.3 (2026-02-19). Still need: verify acceptance criteria on staging, write rollback runbook, agree go/no-go threshold with SEA, then upgrade production.
 2. **Verify OJS API prerequisites** — test Bearer token auth from WP server IP (`CGIPassAuth on`), test user creation API, confirm email config (SPF/DKIM/DMARC), document OJS server specs.
-3. **Build and deploy OJS plugin** (`wpojs-subscription-api`) — code review + PHPStan before production. See [`deployment.md`](./deployment.md) for non-Docker deployment steps (folder naming, API route mount, config).
+3. **Build and deploy OJS plugin** (`wpojs-subscription-api`) — code review + PHPStan before production. See [`deployment.md`](../deployment.md) for non-Docker deployment steps (folder naming, API route mount, config).
 4. **Build and deploy WP plugin** (`wpojs-sync`) — code review before production.
 5. **Create OJS subscription type(s)** — at least one Individual subscription type must exist in OJS before sync can work. Go to OJS Admin → Subscriptions → Subscription Types → Create. Note the `type_id` for use in WP mapping. The preflight check will warn if none exist.
 6. **Configure WP plugin mapping** — set OJS Base URL (with journal path), Default OJS Subscription Type ID, and product mappings (each WooCommerce Subscription Product ID → OJS Type ID). All six WC products (IDs 1892, 1924, 1927, 23040, 23041, 23042) should be mapped.
 7. **Smoke test** — end-to-end with 10 test users: create subscription → OJS account created → subscription active → paywall grants access → expire subscription → paywall denies access. Also test non-member purchase flow.
 8. **Bulk sync ~700 existing members** — `wp ojs-sync sync --dry-run` then `wp ojs-sync sync`. Creates users + subscriptions on OJS. **Does not send welcome emails** — that's a separate step. Batched (50 at a time), 500ms delay, ~12 minutes. Verify: `wp ojs-sync status` shows correct synced count, spot-check a few users in OJS admin.
 9. **Send welcome emails** — `wp ojs-sync send-welcome-emails --dry-run` then `wp ojs-sync send-welcome-emails`. Sends "set your password" email to all synced users. OJS dedup prevents duplicates — safe to re-run if interrupted. Token expiry 7 days. **Requires transactional email relay on OJS.**
-10. **OJS template changes** — DONE. Login hint ("First time? Set your password"), paywall hint for logged-in non-subscribers ("Contact support"), site footer ("Access provided by SEA membership"). Implemented via plugin hooks (`TemplateManager::display`, `Templates::Article::Footer::PageFooter`, `Templates::Common::Footer::PageFooter`). Messages read `wp_member_url` + `support_email` from `config.inc.php [wpojs]`.
-11. **WP member dashboard** — DONE. "Access Existential Analysis" card on WooCommerce My Account page. Shows active/inactive status with expiry date.
-12. **Member announcement** — via SEA's normal channel (newsletter/email), sent only after steps 8-11 are confirmed working. "Check your email for instructions" not "visit the journal now."
+10. **OJS template changes** — DONE. Login hint ("First time? Set your password"), paywall hint for logged-in non-subscribers ("Contact support"), customisable member footer message (default: "Your journal access may be linked to your membership elsewhere"). Implemented via plugin hooks (`TemplateManager::display`, `Templates::Article::Footer::PageFooter`, `Templates::Common::Footer::PageFooter`). Messages read `wp_member_url` + `support_email` from `config.inc.php [wpojs]`.
+11. **WP member dashboard** — DONE. "Access [Journal Name]" card on WooCommerce My Account page. Shows active/inactive status with expiry date.
+12. **Member announcement** — via the organisation's normal channel (newsletter/email), sent only after steps 8-11 are confirmed working. "Check your email for instructions" not "visit the journal now."
 
-If the OJS 3.5 upgrade hits serious problems, fallback options are documented in [`discovery.md`](./discovery.md).
+If the OJS 3.5 upgrade hits serious problems, fallback options are documented in [`discovery.md`](../discovery.md).
 
 ---
 
@@ -272,7 +272,7 @@ If the OJS 3.5 upgrade hits serious problems, fallback options are documented in
 
 1. **Before upgrading**: take a full DB snapshot and filesystem backup of the OJS installation.
 2. **If the upgrade fails**: restore the DB snapshot and filesystem backup. OJS 3.4 should come up cleanly.
-3. **Go/no-go**: agree a threshold with SEA before starting (e.g. "if any of these 5 acceptance criteria fail on staging, we don't upgrade production").
+3. **Go/no-go**: agree a threshold with the client before starting (e.g. "if any of these 5 acceptance criteria fail on staging, we don't upgrade production").
 
 ### OJS plugin rollback (`wpojs-subscription-api`)
 
@@ -355,9 +355,8 @@ The WP plugin's critical logic is the queue state machine, multi-subscription re
 | Test | What it verifies |
 |---|---|
 | Queue item: pending → processing → completed (on success) | Happy path state machine |
-| Queue item: pending → processing → failed → retry at +5min | First retry timing |
-| Queue item: failed → retry at +15min → retry at +1hr | Escalating retry intervals |
-| Queue item: 3 failures → permanent_fail + admin email triggered | Retry exhaustion |
+| Queue item: pending → processing → failed → Action Scheduler retries at +5min | Retry timing (Action Scheduler default) |
+| Queue item: 5 failures → Action Scheduler marks failed | Retry exhaustion (Action Scheduler default) |
 | Queue item: already completed → skip on re-process | Idempotent queue |
 | `status_active` fires twice for same user quickly → one queue item (dedup) | Hook dedup |
 | OJS returns 400 → permanent fail immediately (no retry) | Client error = no retry |

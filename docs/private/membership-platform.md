@@ -65,9 +65,9 @@ All prices excl. VAT (20% applies to all — WildApricot and Outseta as reverse-
 
 | Platform | Cost (~500 members, excl. VAT) | API | Verdict | Details |
 |----------|-------------------------------|-----|---------|---------|
-| **WildApricot** | ~$125/mo (~£1,200/yr, rising ~25% every 2yr) | Yes (REST, Swagger docs) | Turnkey, all features included, lowest setup effort. But private-equity-owned with aggressive price increases and serious support problems (Trustpilot: 1.6/5). | [Full assessment →](membership-platform-wildapricot.md) |
+| **WildApricot** | ~$125/mo (~£1,200/yr, rising ~25% every 2yr) | Yes (REST, Swagger docs) | Turnkey, all features included, lowest setup effort. But private-equity-owned with aggressive price increases and serious support problems (Trustpilot: 1.6/5). | [Full assessment →](../membership-platform-wildapricot.md) |
 | **CiviCRM** (self-hosted standalone) | ~£115/yr (DigitalOcean droplet; software is free) | Yes (REST APIv4, full CRUD) | Most capable and extensible. Best API. Cheapest ongoing cost. But highest setup complexity. | [Full assessment →](membership-platform-civicrm.md) |
-| **Beacon CRM** | ~£78/mo (~£936/yr) | Yes (REST) | UK-native charity CRM with REST API. Membership features are add-ons — less proven for association management than WildApricot or CiviCRM. | [Full assessment →](membership-platform-beacon.md) |
+| **Beacon CRM** | ~£78/mo (~£936/yr) | Yes (REST) | UK-native charity CRM with REST API. Membership features are add-ons — less proven for association management than WildApricot or CiviCRM. | [Full assessment →](../membership-platform-beacon.md) |
 | **Outseta** | ~$67/mo (~£640/yr) + 1% transaction surcharge | Yes (REST + webhooks) | All-in-one SaaS like WildApricot but cheaper, bootstrapped, no PE risk. Good API. Missing member directory and events. | [Full assessment →](membership-platform-outseta.md) |
 
 ### Also evaluated (not shortlisted)
