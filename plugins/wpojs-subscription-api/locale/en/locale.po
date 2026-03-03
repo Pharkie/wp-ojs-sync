@@ -18,7 +18,7 @@ msgid "plugins.generic.wpojsSubscriptionApi.description"
 msgstr "Exposes REST endpoints for WP↔OJS membership sync. Also adds login, paywall, and footer messages for members."
 
 msgid "plugins.generic.wpojsSubscriptionApi.loginHint"
-msgstr "Member? First time here? <a href=\"{$lostPasswordUrl}\">Set your password</a> to access journal content."
+msgstr "Member visiting for the first time? <a href=\"{$lostPasswordUrl}\">Set your password</a> to access journal content."
 
 msgid "plugins.generic.wpojsSubscriptionApi.paywallHint"
 msgstr "If you should have access to this content, please contact <a href=\"mailto:{$supportEmail}\">{$supportEmail}</a>."

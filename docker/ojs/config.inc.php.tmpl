@@ -112,9 +112,7 @@ support_email = ${WPOJS_SUPPORT_EMAIL}
 rate_limit_requests = 300
 rate_limit_window = 60
 
-; Instance-specific default UI messages (override generic plugin defaults).
-; These pre-populate the Settings form. Admins can further edit via the UI.
-; Available placeholders: {lostPasswordUrl}, {supportEmail}, {wpUrl}
-default_login_hint = "${WPOJS_DEFAULT_LOGIN_HINT}"
-default_paywall_hint = "${WPOJS_DEFAULT_PAYWALL_HINT}"
-default_footer_message = "${WPOJS_DEFAULT_FOOTER_MESSAGE}"
+; UI messages (login hint, paywall hint, footer) are stored in plugin_settings
+; (DB), not here. PHP INI files corrupt values containing " and {} (HTML with
+; href="..." and {placeholder}). setup-ojs.sh writes instance-specific defaults
+; to the DB during setup. Admins can further edit via the plugin Settings page.
