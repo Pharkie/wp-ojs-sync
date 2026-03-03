@@ -20,9 +20,11 @@
  *   allowed_ips = "1.2.3.4,5.6.7.8"
  *   wp_member_url = "https://your-wp-site.example.org"
  *   support_email = ""
- *   default_login_hint = ""      ; optional: instance-specific default
- *   default_paywall_hint = ""    ; optional: instance-specific default
- *   default_footer_message = ""  ; optional: instance-specific default
+ *
+ * UI messages (login hint, paywall hint, footer) are stored in
+ * plugin_settings (DB), not config.inc.php. PHP INI files corrupt
+ * values containing " and {} (HTML href + placeholders). Instance
+ * defaults are written by setup-ojs.sh during environment setup.
  */
 
 namespace APP\plugins\generic\wpojsSubscriptionApi;
@@ -40,7 +42,7 @@ class WpojsSubscriptionApiPlugin extends GenericPlugin
 {
     private const SUB_STATUS_ACTIVE = 1;
 
-    public const DEFAULT_LOGIN_HINT = 'Member? First time here? <a href="{lostPasswordUrl}">Set your password</a> to access journal content.';
+    public const DEFAULT_LOGIN_HINT = 'Member visiting for the first time? <a href="{lostPasswordUrl}">Set your password</a> to access journal content.';
     public const DEFAULT_PAYWALL_HINT = 'If you believe you should have access through your membership, please contact <a href="mailto:{supportEmail}">{supportEmail}</a>.';
     public const DEFAULT_FOOTER_MESSAGE = 'Your journal access is provided by your membership. <a href="{wpUrl}">Manage your membership</a>.';
 
@@ -62,36 +64,26 @@ class WpojsSubscriptionApiPlugin extends GenericPlugin
 
     /**
      * Resolve a UI message with fallback chain:
-     * plugin setting → config.inc.php default → generic constant.
+     * plugin setting (DB) → generic constant.
      *
-     * Config keys use snake_case: default_login_hint, default_paywall_hint,
-     * default_footer_message (under [wpojs] section).
+     * Instance-specific defaults are written to plugin_settings by
+     * setup-ojs.sh during environment setup. Admins can further edit
+     * via the plugin Settings page.
+     *
+     * Note: config.inc.php is NOT used for messages. PHP INI files
+     * corrupt values containing " and {} (HTML href + placeholders).
      */
-    private function getMessage(string $settingName, string $configKey, string $default): string
+    private function getMessage(string $settingName, string $default): string
     {
         $context = Application::get()->getRequest()->getContext();
         $contextId = $context ? $context->getId() : 0;
 
-        // 1. Admin-edited plugin setting (set via Settings form)
         $value = $this->getSetting($contextId, $settingName);
         if (!empty($value)) {
             return $value;
         }
 
-        // 2. Instance default from config.inc.php [wpojs] section
-        $configValue = Config::getVar('wpojs', $configKey, '');
-        if (!empty($configValue)) {
-            return $configValue;
-        }
-
-        // 3. Generic fallback constant
         return $default;
-    }
-
-    private function getDefault(string $configKey, string $constant): string
-    {
-        $configValue = Config::getVar('wpojs', $configKey, '');
-        return !empty($configValue) ? $configValue : $constant;
     }
 
     /**
@@ -115,7 +107,7 @@ class WpojsSubscriptionApiPlugin extends GenericPlugin
                 'lostPassword'
             );
 
-            $messageTemplate = $this->getMessage('loginHint', 'default_login_hint', self::DEFAULT_LOGIN_HINT);
+            $messageTemplate = $this->getMessage('loginHint', self::DEFAULT_LOGIN_HINT);
             $escapedUrl = htmlspecialchars($lostPasswordUrl, ENT_QUOTES, 'UTF-8');
             $hintHtml = str_replace(
                 '{lostPasswordUrl}',
@@ -177,7 +169,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!$sub || (int) $sub->getStatus() !== self::SUB_STATUS_ACTIVE) {
             $supportEmail = Config::getVar('wpojs', 'support_email', '');
             if (!empty($supportEmail)) {
-                $messageTemplate = $this->getMessage('paywallHint', 'default_paywall_hint', self::DEFAULT_PAYWALL_HINT);
+                $messageTemplate = $this->getMessage('paywallHint', self::DEFAULT_PAYWALL_HINT);
                 $escapedEmail = htmlspecialchars($supportEmail, ENT_QUOTES, 'UTF-8');
                 $messageHtml = str_replace(
                     '{supportEmail}',
@@ -205,7 +197,7 @@ document.addEventListener("DOMContentLoaded", function() {
             return Hook::CONTINUE;
         }
 
-        $messageTemplate = $this->getMessage('footerMessage', 'default_footer_message', self::DEFAULT_FOOTER_MESSAGE);
+        $messageTemplate = $this->getMessage('footerMessage', self::DEFAULT_FOOTER_MESSAGE);
         $escapedUrl = htmlspecialchars($wpUrl, ENT_QUOTES, 'UTF-8');
         $messageHtml = str_replace(
             '{wpUrl}',
@@ -321,26 +313,21 @@ document.addEventListener("DOMContentLoaded", function() {
         $contextId = $context ? $context->getId() : 0;
 
         if ($request->isPost()) {
-            $this->updateSetting($contextId, 'loginHint', mb_substr(strip_tags($request->getUserVar('loginHint') ?? ''), 0, 500));
-            $this->updateSetting($contextId, 'paywallHint', mb_substr(strip_tags($request->getUserVar('paywallHint') ?? ''), 0, 500));
-            $this->updateSetting($contextId, 'footerMessage', mb_substr(strip_tags($request->getUserVar('footerMessage') ?? ''), 0, 500));
+            $this->updateSetting($contextId, 'loginHint', mb_substr(strip_tags($request->getUserVar('loginHint') ?? '', '<a>'), 0, 1000));
+            $this->updateSetting($contextId, 'paywallHint', mb_substr(strip_tags($request->getUserVar('paywallHint') ?? '', '<a>'), 0, 1000));
+            $this->updateSetting($contextId, 'footerMessage', mb_substr(strip_tags($request->getUserVar('footerMessage') ?? '', '<a>'), 0, 1000));
 
             return new \PKP\core\JSONMessage(true);
         }
 
-        // Resolve defaults: config.inc.php override → generic constant
-        $defaultLoginHint = $this->getDefault('default_login_hint', self::DEFAULT_LOGIN_HINT);
-        $defaultPaywallHint = $this->getDefault('default_paywall_hint', self::DEFAULT_PAYWALL_HINT);
-        $defaultFooterMessage = $this->getDefault('default_footer_message', self::DEFAULT_FOOTER_MESSAGE);
-
         $templateMgr = \APP\template\TemplateManager::getManager($request);
         $templateMgr->assign([
-            'loginHint' => $this->getSetting($contextId, 'loginHint') ?: $defaultLoginHint,
-            'paywallHint' => $this->getSetting($contextId, 'paywallHint') ?: $defaultPaywallHint,
-            'footerMessage' => $this->getSetting($contextId, 'footerMessage') ?: $defaultFooterMessage,
-            'defaultLoginHint' => $defaultLoginHint,
-            'defaultPaywallHint' => $defaultPaywallHint,
-            'defaultFooterMessage' => $defaultFooterMessage,
+            'loginHint' => $this->getSetting($contextId, 'loginHint') ?: self::DEFAULT_LOGIN_HINT,
+            'paywallHint' => $this->getSetting($contextId, 'paywallHint') ?: self::DEFAULT_PAYWALL_HINT,
+            'footerMessage' => $this->getSetting($contextId, 'footerMessage') ?: self::DEFAULT_FOOTER_MESSAGE,
+            'defaultLoginHint' => self::DEFAULT_LOGIN_HINT,
+            'defaultPaywallHint' => self::DEFAULT_PAYWALL_HINT,
+            'defaultFooterMessage' => self::DEFAULT_FOOTER_MESSAGE,
         ]);
 
         return new \PKP\core\JSONMessage(
