@@ -9,9 +9,11 @@
 #   scripts/rebuild-dev.sh --skip-tests             # Rebuild without tests
 #   scripts/rebuild-dev.sh --with-sample-data --skip-tests
 #
+# Output is always tee'd to logs/rebuild-<timestamp>.log so it's recoverable.
+#
 # This script is devcontainer-specific (hardcoded host path for DinD).
 # For portable setup (containers already running), use scripts/setup-dev.sh.
-set -e
+set -eo pipefail
 
 DC="docker compose --project-directory /Users/adamknowles/dev/SEA/wp-ojs-sync -f /workspaces/wp-ojs-sync/docker-compose.yml --env-file /workspaces/wp-ojs-sync/.env"
 
@@ -26,7 +28,17 @@ for arg in "$@"; do
   esac
 done
 
+# --- Log file setup ---
+LOG_DIR="/workspaces/wp-ojs-sync/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/rebuild-$(date '+%Y%m%d-%H%M%S').log"
+
+# Tee all stdout+stderr to the log file while still showing on terminal.
+# Use a file descriptor so we can report the log path on exit.
+exec > >(tee "$LOG_FILE") 2>&1
+
 echo "=== Rebuild dev environment ==="
+echo "Log file: $LOG_FILE"
 echo ""
 
 # --- 1. Tear down existing containers + volumes ---
@@ -37,7 +49,7 @@ echo ""
 
 # --- 2. Build images ---
 echo "--- Building OJS image ---"
-DOCKER_BUILDKIT=1 docker build -f docker/ojs/Dockerfile -t wp-ojs-sync-ojs .
+DOCKER_BUILDKIT=1 docker build --platform linux/amd64 -f docker/ojs/Dockerfile -t wp-ojs-sync-ojs .
 echo "[ok] OJS image built."
 echo ""
 
@@ -57,7 +69,58 @@ echo "--- Running setup-dev.sh $SAMPLE_DATA ---"
 scripts/setup-dev.sh $SAMPLE_DATA
 echo ""
 
-# --- 5. Run tests (unless --skip-tests) ---
+# --- 5. Prepare for tests ---
+# Kill stale socat forwarders from a previous run (they hold the ports but
+# point at containers that no longer exist after the teardown+rebuild).
+echo "--- Preparing test infrastructure ---"
+# [s] trick prevents pkill from matching its own command line
+pkill -f '[s]ocat.*TCP-LISTEN' 2>/dev/null || true
+sleep 1  # Let killed processes release their ports
+
+# Connect the devcontainer to the compose network so hostname resolution
+# (wp, ojs) works for socat and direct connectivity checks.
+NETWORK="wp-ojs-sync_sea-net"
+CONTAINER_ID=$(cat /etc/hostname)
+if ! docker network inspect "$NETWORK" --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null | grep -q "$CONTAINER_ID"; then
+  echo "Connecting devcontainer to $NETWORK..."
+  docker network connect "$NETWORK" "$CONTAINER_ID" 2>/dev/null || true
+fi
+
+# Start socat forwarders and verify they work. Playwright's global-setup also
+# does this, but it spawns socat with stdio:ignore so errors are invisible.
+# Doing it here lets us catch failures with full error output.
+for FORWARD in "8080:wp:80" "8081:ojs:80"; do
+  LOCAL_PORT="${FORWARD%%:*}"
+  REMOTE="${FORWARD#*:}"
+  REMOTE_HOST="${REMOTE%%:*}"
+  REMOTE_PORT="${REMOTE#*:}"
+
+  # Skip if already listening (from a surviving forwarder)
+  if bash -c "echo >/dev/tcp/localhost/$LOCAL_PORT" 2>/dev/null; then
+    echo "[ok] localhost:$LOCAL_PORT already forwarding."
+    continue
+  fi
+
+  socat "TCP-LISTEN:$LOCAL_PORT,fork,reuseaddr" "TCP:$REMOTE_HOST:$REMOTE_PORT" 2>/dev/null &
+  SOCAT_PID=$!
+
+  # Wait up to 5s for it to start listening
+  for i in $(seq 1 10); do
+    if bash -c "echo >/dev/tcp/localhost/$LOCAL_PORT" 2>/dev/null; then
+      echo "[ok] localhost:$LOCAL_PORT → $REMOTE_HOST:$REMOTE_PORT (pid $SOCAT_PID)"
+      break
+    fi
+    if [ "$i" = "10" ]; then
+      echo "ERROR: socat failed to forward localhost:$LOCAL_PORT → $REMOTE_HOST:$REMOTE_PORT"
+      exit 1
+    fi
+    sleep 0.5
+  done
+done
+echo "[ok] Test infrastructure ready."
+echo ""
+
+# --- 6. Run tests (unless --skip-tests) ---
 if [ "$SKIP_TESTS" = true ]; then
   echo "--- Skipping tests (--skip-tests) ---"
 else
@@ -66,7 +129,8 @@ else
 fi
 echo ""
 
-# --- 6. Summary ---
+# --- 7. Summary ---
 echo "=== Rebuild complete ==="
 echo "  WP:  http://localhost:8080  (admin / admin123)"
 echo "  OJS: http://localhost:8081  (admin / admin123)"
+echo "  Log: $LOG_FILE"

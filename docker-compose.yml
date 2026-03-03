@@ -49,6 +49,7 @@ services:
     build:
       context: .
       dockerfile: docker/ojs/Dockerfile  # Extends pkpofficial/ojs:3_5_0-3 — adds gettext for envsubst
+    platform: linux/amd64  # OJS base image is amd64 only
     restart: unless-stopped
     entrypoint: /etc/ojs/entrypoint.sh
     environment:

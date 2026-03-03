@@ -8,7 +8,7 @@
 #
 # Run after OJS install:
 #   docker compose exec ojs bash /scripts/setup-ojs.sh [--with-sample-data]
-set -e
+set -eo pipefail
 
 SAMPLE_DATA=false
 for arg in "$@"; do
@@ -306,7 +306,7 @@ else
   echo "[OJS] PayPal plugin already enabled, skipping."
 fi
 
-echo "[OJS] OJS setup complete."
+echo "[OJS] OJS base setup complete."
 
 # --- Sample data (dev/staging only) ---
 if [ "$SAMPLE_DATA" = true ]; then
@@ -322,9 +322,20 @@ if [ "$SAMPLE_DATA" = true ]; then
     echo "[OJS] Articles already imported ($ARTICLE_COUNT publications), skipping."
   else
     echo "[OJS] Importing OJS content (2 issues, 43 articles)..."
-    php /var/www/html/tools/importExport.php NativeImportExportPlugin import "$IMPORT_XML" "$JOURNAL_PATH"
+    IMPORT_OUTPUT=$(php /var/www/html/tools/importExport.php NativeImportExportPlugin import "$IMPORT_XML" "$JOURNAL_PATH" 2>&1)
+    IMPORT_EXIT=$?
+    # Show the import summary (skip PHP Notices which are harmless tempnam warnings)
+    echo "$IMPORT_OUTPUT" | grep -v "PHP Notice" | tail -10
+    if [ "$IMPORT_EXIT" != "0" ]; then
+      echo "[OJS] ERROR: Import exited with code $IMPORT_EXIT"
+      exit 1
+    fi
     NEW_COUNT=$($MARIADB -N -e "SELECT COUNT(*) FROM publications WHERE submission_id > 0")
-    echo "[OJS] Import complete. Publications: $NEW_COUNT"
+    if [ "$NEW_COUNT" = "0" ]; then
+      echo "[OJS] ERROR: Import reported success but no publications found in DB."
+      exit 1
+    fi
+    echo "[OJS] [ok] Import complete. Publications: $NEW_COUNT"
   fi
 
   # Set issues to require subscription (access_status: 1 = open, 2 = subscription).
@@ -338,3 +349,64 @@ if [ "$SAMPLE_DATA" = true ]; then
     echo "[OJS] Issue access updated."
   fi
 fi
+
+# --- Final health check ---
+echo ""
+echo "[OJS] --- Health check ---"
+HEALTH_FAIL=0
+
+# OJS HTTP responds
+OJS_HTTP=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:80/ 2>/dev/null) || true
+if [ "$OJS_HTTP" = "200" ] || [ "$OJS_HTTP" = "302" ]; then
+  echo "[OJS] [ok] HTTP: $OJS_HTTP"
+else
+  echo "[OJS] [FAIL] HTTP: ${OJS_HTTP:-timeout}"
+  HEALTH_FAIL=1
+fi
+
+# Journal API responds
+JOURNAL_HTTP=$(curl -s -o /dev/null -w '%{http_code}' \
+  "http://localhost:80/$JOURNAL_PATH/api/v1/contexts/$JOURNAL_ID" \
+  -H "Authorization: Bearer $JWT_TOKEN" 2>/dev/null) || true
+if [ "$JOURNAL_HTTP" = "200" ]; then
+  echo "[OJS] [ok] Journal API: $JOURNAL_HTTP"
+else
+  echo "[OJS] [FAIL] Journal API: ${JOURNAL_HTTP:-timeout}"
+  HEALTH_FAIL=1
+fi
+
+# WP-OJS plugin enabled in DB
+PLUGIN_OK=$($MARIADB -N -e "SELECT COUNT(*) FROM plugin_settings WHERE plugin_name='wpojssubscriptionapiplugin' AND setting_name='enabled' AND setting_value='1'" 2>/dev/null) || true
+if [ "$PLUGIN_OK" = "1" ]; then
+  echo "[OJS] [ok] wpojs-subscription-api plugin enabled."
+else
+  echo "[OJS] [FAIL] wpojs-subscription-api plugin not enabled in DB."
+  HEALTH_FAIL=1
+fi
+
+# Subscription types exist
+SUB_TYPES=$($MARIADB -N -e "SELECT COUNT(*) FROM subscription_types WHERE journal_id=$JOURNAL_ID" 2>/dev/null) || true
+if [ -n "$SUB_TYPES" ] && [ "$SUB_TYPES" -gt "0" ]; then
+  echo "[OJS] [ok] $SUB_TYPES subscription type(s)."
+else
+  echo "[OJS] [FAIL] No subscription types found."
+  HEALTH_FAIL=1
+fi
+
+# Publishing mode = subscription
+PUB_CHECK=$($MARIADB -N -e "SELECT setting_value FROM journal_settings WHERE journal_id=$JOURNAL_ID AND setting_name='publishingMode'" 2>/dev/null) || true
+if [ "$PUB_CHECK" = "1" ]; then
+  echo "[OJS] [ok] Publishing mode: subscription."
+else
+  echo "[OJS] [FAIL] Publishing mode: ${PUB_CHECK:-not set} (expected 1)."
+  HEALTH_FAIL=1
+fi
+
+if [ "$HEALTH_FAIL" = "1" ]; then
+  echo ""
+  echo "[OJS] WARNING: Health check had failures — setup may be incomplete."
+  exit 1
+fi
+
+echo ""
+echo "[OJS] [ok] OJS setup complete and healthy."
