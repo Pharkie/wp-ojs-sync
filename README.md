@@ -36,6 +36,8 @@ Non-member visits paywalled content
 
 ## Installation
 
+For full step-by-step instructions including troubleshooting, see the [Deployment guide](docs/deployment.md). Quick overview below.
+
 ### WP plugin
 
 1. Copy `plugins/wpojs-sync/` to `wp-content/plugins/wpojs-sync/`
@@ -43,8 +45,10 @@ Non-member visits paywalled content
 
 ### OJS plugin
 
-1. Copy `plugins/wpojs-subscription-api/` to your OJS installation at `plugins/generic/wpojsSubscriptionApi/`
-2. Enable the plugin in OJS Admin -> Website -> Plugins -> Generic
+1. Copy `plugins/wpojs-subscription-api/` to your OJS installation at `plugins/generic/wpojsSubscriptionApi/` — **folder name must be `wpojsSubscriptionApi`** (camelCase, no hyphens or underscores)
+2. Symlink or copy the API route entry point: `ln -s /path/to/ojs/plugins/generic/wpojsSubscriptionApi/api/v1/wpojs /path/to/ojs/api/v1/wpojs`
+3. Enable the plugin in OJS Admin -> Website -> Plugins -> Generic
+4. Create at least one subscription type in OJS Admin -> Subscriptions -> Subscription Types
 
 ### Configure the API key
 
@@ -148,7 +152,7 @@ A `docker-compose.yml` is included that provides a local development setup with 
 
 ## E2E tests
 
-Playwright browser tests in `e2e/` verify the full integration against the Docker dev environment (requires `--with-sample-data`). 11 spec files, 29 tests total.
+Playwright browser tests in `e2e/` verify the full integration against the Docker dev environment (requires `--with-sample-data`). 10 spec files, 35 tests total.
 
 ```bash
 npm install && npx playwright install chromium
@@ -179,6 +183,7 @@ npx playwright test expanded-resilience     # just the resilience suite
 
 ### Deployment and operations
 
+- [Deployment guide](docs/deployment.md) — non-Docker deployment: plugin installation, config, folder naming, troubleshooting
 - [Hosting requirements](docs/hosting-requirements.md) — OJS + WP hosting specs, access needed for staging and production
 - [Support runbook](docs/support-runbook.md) — quick reference for support staff handling member access issues
 - [TODO / roadmap](TODO.md) — what's done, what's left before production
