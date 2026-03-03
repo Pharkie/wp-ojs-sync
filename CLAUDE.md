@@ -12,6 +12,7 @@ WordPress ↔ OJS integration. WP manages memberships via WooCommerce Subscripti
 - `docs/ojs-api.md` — OJS REST API capabilities, DB schema, PHP internals
 - `docs/wp-integration.md` — WP membership stack (Ultimate Member + WooCommerce Subscriptions), hooks, code patterns
 - `docs/janeway-paywall-investigation.md` — concrete technical plan for Janeway backup path
+- `docs/deployment.md` — non-Docker deployment guide: plugin installation, config, troubleshooting
 - `docs/hosting-requirements.md` — OJS + WP hosting specs and access requirements for staging/production
 - `docs/support-runbook.md` — support staff quick reference for common member issues
 - `docs/membership-platform.md` — membership platform comparison (WildApricot, CiviCRM, Beacon, Outseta)

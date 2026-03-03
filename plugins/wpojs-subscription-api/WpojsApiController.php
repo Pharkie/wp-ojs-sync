@@ -82,7 +82,7 @@ class WpojsApiController extends PKPBaseController
      */
     private function checkIp(Request $request): ?JsonResponse
     {
-        $allowedIps = Config::getVar('wpojs', 'allowed_ips', '');
+        $allowedIps = (string) Config::getVar('wpojs', 'allowed_ips', '');
 
         if (empty($allowedIps)) {
             return response()->json(
@@ -133,9 +133,9 @@ class WpojsApiController extends PKPBaseController
      */
     private function checkApiKey(Request $request): ?JsonResponse
     {
-        $secret = Config::getVar('wpojs', 'api_key_secret', '');
+        $secret = (string) Config::getVar('wpojs', 'api_key_secret', '');
         if (empty($secret)) {
-            $secret = Config::getVar('security', 'api_key_secret', '');
+            $secret = (string) Config::getVar('security', 'api_key_secret', '');
         }
 
         if (empty($secret)) {
@@ -243,10 +243,17 @@ class WpojsApiController extends PKPBaseController
         $clientIp = $request->server('REMOTE_ADDR', 'unknown');
         $cutoff   = date('Y-m-d H:i:s', time() - $windowSecs);
 
-        $count = DB::table('wpojs_api_log')
-            ->where('source_ip', $clientIp)
-            ->where('created_at', '>=', $cutoff)
-            ->count();
+        try {
+            $count = DB::table('wpojs_api_log')
+                ->where('source_ip', $clientIp)
+                ->where('created_at', '>=', $cutoff)
+                ->count();
+        } catch (\Exception $e) {
+            // Table may not exist yet (plugin schema not installed).
+            // Skip rate limiting rather than blocking all API requests.
+            error_log('[wpojs] Rate limit check skipped — wpojs_api_log table may not exist: ' . $e->getMessage());
+            return null;
+        }
 
         if ($count >= $maxRequests) {
             return response()->json(
@@ -415,6 +422,34 @@ class WpojsApiController extends PKPBaseController
         } catch (\Exception $e) {
             $checks[] = ['name' => 'user_user_groups table', 'ok' => false];
             $compatible = false;
+        }
+
+        // Plugin API log table (created by schema.xml on plugin enable)
+        try {
+            DB::table('wpojs_api_log')->limit(1)->exists();
+            $checks[] = ['name' => 'wpojs_api_log table', 'ok' => true];
+        } catch (\Exception $e) {
+            $checks[] = ['name' => 'wpojs_api_log table (disable and re-enable plugin to create)', 'ok' => false];
+            $compatible = false;
+        }
+
+        // Subscription types — at least one must exist for sync to work
+        $journalIdResult = $this->getJournalIdOrFail();
+        if (is_int($journalIdResult)) {
+            try {
+                $typeCount = (int) DB::table('subscription_types')
+                    ->where('journal_id', $journalIdResult)
+                    ->count();
+                $ok = $typeCount > 0;
+                $detail = $ok ? "{$typeCount} type(s) found" : 'No subscription types — create one in OJS Subscriptions settings';
+                $checks[] = ['name' => 'Subscription types exist', 'ok' => $ok, 'detail' => $detail];
+                if (!$ok) {
+                    $compatible = false;
+                }
+            } catch (\Exception $e) {
+                $checks[] = ['name' => 'subscription_types table', 'ok' => false];
+                $compatible = false;
+            }
         }
 
         return response()->json([

@@ -7,15 +7,32 @@
 - Docker dev environment
 - Member dashboard widget (WooCommerce My Account)
 - UI messages (OJS login hint, paywall hint, footer)
+- Non-Docker deployment guide — `docs/deployment.md`
+
+## Staging test results (2026-03-02)
+
+External tester deployed to staging (WP: testj.existentialanalysis.org.uk, OJS: testojs.existentialanalysis.org.uk).
+
+- [x] Connection test passes (WP can reach OJS, authenticated, compatible)
+- [x] Bulk backfill — existing members synced to OJS (user accounts created, subscriptions activated)
+- [x] OJS API endpoint `/api/v1/wpojs` mounted and responding
+- [x] WP mapping configured: WC Product 23042 → OJS Type 1
+- [ ] **New member flow** — create WCS subscription, verify OJS user + access created automatically
+- [ ] **Cancellation/expiry** — cancel subscription, verify OJS access removed
+- [ ] **On-hold / failed payment** — test payment failure scenarios
+- [ ] **All products mapped** — configure all 6 WC products (1892, 1924, 1927, 23040, 23041, 23042), not just 23042
+- [ ] **Password flow** — verify welcome email delivery and password set process
+
+Bugs found and fixed: `hash_equals()` TypeError on numeric secrets (cast to string), `checkRateLimit()` crash when `wpojs_api_log` table missing (try/catch), `getInstallSchemaFile()` missing (table not auto-created on plugin enable), preflight didn't check for API log table or subscription types.
 
 ## Before deploying to production
 
 - [ ] Set up OJS 3.5 production server — new DigitalOcean droplet running OJS 3.5 in Docker (staging already on 3.5.0.3). This replaces the current 3.4 server, not an in-place upgrade. See `docs/hosting-requirements.md` for full specs.
 - [ ] Set up transactional email relay on OJS server (SPF/DKIM/DMARC) — verify welcome email delivery end-to-end
-- [ ] Configure WP settings: type mapping, manual roles, OJS URL
-- [ ] Configure OJS `config.inc.php` `[wpojs]` section: allowed IPs, WP member URL, support email
-- [ ] Create OJS subscription type and record the `type_id`
-- [ ] Run `wp ojs-sync test-connection` to verify connectivity
+- [ ] Configure WP settings: type mapping for **all 6 WC products**, manual roles, OJS URL
+- [ ] Configure OJS `config.inc.php` `[wpojs]` section: allowed IPs, WP member URL, support email. See `docs/deployment.md` for config reference.
+- [ ] Create OJS subscription type(s) and record the `type_id`(s) — required before sync. Preflight check warns if missing.
+- [ ] Run `wp ojs-sync test-connection` to verify connectivity (now also checks API log table and subscription types)
 - [ ] Run `wp ojs-sync sync --dry-run` to verify member resolution
 - [ ] Run `wp ojs-sync sync` for bulk initial sync
 - [ ] Run `wp ojs-sync send-welcome-emails` to invite members

@@ -86,7 +86,7 @@ All endpoints except `/ping` require Bearer token auth + Journal Manager or Site
 | Method | Path | Request body | Response | Notes |
 |---|---|---|---|---|
 | `GET` | `/ping` | — | `200 {status: "ok"}` | **No auth, no IP check** — pure reachability probe. If ping succeeds but preflight returns 403, the IP is not allowlisted. |
-| `GET` | `/preflight` | — | `200 {compatible: bool, checks: [...]}` | Verifies all PHP classes, methods, and DB tables the plugin depends on. Checks: `Repo::user()` methods, `Repo::userGroup()` methods, `Repo::emailTemplate()` methods, `IndividualSubscriptionDAO` methods, `SubscriptionTypeDAO`, `Validation` methods, `AccessKeyManager`, `PasswordResetRequested`, `Core::getCurrentDate()`, `Role::ROLE_ID_READER`, `user_user_groups` table. |
+| `GET` | `/preflight` | — | `200 {compatible: bool, checks: [...]}` | Verifies all PHP classes, methods, and DB tables the plugin depends on. Checks: `Repo::user()` methods, `Repo::userGroup()` methods, `Repo::emailTemplate()` methods, `IndividualSubscriptionDAO` methods, `SubscriptionTypeDAO`, `Validation` methods, `AccessKeyManager`, `PasswordResetRequested`, `Core::getCurrentDate()`, `Role::ROLE_ID_READER`, `user_user_groups` table, `wpojs_api_log` table, subscription types exist for journal. |
 | `GET` | `/users?email=` | — | `200 {found, userId, email, username, disabled}` or `200 {found: false}` | Read-only user lookup by email. No side effects. |
 | `POST` | `/users/find-or-create` | `{email, firstName, lastName, sendWelcomeEmail?}` | `200 {userId, created: bool}` | Finds existing user by email or creates new one with Reader role. `sendWelcomeEmail` is only honoured when `created: true` (existing users already have a password). |
 | `PUT` | `/users/{userId}/email` | `{newEmail}` | `200 {userId}` | Checks email uniqueness before updating (OJS doesn't enforce it in `edit()`). Returns `409` if email in use by another account. |
@@ -237,6 +237,7 @@ Each queue action maps to a specific sequence of OJS API calls. The queue proces
 
 | Fact | Detail |
 |---|---|
+| Staging test | Connection test + bulk backfill successful (2026-03-02). WC Product 23042 → OJS Type 1 confirmed working. Remaining: test all 6 products, cancellation/expiry, password flow. |
 | OJS version | Live: 3.4.0-9. Staging: 3.5.0.3 (upgraded 2026-02-19). |
 | OJS admin access | Yes. Site Administrator level. Can install plugins. |
 | WP membership stack | Ultimate Member 2.11.2, WooCommerce 10.5.2, WooCommerce Subscriptions 8.4.0, WooCommerce Memberships 1.27.5. WCS is authority on subscription status. |
@@ -262,14 +263,16 @@ Each queue action maps to a specific sequence of OJS API calls. The queue proces
 
 1. **Upgrade OJS 3.4 → 3.5** — the biggest risk. Significant breaking changes (Slim→Laravel, Vue 2→3). Staging upgraded to 3.5.0.3 (2026-02-19). Still need: verify acceptance criteria on staging, write rollback runbook, agree go/no-go threshold with SEA, then upgrade production.
 2. **Verify OJS API prerequisites** — test Bearer token auth from WP server IP (`CGIPassAuth on`), test user creation API, confirm email config (SPF/DKIM/DMARC), document OJS server specs.
-3. **Build and deploy OJS plugin** (`wpojs-subscription-api`) — code review + PHPStan before production.
+3. **Build and deploy OJS plugin** (`wpojs-subscription-api`) — code review + PHPStan before production. See [`deployment.md`](./deployment.md) for non-Docker deployment steps (folder naming, API route mount, config).
 4. **Build and deploy WP plugin** (`wpojs-sync`) — code review before production.
-5. **Smoke test** — end-to-end with 10 test users: create subscription → OJS account created → subscription active → paywall grants access → expire subscription → paywall denies access. Also test non-member purchase flow.
-6. **Bulk sync ~700 existing members** — `wp ojs-sync sync --dry-run` then `wp ojs-sync sync`. Creates users + subscriptions on OJS. **Does not send welcome emails** — that's a separate step. Batched (50 at a time), 500ms delay, ~12 minutes. Verify: `wp ojs-sync status` shows correct synced count, spot-check a few users in OJS admin.
-7. **Send welcome emails** — `wp ojs-sync send-welcome-emails --dry-run` then `wp ojs-sync send-welcome-emails`. Sends "set your password" email to all synced users. OJS dedup prevents duplicates — safe to re-run if interrupted. Token expiry 7 days. **Requires transactional email relay on OJS.**
-8. **OJS template changes** — DONE. Login hint ("First time? Set your password"), paywall hint for logged-in non-subscribers ("Contact support"), site footer ("Access provided by SEA membership"). Implemented via plugin hooks (`TemplateManager::display`, `Templates::Article::Footer::PageFooter`, `Templates::Common::Footer::PageFooter`). Messages read `wp_member_url` + `support_email` from `config.inc.php [wpojs]`.
-9. **WP member dashboard** — DONE. "Access Existential Analysis" card on WooCommerce My Account page. Shows active/inactive status with expiry date.
-10. **Member announcement** — via SEA's normal channel (newsletter/email), sent only after steps 6-9 are confirmed working. "Check your email for instructions" not "visit the journal now."
+5. **Create OJS subscription type(s)** — at least one Individual subscription type must exist in OJS before sync can work. Go to OJS Admin → Subscriptions → Subscription Types → Create. Note the `type_id` for use in WP mapping. The preflight check will warn if none exist.
+6. **Configure WP plugin mapping** — set OJS Base URL (with journal path), Default OJS Subscription Type ID, and product mappings (each WooCommerce Subscription Product ID → OJS Type ID). All six WC products (IDs 1892, 1924, 1927, 23040, 23041, 23042) should be mapped.
+7. **Smoke test** — end-to-end with 10 test users: create subscription → OJS account created → subscription active → paywall grants access → expire subscription → paywall denies access. Also test non-member purchase flow.
+8. **Bulk sync ~700 existing members** — `wp ojs-sync sync --dry-run` then `wp ojs-sync sync`. Creates users + subscriptions on OJS. **Does not send welcome emails** — that's a separate step. Batched (50 at a time), 500ms delay, ~12 minutes. Verify: `wp ojs-sync status` shows correct synced count, spot-check a few users in OJS admin.
+9. **Send welcome emails** — `wp ojs-sync send-welcome-emails --dry-run` then `wp ojs-sync send-welcome-emails`. Sends "set your password" email to all synced users. OJS dedup prevents duplicates — safe to re-run if interrupted. Token expiry 7 days. **Requires transactional email relay on OJS.**
+10. **OJS template changes** — DONE. Login hint ("First time? Set your password"), paywall hint for logged-in non-subscribers ("Contact support"), site footer ("Access provided by SEA membership"). Implemented via plugin hooks (`TemplateManager::display`, `Templates::Article::Footer::PageFooter`, `Templates::Common::Footer::PageFooter`). Messages read `wp_member_url` + `support_email` from `config.inc.php [wpojs]`.
+11. **WP member dashboard** — DONE. "Access Existential Analysis" card on WooCommerce My Account page. Shows active/inactive status with expiry date.
+12. **Member announcement** — via SEA's normal channel (newsletter/email), sent only after steps 8-11 are confirmed working. "Check your email for instructions" not "visit the journal now."
 
 If the OJS 3.5 upgrade hits serious problems, fallback options are documented in [`discovery.md`](./discovery.md).
 

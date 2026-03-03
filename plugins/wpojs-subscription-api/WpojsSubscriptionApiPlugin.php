@@ -434,6 +434,11 @@ document.addEventListener("DOMContentLoaded", function() {
         ];
     }
 
+    public function getInstallSchemaFile()
+    {
+        return $this->getPluginPath() . '/schema.xml';
+    }
+
     public function getDisplayName()
     {
         return __('plugins.generic.wpojsSubscriptionApi.displayName');
