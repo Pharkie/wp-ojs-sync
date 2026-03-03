@@ -26,7 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # GitHub CLI + Python pip + DNS tools + socat (for port forwarding to compose services)
 RUN apt-get update && apt-get install -y --no-install-recommends gh python3-pip dnsutils socat \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --break-system-packages pyyaml
 
 # Claude Code CLI (update npm first to suppress version warnings)
 RUN npm install -g npm@latest && npm install -g @anthropic-ai/claude-code
