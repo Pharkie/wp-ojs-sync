@@ -81,10 +81,10 @@ support_email = "support@example.org"
 
 Go to OJS Admin → Website → Plugins → Generic Plugins → find "WP-OJS Subscription API" → Enable.
 
-On first enable, OJS processes `schema.xml` and creates the `wpojs_api_log` table automatically.
+On first enable, OJS runs the plugin's migration (`WpojsApiLogMigration`) and creates the `wpojs_api_log` table automatically.
 
-**If the table is not created** (e.g. OJS skipped schema processing), you can:
-- Disable and re-enable the plugin (OJS re-runs schema on enable)
+**If the table is not created** (e.g. OJS skipped the migration), you can:
+- Disable and re-enable the plugin (OJS re-runs migrations on enable)
 - Or create it manually:
 
 ```sql

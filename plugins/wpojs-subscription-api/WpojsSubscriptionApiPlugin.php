@@ -34,6 +34,7 @@ use PKP\db\DAORegistry;
 use PKP\plugins\GenericPlugin;
 use PKP\plugins\Hook;
 use APP\plugins\generic\wpojsSubscriptionApi\WpojsApiLog;
+use APP\plugins\generic\wpojsSubscriptionApi\WpojsApiLogMigration;
 
 class WpojsSubscriptionApiPlugin extends GenericPlugin
 {
@@ -434,9 +435,9 @@ document.addEventListener("DOMContentLoaded", function() {
         ];
     }
 
-    public function getInstallSchemaFile()
+    public function getInstallMigration()
     {
-        return $this->getPluginPath() . '/schema.xml';
+        return new WpojsApiLogMigration();
     }
 
     public function getDisplayName()
