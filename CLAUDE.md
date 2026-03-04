@@ -12,7 +12,7 @@ WordPress ↔ OJS integration. WP manages memberships via WooCommerce Subscripti
 - `docs/ojs-api.md` — OJS REST API capabilities, DB schema, PHP internals
 - `docs/wp-integration.md` — WP membership stack (Ultimate Member + WooCommerce Subscriptions), hooks, code patterns
 - `docs/private/janeway-paywall-investigation.md` — concrete technical plan for Janeway backup path
-- `docs/deployment.md` — non-Docker setup: plugin installation, config, troubleshooting
+- `docs/non-docker-setup.md` — non-Docker setup: plugin installation, config, troubleshooting
 - `docs/private/hosting-requirements.md` — OJS + WP hosting specs and access requirements for staging/production
 - `docs/support-runbook.md` — support staff quick reference for common member issues
 - `docs/private/membership-platform.md` — membership platform comparison (WildApricot, CiviCRM, Beacon, Outseta)
@@ -60,7 +60,7 @@ See `docs/private/plan.md` for full details, `docs/discovery.md` for how we got 
 
 - **OJS has NO subscription REST API.** The endpoints don't exist. That's why we need a custom OJS plugin. See `docs/ojs-api.md`.
 - **OJS plugin uses `getInstallMigration()`**, not `getInstallSchemaFile()` (which is `final` in OJS 3.5). See `WpojsApiLogMigration.php`.
-- **OJS plugin folder must be `wpojsSubscriptionApi`** (camelCase). Hyphens/underscores break autoloading and the Plugins admin page. See `docs/deployment.md`.
+- **OJS plugin folder must be `wpojsSubscriptionApi`** (camelCase). Hyphens/underscores break autoloading and the Plugins admin page. See `docs/non-docker-setup.md`.
 - **Apache + PHP-FPM strips Authorization headers.** Need `CGIPassAuth on` in `.htaccess`. Do not use `?apiToken=` query param in production (leaks key into access logs).
 - **OJS 3.5 upgrade is the biggest risk.** The 3.5 upgrade has significant breaking changes (Slim->Laravel, Vue 2->3). If this goes badly, re-evaluate Janeway migration.
 

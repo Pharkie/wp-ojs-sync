@@ -7,7 +7,7 @@
 - Docker dev environment
 - Member dashboard widget (WooCommerce My Account)
 - UI messages (OJS login hint, paywall hint, footer)
-- Non-Docker setup guide — `docs/deployment.md`
+- Non-Docker setup guide — `docs/non-docker-setup.md`
 - Dev environment clean rebuild verified (2026-03-03) — all 35 e2e tests passing
 
 ## Staging test results (2026-03-02)
@@ -31,7 +31,7 @@ Bugs found and fixed: `hash_equals()` TypeError on numeric secrets (cast to stri
 - [ ] Set up OJS 3.5 production server — new DigitalOcean droplet running OJS 3.5 in Docker (staging already on 3.5.0.3). This replaces the current 3.4 server, not an in-place upgrade. See `docs/private/hosting-requirements.md` for full specs.
 - [ ] Set up transactional email relay on OJS server (SPF/DKIM/DMARC) — verify welcome email delivery end-to-end
 - [ ] Configure WP settings: type mapping for **all 6 WC products**, manual roles, OJS URL
-- [ ] Configure OJS `config.inc.php` `[wpojs]` section: allowed IPs, WP member URL, support email. See `docs/deployment.md` for config reference.
+- [ ] Configure OJS `config.inc.php` `[wpojs]` section: allowed IPs, WP member URL, support email. See `docs/non-docker-setup.md` for config reference.
 - [ ] Create OJS subscription type(s) and record the `type_id`(s) — required before sync. Preflight check warns if missing.
 - [ ] Run `wp ojs-sync test-connection` to verify connectivity (now also checks API log table and subscription types)
 - [ ] Run `wp ojs-sync sync --dry-run` to verify member resolution
