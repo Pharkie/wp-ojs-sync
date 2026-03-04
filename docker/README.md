@@ -1,6 +1,6 @@
 # Docker Setup
 
-For non-Docker setup, see [`docs/deployment.md`](../docs/deployment.md).
+For non-Docker setup, see [`docs/non-docker-setup.md`](../docs/non-docker-setup.md).
 
 ## Architecture
 
