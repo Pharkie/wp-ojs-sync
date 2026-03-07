@@ -1,7 +1,7 @@
-staging-wp.example.org {
+{$CADDY_WP_DOMAIN} {
 	reverse_proxy wp:80
 }
 
-staging-ojs.example.org {
+{$CADDY_OJS_DOMAIN} {
 	reverse_proxy ojs:80
 }

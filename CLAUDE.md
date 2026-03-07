@@ -85,8 +85,9 @@ Primary integration: hook into **WooCommerce Subscriptions** status events (`woo
 ## Dev environment
 
 - **`scripts/rebuild-dev.sh`** — full grave-and-pave: tears down containers+volumes, rebuilds images, brings up stack, runs setup, runs tests. Devcontainer-only (hardcoded host path for DinD volume mounts). Flags: `--with-sample-data`, `--skip-tests`.
-- **`scripts/setup-dev.sh`** — portable setup: assumes containers are already running. Waits for services, runs OJS + WP setup scripts. Flags: `--with-sample-data`.
-- **Why two scripts?** Docker-in-Docker in the devcontainer requires a hardcoded host path for `--project-directory`. `rebuild-dev.sh` bakes this in. `setup-dev.sh` is the portable inner script other devs can use with their own container setup.
+- **`scripts/setup.sh`** — unified setup for all environments. Assumes containers are already running. Flags: `--env=dev|staging|prod`, `--with-sample-data`. Staging defaults to `--with-sample-data`.
+- **`scripts/setup-dev.sh`** — thin shim, runs `setup.sh --env=dev`. Kept for backwards compatibility.
+- **Why two scripts?** Docker-in-Docker in the devcontainer requires a hardcoded host path for `--project-directory`. `rebuild-dev.sh` bakes this in. `setup.sh --env=dev` is the portable inner script. Staging/prod use plain `docker compose` on the VPS.
 - **Post-rebuild prompt:** `docs/private/claude-dev-setup-prompt.md` — copy-paste prompt for a fresh Claude session after devcontainer rebuild.
 
 ## Pre-commit hooks

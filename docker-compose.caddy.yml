@@ -1,0 +1,29 @@
+# Caddy overlay — adds reverse proxy with automatic SSL.
+# Requires CADDY_WP_DOMAIN and CADDY_OJS_DOMAIN in .env.
+# Removes direct port exposure from staging.yml (Caddy handles 80/443).
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.staging.yml -f docker-compose.caddy.yml up -d
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      CADDY_WP_DOMAIN: ${CADDY_WP_DOMAIN:?Set CADDY_WP_DOMAIN in .env}
+      CADDY_OJS_DOMAIN: ${CADDY_OJS_DOMAIN:?Set CADDY_OJS_DOMAIN in .env}
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - wp
+      - ojs
+    networks:
+      - sea-net
+
+volumes:
+  caddy_data:
+  caddy_config:
