@@ -1,10 +1,14 @@
 # Pre-Production Checklist
 
-Information to gather and steps to complete before deploying to production. Items marked **[GATHER]** require information from the live WP site.
+Three-phase rollout: OJS first (on Hetzner, WP stays on Krystal), then WP migrates to Hetzner too.
 
 ---
 
-## 0. Get Krystal hosting access [BLOCKER]
+## Phase 1: OJS on Hetzner + WP on Krystal
+
+Deploy wpojs-sync plugin to the live Krystal WP. OJS runs on a new Hetzner VPS. Sync works across the internet. No WP migration yet — Krystal handles payments, themes, everything.
+
+### 0. Get Krystal hosting access [BLOCKER]
 
 Everything below requires access to the live WP server. Get this first.
 
@@ -12,117 +16,39 @@ Everything below requires access to the live WP server. Get this first.
 - [ ] Get cPanel access (or equivalent file manager)
 - [ ] Verify you can reach `wp-content/themes/` and `wp-content/plugins/`
 
-### With access, gather these:
+### With access, gather:
 
-- [ ] **Download SEAcomm theme** — `wp-content/themes/seacomm/` (zip or tar via cPanel/SSH). Needed to match live site layout, especially WooCommerce My Account page where the journal access widget displays.
-- [ ] **Check Swift SMTP settings** — WP Admin → Swift SMTP settings page. Note the SMTP host, port, from address (determines what email service live WP uses — may reuse for OJS).
-- [ ] **Check Wordfence firewall rules** — WP Admin → Wordfence → Firewall. Look for outbound HTTP restrictions or rate limiting that could block WP→OJS API calls.
+- [ ] **Download SEAcomm theme** — `wp-content/themes/seacomm/` + `wp-content/themes/helium/` (parent). Needed for staging to match live layout.
+- [ ] **Check Swift SMTP settings** — WP Admin → Swift SMTP settings page. Note SMTP host, port, from address. This tells us what email service live WP uses — may reuse for OJS.
+- [ ] **Check Wordfence firewall rules** — WP Admin → Wordfence → Firewall. Look for outbound HTTP restrictions that could block WP→OJS API calls.
 - [ ] **Check miniOrange OAuth config** — WP Admin → miniOrange OAuth settings. What is using WP as an OAuth server? If nothing, candidate for removal.
+- [ ] **Get `wp-config.php`** — note any custom constants, cron setup, etc.
 
-### Then:
+### 1. Deploy OJS production VPS
 
-1. Add SEAcomm theme to the repo (`wordpress/web/app/themes/seacomm/`)
-2. Add any live plugins we're keeping to `wordpress/composer.json`
-3. Deploy to staging, verify My Account widget renders correctly with SEAcomm
-4. Test sync with Wordfence + Enhancer for WCS active
-5. Work through the rest of this checklist
+- [ ] `scripts/init-vps.sh --name=sea-prod --ssl`
+- [ ] Create `.env` with production values (real domain, real API key, SMTP credentials)
+- [ ] `scripts/deploy.sh --host=sea-prod --provision`
+- [ ] Configure OJS `[wpojs]` section: `api_key_secret`, `allowed_ips` (Krystal's outbound IP), `wp_member_url`, `support_email`
+- [ ] Create OJS subscription type(s)
+- [ ] Set up DNS A record for OJS domain → Hetzner IP
+- [ ] Verify SSL working (Caddy auto-provisions Let's Encrypt)
 
----
+### 2. Set up email (OJS)
 
-## 1. Live WP plugin audit [DONE]
+- [ ] Sign up for Resend (or reuse live WP's email service)
+- [ ] Verify sending domain (add SPF/DKIM/DMARC DNS records)
+- [ ] Set OJS SMTP credentials in `.env`
+- [ ] Test email delivery (send to yourself first, verify DKIM passes)
 
-Get the full active plugin list from the live WP site. Go to **WP Admin → Tools → Site Health → Info → Active Plugins** (copyable text list) or screenshot **WP Admin → Plugins**.
+### 3. Deploy wpojs-sync plugin to Krystal WP
 
-Check each plugin against these categories:
+This is the non-Docker deployment described in `docs/non-docker-setup.md`.
 
-### Likely to affect sync
-
-| Category | Examples | What to check |
-|---|---|---|
-| **Caching** | WP Super Cache, W3 Total Cache, LiteSpeed Cache, Redis Object Cache | Could cache REST API responses or stale WP options. Object cache could delay Action Scheduler pickup. May need cache exclusion rules for `/wp-json/` and Action Scheduler. |
-| **Security / WAF** | Wordfence, Sucuri, iThemes Security, All In One Security | Could block outbound HTTP to OJS, rate-limit WP-CLI, or flag sync API calls as suspicious. Check firewall rules and whitelists. |
-| **Other WooCommerce extensions** | Any plugin hooking into `woocommerce_subscription_status_*` | Could conflict with sync hooks or change execution order. List all WC extensions active on live. |
-| **SMTP / email plugins** | WP Mail SMTP, FluentSMTP, Post SMTP | Need to know which service/credentials are used — may reuse for OJS. |
-| **Cron plugins** | WP Crontrol, Advanced Cron Manager | Could interfere with Action Scheduler's cron runner. |
-| **UM extensions** | Beyond um-notifications and um-woocommerce | Could modify user creation/deletion hooks that sync relies on. |
-
-### Unlikely to affect sync (but note them)
-
-- SEO plugins (Yoast, Rank Math)
-- Form plugins (Gravity Forms, WPForms)
-- Page builders (Elementor, Beaver Builder)
-- Analytics (Google Analytics, MonsterInsights)
-- Backup plugins (UpdraftPlus, BlogVault)
-
-### Action items
-
-- [ ] Get full active plugin list from live WP
-- [ ] Identify any plugins in the "likely to affect" categories above
-- [ ] Install same plugins on staging and test sync still works
-- [ ] Note any custom `wp-config.php` constants (beyond standard WP defaults)
-
----
-
-## 2. Live WP configuration [GATHER]
-
-| Item | How to check | Why it matters |
-|---|---|---|
-| **Active theme** | WP Admin → Appearance → Themes | Custom WooCommerce template overrides or subscription hooks |
-| **PHP version** | Tools → Site Health → Info → Server | Plugin requires PHP 8.2+ |
-| **PHP memory limit** | Tools → Site Health → Info → Server | Bulk sync needs adequate memory |
-| **PHP max execution time** | Tools → Site Health → Info → Server | Long-running WP-CLI commands |
-| **WP-Cron setup** | Check `wp-config.php` for `DISABLE_WP_CRON` | Action Scheduler relies on WP-Cron (or system cron replacement) |
-| **Multisite?** | Tools → Site Health → Info → WordPress | Affects plugin activation and hooks |
-| **WP version** | Dashboard → Updates | Should be current |
-| **WC version** | Plugins page | Plugin tested against WC 9.8+ |
-
-### Action items
-
-- [ ] Record PHP version, memory limit, max execution time
-- [ ] Check WP-Cron setup (native vs system cron)
-- [ ] Check if multisite
-- [ ] Note active theme name
-
----
-
-## 3. Email setup
-
-### Gather from live site [GATHER]
-
-- [ ] How does live WP currently send emails? (PHP `mail()`, SMTP plugin, hosting relay?)
-- [ ] Which SMTP service/credentials? (Mailgun, Postmark, SES, hosting SMTP?)
-- [ ] What sending domain? (e.g. `yourdomain.org` — need same domain's DNS for OJS)
-- [ ] Are SPF/DKIM/DMARC records already set up for that domain?
-
-### Configure for OJS
-
-- [ ] Choose SMTP service (can reuse live WP's service if it supports multiple senders)
-- [ ] Add SPF/DKIM/DMARC DNS records for OJS sending domain (if different from WP's)
-- [ ] Set OJS SMTP credentials in `.env`:
-  ```
-  OJS_SMTP_ENABLED=On
-  OJS_SMTP_HOST=smtp.example.com
-  OJS_SMTP_PORT=587
-  OJS_SMTP_AUTH=tls
-  OJS_SMTP_USER=...
-  OJS_SMTP_PASSWORD=...
-  OJS_MAIL_FROM=journal@yourdomain.org
-  ```
-- [ ] Test OJS email delivery (send to yourself first)
-- [ ] Verify DKIM passes (Gmail → "Show original" → `dkim=pass`)
-
-### Configure for WP (if needed)
-
-- [ ] If live WP uses PHP `mail()` and hosting handles it: check if Docker WP needs an SMTP plugin
-- [ ] If live WP uses an SMTP plugin: install same plugin on staging with same credentials
-- [ ] Test WP email delivery from staging
-
----
-
-## 4. WP plugin settings for production
-
-- [ ] **OJS Base URL** — production OJS URL (with journal path)
-- [ ] **Product mappings** — map all 6 WC products to OJS subscription types:
+- [ ] Upload `plugins/wpojs-sync/` to Krystal's `wp-content/plugins/`
+- [ ] Add `define('WPOJS_API_KEY', '...')` to `wp-config.php`
+- [ ] Activate plugin in WP Admin
+- [ ] Configure settings: OJS Base URL, product mappings for all 6 WC products:
   | WC Product ID | Product name | OJS Type ID |
   |---|---|---|
   | 1892 | | |
@@ -131,45 +57,154 @@ Check each plugin against these categories:
   | 23040 | | |
   | 23041 | | |
   | 23042 | | |
-- [ ] **Manual role mappings** (if applicable)
-- [ ] **API key** — set `WPOJS_API_KEY` in `wp-config.php`
+- [ ] Configure manual role mappings (if applicable)
+- [ ] Check Wordfence isn't blocking outbound calls to OJS
 
----
+### 4. Verify and launch sync
 
-## 5. OJS configuration for production
-
-- [ ] `config.inc.php` `[wpojs]` section:
-  - `api_key_secret` — must match WP's `WPOJS_API_KEY`
-  - `allowed_ips` — WP server's outbound IP
-  - `wp_member_url` — production WP URL
-  - `support_email` — support contact shown in paywall message
-- [ ] At least one subscription type created in OJS admin
-- [ ] Journal metadata (name, ISSN, contact info) set correctly
-
----
-
-## 6. Pre-launch verification
-
-Run in order:
-
-- [ ] `wp ojs-sync test-connection` — verifies connectivity, auth, IP allowlist, compatibility
-- [ ] `wp ojs-sync sync --dry-run --yes` — preview what bulk sync would do
-- [ ] Review dry-run output — member count matches expectations
+- [ ] `wp ojs-sync test-connection` — verify connectivity, auth, IP allowlist
+- [ ] `wp ojs-sync sync --dry-run --yes` — preview bulk sync
+- [ ] Review output — member count matches expectations
 - [ ] `wp ojs-sync sync --yes` — run bulk sync
-- [ ] `wp ojs-sync status` — verify sync counts
+- [ ] `wp ojs-sync status` — verify counts
 - [ ] `wp ojs-sync reconcile` — check for drift
-- [ ] Test new member flow manually (create subscription → verify OJS access)
-- [ ] Test cancellation flow (cancel subscription → verify OJS access removed)
-- [ ] `wp ojs-sync send-welcome-emails --dry-run` — preview email count
-- [ ] Send test email to yourself first
+- [ ] Test new member flow (create subscription → verify OJS access)
+- [ ] Test cancellation flow (cancel → verify OJS access removed)
+- [ ] Test on-hold / failed payment scenario
+- [ ] `wp ojs-sync send-welcome-emails --dry-run` — preview count
+- [ ] Send test email to yourself
 - [ ] `wp ojs-sync send-welcome-emails` — send to all members
 
----
-
-## 7. Post-launch monitoring
+### 5. Post-launch monitoring
 
 - [ ] Check WP Admin → OJS Sync → Sync Log for failures
-- [ ] Verify Action Scheduler is processing jobs (WP Admin → Tools → Scheduled Actions)
-- [ ] Monitor email delivery (check service dashboard for bounces/complaints)
-- [ ] Check OJS API log for errors (`wpojs_api_log` table)
+- [ ] Verify Action Scheduler processing jobs (WP Admin → Tools → Scheduled Actions)
+- [ ] Monitor email delivery (Resend dashboard — bounces, complaints)
 - [ ] Verify non-member purchase flow still works (OJS paywall → buy article)
+
+---
+
+## Phase 2: Prepare Hetzner WP (runs in parallel)
+
+Second Hetzner VPS running WP + OJS. No domain yet — runs on IP, tested in parallel while Krystal stays live.
+
+### 0. Staging: match live site
+
+Before building production, get staging to mirror live WP as closely as possible.
+
+- [ ] Add SEAcomm + Helium themes to repo (`wordpress/web/app/themes/`)
+- [ ] Add Gantry 5 to `composer.json`: `"wpackagist-plugin/gantry5": "^5.5"`
+- [ ] Add all live plugins we're keeping to `composer.json` (see plugin audit)
+- [ ] Add Wordfence + Enhancer for WCS to staging
+- [ ] Set SEAcomm as active theme in setup script
+- [ ] Deploy to staging, run smoke tests, verify sync + widget rendering
+- [ ] Test with Stripe in test mode
+
+### 1. Decide which live plugins to keep
+
+From the plugin audit (`data export/live-wp-plugin-audit.md`):
+
+**Must keep (required for functionality):**
+- WooCommerce, WooCommerce Subscriptions, WooCommerce Memberships
+- Ultimate Member, UM WooCommerce, UM Notifications
+- WooCommerce Stripe Gateway
+- Gantry 5 Framework
+- Wordfence Security
+- Enhancer for WooCommerce Subscriptions
+- wpojs-sync (our plugin)
+
+**Probably keep:**
+- Yoast SEO
+- The Events Calendar + Pro + Event Tickets + Event Tickets Plus
+- Ninja Forms
+- 301 Redirects (has configured redirects)
+- Ivory Search
+- PDF Embedder + PDF Embedder Secure
+- Donation for WooCommerce
+- MailChimp for WooCommerce Memberships
+- WP Mail Logging
+- Disable Comments
+- Swift SMTP (or replace with Resend config)
+
+**Candidates for removal:**
+- Classic Editor, Classic Widgets (test without)
+- View Admin As (dev tool, not for production)
+- Maintenance (if not actively used)
+- Export and Import Users and Customers (one-time migration tool)
+- Promoter Site Health (leftover)
+- WooCommerce.com Update Manager (check if needed)
+- WooCommerce Legacy REST API (deprecated, check if anything uses it)
+- miniOrange OAuth (check if anything depends on it)
+
+### 2. Set up production Hetzner WP
+
+- [ ] `scripts/init-vps.sh --name=sea-prod-wp --ssl` (or co-locate with OJS on same VPS)
+- [ ] All plugins in `composer.json`
+- [ ] SEAcomm + Helium themes deployed
+- [ ] Stripe test mode configured
+- [ ] Email (Swift SMTP or Resend) configured
+
+### 3. Migrate WP data from Krystal
+
+- [ ] Export WP database from Krystal (full dump: users, posts, products, orders, subscriptions)
+- [ ] Import into Hetzner WP database
+- [ ] Export `wp-content/uploads/` from Krystal → Hetzner
+- [ ] Search-replace old domain → new domain in database (`wp search-replace`)
+- [ ] Verify: pages load, products exist, subscriptions intact, user accounts work
+
+### 4. Configure payments
+
+- [ ] Stripe live API keys in WP settings
+- [ ] Stripe webhook pointed at Hetzner WP URL
+- [ ] Test a payment (subscription renewal or new purchase)
+- [ ] Verify WCS subscription payment methods still work after migration
+
+### 5. Verify everything works
+
+- [ ] `scripts/smoke-test.sh --host=sea-prod-wp`
+- [ ] `scripts/load-test.sh --host=sea-prod-wp`
+- [ ] Full sync round-trip test
+- [ ] Login as a real member, verify My Account widget, OJS access
+- [ ] Non-member purchase flow
+- [ ] Email delivery (password reset, order confirmation)
+
+---
+
+## Phase 3: Domain switchover
+
+Cut over from Krystal to Hetzner. This is the point of no return.
+
+### Pre-switchover
+
+- [ ] Both systems running in parallel, Hetzner verified working on IP
+- [ ] DNS TTL lowered to 300s (5 min) at least 24h before switchover
+- [ ] Backup of both Krystal and Hetzner databases
+- [ ] Maintenance mode on Krystal WP (prevent data changes during cutover)
+
+### Switchover
+
+- [ ] Final database export from Krystal → import to Hetzner
+- [ ] Final `wp-content/uploads/` sync
+- [ ] `wp search-replace` for new domain
+- [ ] Update DNS A records: WP domain → Hetzner IP
+- [ ] Caddy auto-provisions SSL certificate
+- [ ] Update Stripe webhook URL to new domain
+- [ ] Update OJS `allowed_ips` if WP IP changed (now localhost/Docker network)
+- [ ] Update WP `WPOJS_BASE_URL` if OJS is now on same server (use Docker network)
+
+### Post-switchover
+
+- [ ] Verify DNS propagation (`dig` / `nslookup`)
+- [ ] Full smoke test
+- [ ] Test payment flow with real Stripe
+- [ ] Test sync (new subscription → OJS access)
+- [ ] Monitor for 24-48h
+- [ ] Cancel Krystal hosting (once confident)
+
+---
+
+## Live WP plugin audit reference [DONE]
+
+Full audit saved in `data export/live-wp-plugin-audit.md`. 35 plugins on live, captured 2026-03-07.
+
+**Theme:** SEAcomm v2022.1 — Gantry5/Helium child theme. Requires Gantry 5 Framework plugin + Helium parent theme.
