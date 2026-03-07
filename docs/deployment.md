@@ -272,11 +272,15 @@ Both OJS and WP need to send transactional emails (welcome emails, password rese
 
 Hetzner blocks port 25 (outbound SMTP) by default, but port 587 (submission with TLS) works fine, which is what all transactional email services use.
 
-### Recommended services
+### Recommended: Resend
+
+[Resend](https://resend.com) — modern transactional email service, built on Amazon SES. 3,000 emails/month free (100/day). Clean API, good docs, supports standard SMTP so it works with OJS's built-in config without code changes.
+
+Other options:
 
 | Service | Free tier | Notes |
 |---|---|---|
-| **Postmark** | 100 emails/month | Best deliverability, simplest setup |
+| **Postmark** | 100 emails/month | Best deliverability reputation |
 | **Mailgun** | 1,000 emails/month (first 3 months) | Flexible, good logs |
 | **Brevo** (ex-Sendinblue) | 300 emails/day | Generous free tier |
 | **Amazon SES** | ~$0.10 per 1,000 | Cheapest at scale, more setup |
@@ -289,11 +293,11 @@ OJS SMTP is configured via `.env` — the plumbing is already in docker-compose.
 
 ```
 OJS_SMTP_ENABLED=On
-OJS_SMTP_HOST=smtp.postmarkapp.com
+OJS_SMTP_HOST=smtp.resend.com
 OJS_SMTP_PORT=587
 OJS_SMTP_AUTH=tls
-OJS_SMTP_USER=your-api-token
-OJS_SMTP_PASSWORD=your-api-token
+OJS_SMTP_USER=resend
+OJS_SMTP_PASSWORD=re_your_api_key_here
 OJS_MAIL_FROM=journal@yourdomain.org
 ```
 
