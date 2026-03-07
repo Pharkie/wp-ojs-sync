@@ -15,79 +15,44 @@ How to stand up the WP-OJS stack on a fresh VPS. Fully scripted — no manual st
 
 ## One-time infrastructure setup
 
-These steps create the server and configure access. Only needed once.
-
-### 1. Create SSH key and upload to Hetzner
+Creates the server, firewall, SSH config, and deploy key. Run once per server.
 
 ```bash
-# Generate key (no passphrase for automation)
-ssh-keygen -t ed25519 -f ~/.ssh/hetzner -N "" -C "hetzner"
+# Staging
+scripts/init-vps.sh --name=sea-staging
 
-# Upload to Hetzner
-hcloud ssh-key create --name hetzner --public-key-from-file ~/.ssh/hetzner.pub
+# Production (also opens ports 80/443 for SSL)
+scripts/init-vps.sh --name=sea-prod --ssl
 ```
 
-### 2. Create server
+This handles everything: SSH key generation/upload, Hetzner server creation, firewall rules, SSH config entry, GitHub deploy key. All steps are idempotent — safe to re-run.
+
+### What init-vps.sh does
+
+1. Generates `~/.ssh/hetzner` key (if missing) and uploads to Hetzner
+2. Creates CPX22 server in Nuremberg (3 vCPU, 4 GB RAM, ~7 EUR/month)
+3. Creates firewall with SSH + WP (8080) + OJS (8081) rules
+4. Adds SSH config entry for the server name
+5. Generates a deploy key on the VPS and registers it with GitHub
+
+### Flags
+
+| Flag | Default | Effect |
+|---|---|---|
+| `--name=<name>` | (required) | Server name and SSH alias |
+| `--type=<type>` | `cpx22` | Hetzner server type |
+| `--location=<loc>` | `nbg1` | Hetzner data centre |
+| `--ssl` | off | Also open ports 80/443 for Caddy |
+| `--skip-server` | off | Skip server creation (already exists) |
+
+### Manual step: .env file
+
+The only thing `init-vps.sh` doesn't do is create the `.env` — this has site-specific URLs and passwords that need human input.
 
 ```bash
-hcloud server create \
-  --name sea-staging \
-  --type cpx22 \
-  --image ubuntu-24.04 \
-  --location nbg1 \
-  --ssh-key hetzner
-```
-
-### 3. Create firewall
-
-```bash
-hcloud firewall create --name sea-staging-fw
-hcloud firewall add-rule sea-staging-fw --direction in --protocol tcp --port 22 --source-ips 0.0.0.0/0 --source-ips ::/0 --description SSH
-hcloud firewall add-rule sea-staging-fw --direction in --protocol tcp --port 8080 --source-ips 0.0.0.0/0 --source-ips ::/0 --description WP
-hcloud firewall add-rule sea-staging-fw --direction in --protocol tcp --port 8081 --source-ips 0.0.0.0/0 --source-ips ::/0 --description OJS
-hcloud firewall apply-to-resource sea-staging-fw --type server --server sea-staging
-```
-
-For production, also open ports 80 and 443 (Caddy SSL).
-
-### 4. Configure SSH
-
-Add to `~/.ssh/config`:
-
-```
-Host sea-staging
-  HostName <server-ip>
-  User root
-  IdentityFile ~/.ssh/hetzner
-  IdentitiesOnly yes
-```
-
-Verify: `ssh sea-staging hostname`
-
-### 5. Set up GitHub deploy key on VPS
-
-```bash
-# Generate deploy key on VPS
-ssh sea-staging "ssh-keygen -t ed25519 -f /root/.ssh/deploy_key -N '' -C 'wp-ojs-sync-deploy'"
-
-# Get the public key
-ssh sea-staging "cat /root/.ssh/deploy_key.pub"
-
-# Add to GitHub (from devcontainer with gh CLI)
-ssh sea-staging "cat /root/.ssh/deploy_key.pub" | gh repo deploy-key add - --repo Pharkie/wp-ojs-sync --title "sea-staging-vps"
-
-# Configure VPS to use deploy key for GitHub
-ssh sea-staging 'cat > /root/.ssh/config << EOF
-Host github.com
-  IdentityFile /root/.ssh/deploy_key
-  IdentitiesOnly yes
-  StrictHostKeyChecking accept-new
-EOF
-chmod 600 /root/.ssh/config'
-
-# Verify
-ssh sea-staging "ssh -T git@github.com"
-# Should say: "Hi Pharkie/wp-ojs-sync! You've successfully authenticated..."
+cp .env.example .env.staging
+# Edit: set WP_HOME, OJS_BASE_URL, passwords, API keys
+scp .env.staging sea-staging:/opt/wp-ojs-sync/.env
 ```
 
 ---
