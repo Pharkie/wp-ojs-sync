@@ -4,7 +4,32 @@ Information to gather and steps to complete before deploying to production. Item
 
 ---
 
-## 1. Live WP plugin audit [GATHER]
+## 0. Get Krystal hosting access [BLOCKER]
+
+Everything below requires access to the live WP server. Get this first.
+
+- [ ] Get SSH access to Krystal hosting
+- [ ] Get cPanel access (or equivalent file manager)
+- [ ] Verify you can reach `wp-content/themes/` and `wp-content/plugins/`
+
+### With access, gather these:
+
+- [ ] **Download SEAcomm theme** — `wp-content/themes/seacomm/` (zip or tar via cPanel/SSH). Needed to match live site layout, especially WooCommerce My Account page where the journal access widget displays.
+- [ ] **Check Swift SMTP settings** — WP Admin → Swift SMTP settings page. Note the SMTP host, port, from address (determines what email service live WP uses — may reuse for OJS).
+- [ ] **Check Wordfence firewall rules** — WP Admin → Wordfence → Firewall. Look for outbound HTTP restrictions or rate limiting that could block WP→OJS API calls.
+- [ ] **Check miniOrange OAuth config** — WP Admin → miniOrange OAuth settings. What is using WP as an OAuth server? If nothing, candidate for removal.
+
+### Then:
+
+1. Add SEAcomm theme to the repo (`wordpress/web/app/themes/seacomm/`)
+2. Add any live plugins we're keeping to `wordpress/composer.json`
+3. Deploy to staging, verify My Account widget renders correctly with SEAcomm
+4. Test sync with Wordfence + Enhancer for WCS active
+5. Work through the rest of this checklist
+
+---
+
+## 1. Live WP plugin audit [DONE]
 
 Get the full active plugin list from the live WP site. Go to **WP Admin → Tools → Site Health → Info → Active Plugins** (copyable text list) or screenshot **WP Admin → Plugins**.
 
