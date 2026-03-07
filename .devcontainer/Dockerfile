@@ -29,8 +29,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends gh python3-pip 
     && rm -rf /var/lib/apt/lists/* \
     && pip install --break-system-packages pyyaml
 
-# Claude Code CLI (update npm first to suppress version warnings)
-RUN npm install -g npm@latest && npm install -g @anthropic-ai/claude-code
+# Hetzner Cloud CLI (for managing staging/prod VPS)
+RUN curl -sL https://github.com/hetznercloud/cli/releases/latest/download/hcloud-linux-amd64.tar.gz \
+    | tar xz -C /usr/local/bin/
+
+# Claude Code CLI — install as vscode user to avoid npm permission errors
+USER vscode
+RUN mkdir -p /home/vscode/.npm-global \
+    && npm config set prefix /home/vscode/.npm-global \
+    && npm install -g npm@latest \
+    && npm install -g @anthropic-ai/claude-code
+ENV PATH="/home/vscode/.npm-global/bin:${PATH}"
+USER root
 
 # Playwright system deps (for running e2e tests)
 RUN npx playwright install-deps chromium 2>/dev/null || true
