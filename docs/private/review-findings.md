@@ -96,7 +96,7 @@ If a sync call fails silently and no reconciliation exists, lapsed members retai
 
 **Action:**
 - Run via WP-CLI only (not admin button) to avoid HTTP timeouts
-- Add 500ms delay between API calls
+- ~~Add 500ms delay between API calls~~ → replaced with load-based backpressure: OJS self-monitors response times and returns 429 with `Retry-After` when under pressure. WP adaptive throttling reads the header and backs off. No fixed delays. Result: 684 users in ~40s on Hetzner.
 - Send welcome emails in batches of 50/hour max
 - Write per-user success/fail log that persists across runs; skip already-synced users on re-run
 - Track "welcome email sent" flag per user to prevent duplicate emails
