@@ -95,7 +95,7 @@ All endpoints except `/ping` require Bearer token auth + Journal Manager or Site
 | `PUT` | `/subscriptions/expire-by-user/{userId}` | — | `200 {subscriptionId}` | Convenience: expires subscription by userId (saves WP plugin a lookup call). Returns `404` if no subscription found. |
 | `GET` | `/subscriptions?email=&userId=` | — | `200 [{subscriptionId, userId, journalId, typeId, status, dateStart, dateEnd}]` | Returns array with at most one item per user per journal (OJS enforces one-subscription-per-user-per-journal). Returns `[]` if user or subscription not found. |
 | `POST` | `/subscriptions/status-batch` | `{emails: ["a@b.com", ...]}` | `200 {results: {email: {active: bool, ...}}}` | Check subscription status for multiple users by email. Used by reconciliation to batch-query OJS. |
-| `POST` | `/password` | `{email, passwordHash}` | `200 {userId, updated: true}` | Update user password hash. Used by ongoing password sync when a member changes their WP password. Looks up user by email, stores the new WP hash directly. Returns `404` if user not found on OJS. |
+| `PUT` | `/users/{userId}/password` | `{passwordHash}` | `200 {userId}` | Update user password hash. Used by ongoing password sync when a member changes their WP password. WP plugin resolves the OJS userId first, then sends the new hash. Returns `404` if user not found. |
 
 Error responses: `400` (invalid input), `401` (bad/missing auth), `403` (IP not allowed or insufficient role), `404` (not found), `409` (conflict), `500` (server error). All errors return `{error: "message"}`. Error messages never include internal details (exception messages, stack traces, IP addresses).
 

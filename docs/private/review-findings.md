@@ -1,5 +1,7 @@
 # Plan Review Findings
 
+> **PARTIALLY SUPERSEDED (2026-03-08):** Findings about welcome emails, "set your password" flow, 500ms fixed delays, and email rate limiting no longer apply. These were replaced by WP password hash sync and adaptive throttling. Other findings (security, data integrity, testing) remain relevant.
+
 Last updated: 2026-02-17
 
 Six-perspective review of the push-sync plan: senior developer, QA engineer, UX expert, business strategist, security consultant, ops/SRE. Findings deduplicated and grouped by theme.

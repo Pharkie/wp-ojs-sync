@@ -1,5 +1,7 @@
 # Code Review: OJS Plugin `wpojs-subscription-api`
 
+> **SUPERSEDED (2026-03-08):** This review predates the password hash sync implementation. References to welcome email endpoints (`/welcome-email`), password reset tokens for onboarding, and email rate limiting no longer apply. Kept for historical context only.
+
 Reviewed: 2026-02-21
 Reviewer: Claude Opus 4.6 (automated)
 Plugin version: 1.0.0.0

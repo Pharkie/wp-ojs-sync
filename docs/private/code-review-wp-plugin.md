@@ -1,5 +1,7 @@
 # Code Review: `wpojs-sync` WordPress Plugin
 
+> **SUPERSEDED (2026-03-08):** This review predates the password hash sync implementation and Action Scheduler refactoring. References to a custom queue table (`class-wpojs-queue.php`), welcome emails, and 500ms fixed delays no longer apply. Kept for historical context only — see current code for the actual implementation.
+
 Reviewed: 2026-02-21.
 
 Plugin path: `plugins/wpojs-sync/`
