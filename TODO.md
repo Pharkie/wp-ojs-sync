@@ -11,7 +11,7 @@
 - Dev environment clean rebuild verified — all 58 e2e tests passing
 - Staging VPS on Hetzner (personal account) — fully scripted, smoke tests (17/17) + load tests passing
 - Deployment automation — `init-vps.sh`, `deploy.sh`, `provision-vps.sh`, `smoke-test.sh`, `load-test.sh`
-- Deployment docs — `docs/deployment.md` (public), `docs/private/staging-prod-setup.md` (private)
+- Deployment docs — `docs/vps-deployment.md` (public), `docs/private/staging-prod-setup.md` (private)
 - Security hardening — no default passwords (fail-loud), env var validation in deploy.sh, .env permissions handling
 - Smoke tests cover admin pages (WP + OJS) to catch .env/permission issues that WP-CLI misses
 - HPOS fix for sample data seeding (disable → seed → sync → re-enable)
