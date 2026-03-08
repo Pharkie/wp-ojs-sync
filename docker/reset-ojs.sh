@@ -5,6 +5,10 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+# Load .env for DB credentials
+ENV_FILE="$(pwd)/.env"
+[ -f "$ENV_FILE" ] && set -a && source "$ENV_FILE" && set +a
+
 echo "==> Stopping containers..."
 docker compose down
 
@@ -18,12 +22,12 @@ echo "==> Starting containers..."
 docker compose up -d
 
 echo "==> Waiting for OJS database to be healthy..."
-until docker compose exec ojs-db mariadb -u root -p"${OJS_DB_ROOT_PASSWORD:-devroot123}" -e "SELECT 1" >/dev/null 2>&1; do
+until docker compose exec ojs-db mariadb -u root -p"${OJS_DB_ROOT_PASSWORD:?OJS_DB_ROOT_PASSWORD not set}" -e "SELECT 1" >/dev/null 2>&1; do
     sleep 2
 done
 
 echo "==> Resetting OJS database..."
-docker compose exec ojs-db mariadb -u root -p"${OJS_DB_ROOT_PASSWORD:-devroot123}" -e "DROP DATABASE IF EXISTS ojs; CREATE DATABASE ojs;"
+docker compose exec ojs-db mariadb -u root -p"${OJS_DB_ROOT_PASSWORD:?OJS_DB_ROOT_PASSWORD not set}" -e "DROP DATABASE IF EXISTS ojs; CREATE DATABASE ojs;"
 
 echo "==> Restarting OJS (entrypoint generates config + runs install automatically)..."
 docker compose restart ojs

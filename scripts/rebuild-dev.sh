@@ -37,6 +37,13 @@ LOG_FILE="$LOG_DIR/rebuild-$(date '+%Y%m%d-%H%M%S').log"
 # Use a file descriptor so we can report the log path on exit.
 exec > >(tee "$LOG_FILE") 2>&1
 
+# --- Auto-generate .env if missing ---
+if [ ! -f /workspaces/wp-ojs-sync/.env ]; then
+  echo "--- Generating .env ---"
+  /workspaces/wp-ojs-sync/scripts/generate-env.sh
+  echo ""
+fi
+
 echo "=== Rebuild dev environment ==="
 echo "Log file: $LOG_FILE"
 echo ""

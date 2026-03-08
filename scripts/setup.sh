@@ -61,6 +61,13 @@ case "$ENV" in
     ;;
 esac
 
+# --- Auto-generate .env if missing (dev only) ---
+if [ "$ENV" = "dev" ] && [ ! -f /workspaces/wp-ojs-sync/.env ]; then
+  echo "--- Generating .env ---"
+  /workspaces/wp-ojs-sync/scripts/generate-env.sh
+  echo ""
+fi
+
 echo "=== Setup ($ENV) ==="
 
 # --- Verify containers are running ---

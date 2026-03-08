@@ -60,16 +60,18 @@ docker compose exec ojs bash /scripts/setup-ojs.sh --with-sample-data
 
 ## Credentials (local dev)
 
+All passwords are randomly generated. Run `scripts/generate-env.sh` to create your `.env` (or let `rebuild-dev.sh` / `setup.sh --env=dev` do it automatically). Check your `.env` file for the actual values.
+
 | | WordPress | OJS |
 |--|-----------|-----|
-| Admin user | `admin` / `$WP_ADMIN_PASSWORD` | `admin` / `$OJS_ADMIN_PASSWORD` |
+| Admin user | `admin` / check `.env` `WP_ADMIN_PASSWORD` | `admin` / check `.env` `OJS_ADMIN_PASSWORD` |
 | DB host | `wp-db` | `ojs-db` |
 | DB name | `wordpress` | `ojs` |
 | DB user | `wordpress` | `ojs` |
-| DB password | `devpass123` | `devpass123` |
-| Root password | `devroot123` | `devroot123` |
+| DB password | check `.env` `DB_PASSWORD` | check `.env` `OJS_DB_PASSWORD` |
+| Root password | check `.env` `WP_DB_ROOT_PASSWORD` | check `.env` `OJS_DB_ROOT_PASSWORD` |
 
-API key for WP → OJS sync: `dev-api-key-local` (set in `.env`).
+API key for WP → OJS sync: check `.env` `WPOJS_API_KEY`.
 
 ## Commands
 

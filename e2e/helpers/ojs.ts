@@ -7,7 +7,7 @@ import { dockerExec } from './docker';
 export function ojsQuery(sql: string): string {
   return dockerExec(
     'ojs-db',
-    'mariadb -u ojs -pdevpass123 ojs -N',
+    'mariadb -u ojs -p"$MYSQL_PASSWORD" ojs -N',
     { stdin: sql },
   );
 }
