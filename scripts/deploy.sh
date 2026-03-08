@@ -80,8 +80,8 @@ if ! $SSH_CMD "test -f $REMOTE_DIR/.env"; then
   echo "  scp .env.staging $SSH_HOST:$REMOTE_DIR/.env"
   exit 1
 fi
-# Ensure .env is readable by root + group only (container processes read via compose, not the file directly)
-$SSH_CMD "chmod 600 $REMOTE_DIR/.env"
+# Ensure .env is readable by container processes (scp creates 600 by default, Apache needs to read it)
+$SSH_CMD "chmod 644 $REMOTE_DIR/.env"
 
 # Validate required env vars are set (catch blank passwords before compose fails with a cryptic error)
 MISSING=$($SSH_CMD "cd $REMOTE_DIR && for VAR in WP_ADMIN_PASSWORD OJS_ADMIN_PASSWORD WP_DB_PASSWORD DB_PASSWORD OJS_DB_PASSWORD WPOJS_API_KEY WPOJS_API_KEY_SECRET; do grep -qE \"^\${VAR}=.+\" .env || echo \$VAR; done")
