@@ -146,6 +146,7 @@ scripts/deploy.sh --skip-build --skip-setup
 | `--skip-setup` | Don't run setup.sh (just update code + restart) |
 | `--skip-build` | Don't rebuild Docker images |
 | `--ref=<branch>` | Deploy a specific git ref (default: main) |
+| `--clean` | Tear down volumes first (fresh databases) |
 | `--host=<name>` | SSH host alias (default: sea-staging) |
 
 ---
@@ -225,8 +226,10 @@ scripts/smoke-test.sh
 scripts/smoke-test.sh --host=sea-prod
 ```
 
-Tests (15 checks):
+Tests (17 checks):
 1. WP HTTP responds
+1b. WP Admin page loads (catches .env permission issues, PHP fatals)
+1c. OJS Admin page loads (catches missing journal, PHP fatals)
 2. OJS HTTP responds
 3. WP REST API responds
 4. OJS plugin ping
@@ -234,7 +237,7 @@ Tests (15 checks):
 6. WP-CLI `test-connection`
 7. Required plugins active (5 plugins)
 8. OJS subscription types configured
-9. Full sync round-trip (create WP user → sync to OJS → verify → cleanup)
+9. Full sync round-trip (create WP user → sync to OJS → verify subscription → cleanup)
 10. Reconciliation completes
 
 ### Load tests
@@ -321,3 +324,7 @@ hcloud server rebuild --image ubuntu-24.04 --user-data-from-file <(echo -e "#clo
 - **Docker creates directories for missing file mounts.** If a compose bind mount references a file that doesn't exist, Docker creates it as an empty directory. You must `down -v` and `up` again after adding the missing file.
 - **Paid plugins must be copied separately** — licensed code, can't be in git. Use `rsync` to copy `wordpress/paid-plugins/` to the VPS.
 - **Composer install runs automatically** on first WP setup when `web/wp/wp-includes` is missing (Bedrock downloads WP core + plugins via Composer).
+- **No default passwords.** `WP_ADMIN_PASSWORD` and `OJS_ADMIN_PASSWORD` must be set in `.env`. Both `docker-compose.yml` (`:?` syntax) and the setup scripts fail loudly if they're missing. The deploy script validates all required env vars before starting containers.
+- **`.env` must be chmod 644, not 600.** `scp` creates 600 by default. The deploy script fixes this automatically. Apache (www-data) must read the file — 600 breaks WP web pages while WP-CLI (root) still works, making it hard to catch without the admin page smoke test.
+- **Bulk sync is manual.** Setup does not sync WP members to OJS. After a fresh deploy with sample data, run: `wp ojs-sync sync --dry-run` then `wp ojs-sync sync --yes` (~5-10 min for ~700 members).
+- **HPOS and sample data seeding.** The setup script temporarily disables HPOS before seeding sample subscriptions (raw SQL into `wp_posts`), then syncs to HPOS and re-enables it. Without this, WooCommerce queries the empty HPOS table and sees 0 subscriptions.
