@@ -71,9 +71,8 @@ This is the non-Docker deployment described in `docs/non-docker-setup.md`.
 - [ ] Test new member flow (create subscription → verify OJS access)
 - [ ] Test cancellation flow (cancel → verify OJS access removed)
 - [ ] Test on-hold / failed payment scenario
-- [ ] `wp ojs-sync send-welcome-emails --dry-run` — preview count
-- [ ] Send test email to yourself
-- [ ] `wp ojs-sync send-welcome-emails` — send to all members
+- [ ] Verify members can log into OJS with WP password (spot-check 2-3 accounts)
+- [ ] Send member announcement via normal channel (newsletter/email)
 
 ### 5. Post-launch monitoring
 

@@ -133,7 +133,7 @@ Both environments need the same access. Deploy to staging first, smoke test with
 | Sync 5-10 test users | Yes | Skip (go straight to dry-run) |
 | `sync --dry-run` | Yes | Yes |
 | `sync` (bulk) | Yes | After dry-run reviewed |
-| `send-welcome-emails` | Test with 1-2 addresses | After bulk sync verified |
+| Verify OJS login with WP password | Test with 1-2 accounts | After bulk sync verified |
 
 The launch sequence in [`plan.md`](./plan.md) has the full checklist.
 
