@@ -1,12 +1,10 @@
 # VPS Deployment Guide
 
-> **This guide covers deploying to a VPS using Docker.** For local dev setup, see [Docker setup](../docker/README.md). For installing the plugins on existing non-Docker servers, see [non-Docker setup](non-docker-setup.md).
+> **Server provisioning and deployment.** This guide covers the hardware side: server specs, scripts to provision and deploy, `.env` configuration, SSL, email, and testing. For how the Docker stack itself works (containers, volumes, plugins, credentials), see the [Docker stack reference](../docker/README.md). For installing the plugins on existing non-Docker servers, see [non-Docker setup](non-docker-setup.md).
 
 ---
 
 ## Server requirements
-
-### Minimum spec
 
 | Resource | Minimum | Recommended |
 |---|---|---|
@@ -14,16 +12,12 @@
 | RAM | 2 GB | 4 GB |
 | Disk | 25 GB SSD | 40 GB SSD |
 | OS | Ubuntu 22.04+ | Ubuntu 24.04 |
+| Software | Docker, Docker Compose v2, Git | |
+| Access | SSH (root or sudo) | |
 
 OJS and WordPress both run PHP — they benefit from CPU and RAM more than disk. 4 GB RAM gives comfortable headroom for concurrent traffic + sync operations.
 
-### Software
-
-- **Docker** and **Docker Compose** (v2)
-- **Git** (to clone the repo)
-- **SSH access** (root or sudo)
-
-### Network
+### Ports
 
 | Port | Service | When |
 |---|---|---|
@@ -32,37 +26,6 @@ OJS and WordPress both run PHP — they benefit from CPU and RAM more than disk.
 | 8081 | OJS | IP-only / staging |
 | 80 | HTTP (Caddy) | Production with SSL |
 | 443 | HTTPS (Caddy) | Production with SSL |
-
----
-
-## Architecture
-
-```
-VPS
-├── wp        — WordPress (Apache + PHP 8.2)     → port 8080
-├── wp-db     — MariaDB 10.11 (WP database)
-├── ojs       — OJS 3.5 (Apache + PHP)           → port 8081
-├── ojs-db    — MariaDB 10.11 (OJS database)
-└── caddy     — Reverse proxy + SSL (optional)    → ports 80/443
-```
-
-All services run as Docker containers via Docker Compose.
-
-### Why Docker?
-
-The plugin source code lives in the git repo and is **bind-mounted** directly into the running containers. This means:
-
-- **Updating code is just `git pull`.** Both plugins (WP and OJS) are read from disk by the containers in real time. No rebuild, no restart, no deployment pipeline — PHP picks up the new files immediately.
-- **Dev and production run the same stack.** Same Dockerfiles, same compose config, same bind mounts. What works locally works on the VPS.
-- **The entire environment is reproducible.** `docker compose down -v && docker compose up -d` gives you a clean slate. No debugging stale state on a snowflake server.
-
-Three compose files:
-
-| File | Purpose |
-|---|---|
-| `docker-compose.yml` | Base services (used everywhere) |
-| `docker-compose.staging.yml` | Staging/prod overrides: exposes ports 8080/8081 directly |
-| `docker-compose.caddy.yml` | Optional SSL overlay: adds Caddy for HTTPS with real domains |
 
 ---
 
