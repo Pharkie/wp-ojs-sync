@@ -9,10 +9,12 @@ import {
   setOjsSetting,
   clearTestSyncData,
   wpEval,
+  cleanupWpUser,
 } from '../helpers/wp';
 import {
   findOjsUser,
   hasActiveSubscription,
+  findAndVerifyOjsUser,
   deleteOjsUser,
   waitForSync,
 } from '../helpers/ojs';
@@ -35,10 +37,8 @@ test.describe('Error recovery: OJS unreachable → retry succeeds', () => {
   test.afterAll(() => {
     // Always restore the original OJS URL
     setOjsSetting(originalOjsUrl);
-    try { deleteSubscription(subId); } catch { /* may already be gone */ }
-    try { deleteUser(wpUserId); } catch { /* may already be gone */ }
+    cleanupWpUser({ subIds: [subId], wpUserId });
     deleteOjsUser(EMAIL);
-    clearTestSyncData();
   });
 
   test('sync fails when OJS URL is bad, succeeds after restoring', () => {
@@ -69,8 +69,8 @@ test.describe('Error recovery: OJS unreachable → retry succeeds', () => {
     waitForSync();
 
     // Now the OJS user should exist with an active subscription
-    const ojsUserId = findOjsUser(EMAIL);
+    const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(EMAIL);
     expect(ojsUserId).not.toBeNull();
-    expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+    expect(hasActive).toBe(true);
   });
 });

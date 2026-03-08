@@ -12,6 +12,8 @@ import {
   runReconciliation,
   getUserMeta,
   pruneQueueExcept,
+  createUserWithSubscription,
+  cleanupWpUser,
 } from '../helpers/wp';
 import {
   findOjsUser,
@@ -24,6 +26,8 @@ import {
   getOjsUserEmail,
   deleteOjsSubscription,
   ojsApiCall,
+  findAndVerifyOjsUser,
+  cleanupOjsUsers,
 } from '../helpers/ojs';
 
 const TS = Date.now();
@@ -45,8 +49,7 @@ test.describe('Out-of-order events', () => {
     try {
       // Create user + active sub (schedules activate), then immediately expire
       // (schedules expire) before the queue processes either action.
-      wpUserId = createUser(login, email);
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, email, productId));
       updateSubscriptionStatus(subId, 'expired');
 
       // Process queue — activate runs first but WCS sub is already expired,
@@ -63,10 +66,8 @@ test.describe('Out-of-order events', () => {
       }
       // No crash = success
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -78,13 +79,12 @@ test.describe('Out-of-order events', () => {
     const productId = getSubscriptionProductId();
 
     try {
-      wpUserId = createUser(login, email);
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, email, productId));
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
 
       // Put on hold (simulates payment failure — WCS allows on-hold → active)
       updateSubscriptionStatus(subId, 'on-hold');
@@ -96,10 +96,8 @@ test.describe('Out-of-order events', () => {
       waitForSync();
       expect(getSubscriptionStatus(ojsUserId!)).toBe(1);
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -111,8 +109,7 @@ test.describe('Out-of-order events', () => {
     const productId = getSubscriptionProductId();
 
     try {
-      wpUserId = createUser(login, email);
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, email, productId));
       waitForSync();
 
       const ojsUserId = findOjsUser(email);
@@ -126,10 +123,8 @@ test.describe('Out-of-order events', () => {
       // Verify idempotency — status remains expired (no further actions queued)
       expect(getSubscriptionStatus(ojsUserId!)).toBe(16);
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -146,8 +141,7 @@ test.describe('Out-of-order events', () => {
 
     try {
       // Create first user and sync
-      wpUserId1 = createUser(login1, email);
-      subId1 = createSubscription(wpUserId1, productId, 'active');
+      ({ wpUserId: wpUserId1, subId: subId1 } = createUserWithSubscription(login1, email, productId));
       waitForSync();
 
       ojsUserId1 = findOjsUser(email);
@@ -162,22 +156,19 @@ test.describe('Out-of-order events', () => {
       expect(anonEmail).toContain('anonymised.invalid');
 
       // Create new user with same email
-      wpUserId2 = createUser(login2, email);
-      subId2 = createSubscription(wpUserId2, productId, 'active');
+      ({ wpUserId: wpUserId2, subId: subId2 } = createUserWithSubscription(login2, email, productId));
       waitForSync();
 
       // A new OJS user should exist for this email (different from the old anonymised one)
-      const ojsUserId2 = findOjsUser(email);
+      const { userId: ojsUserId2, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId2).not.toBeNull();
       expect(ojsUserId2).not.toBe(ojsUserId1);
-      expect(hasActiveSubscription(ojsUserId2!)).toBe(true);
+      expect(hasActive).toBe(true);
     } finally {
-      try { deleteSubscription(subId2!); } catch { /* ok */ }
-      try { deleteUser(wpUserId2!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId1!, subId2!], wpUserId: wpUserId2! });
       // Delete the re-created user (by email) and the anonymised original (by ID)
       deleteOjsUser(email);
       if (ojsUserId1 !== null) deleteOjsUserById(ojsUserId1);
-      clearTestSyncData();
     }
   });
 });
@@ -216,9 +207,9 @@ test.describe('Multiple subscriptions', () => {
 
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
 
       // Check the OJS sub end date — should be the further date
       const ojsDateEnd = ojsQuery(
@@ -226,11 +217,8 @@ test.describe('Multiple subscriptions', () => {
       ).trim();
       expect(ojsDateEnd).toContain('2030-12-31');
     } finally {
-      try { deleteSubscription(subId1!); } catch { /* ok */ }
-      try { deleteSubscription(subId2!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId1!, subId2!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -258,9 +246,9 @@ test.describe('Multiple subscriptions', () => {
 
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
 
       // Non-expiring should win — OJS date_end should be null/empty
       const ojsDateEnd = ojsQuery(
@@ -269,11 +257,8 @@ test.describe('Multiple subscriptions', () => {
       // NULL in MySQL comes back as empty string from CLI
       expect(ojsDateEnd === '' || ojsDateEnd === 'NULL').toBe(true);
     } finally {
-      try { deleteSubscription(subId1!); } catch { /* ok */ }
-      try { deleteSubscription(subId2!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId1!, subId2!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -291,9 +276,9 @@ test.describe('Multiple subscriptions', () => {
       subId2 = createSubscription(wpUserId, productId, 'active');
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
 
       // Cancel one subscription
       updateSubscriptionStatus(subId1, 'cancelled');
@@ -302,11 +287,8 @@ test.describe('Multiple subscriptions', () => {
       // OJS subscription should still be active (other sub still valid)
       expect(hasActiveSubscription(ojsUserId!)).toBe(true);
     } finally {
-      try { deleteSubscription(subId1!); } catch { /* ok */ }
-      try { deleteSubscription(subId2!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId1!, subId2!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 });
@@ -332,23 +314,19 @@ test.describe('Rapid status changes', () => {
     try {
       // Create user + subscription, then change email — all before queue processes.
       // This queues both wpojs_sync_activate and wpojs_sync_email_change.
-      wpUserId = createUser(login, originalEmail);
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, originalEmail, productId));
       changeUserEmail(wpUserId, newEmail);
 
       // Process queue — activate and email change should both resolve.
       waitForSync();
 
       // The user should be findable by the new email on OJS.
-      const ojsUser = findOjsUser(newEmail);
+      const { userId: ojsUser, hasActive } = findAndVerifyOjsUser(newEmail);
       expect(ojsUser).not.toBeNull();
-      expect(hasActiveSubscription(ojsUser!)).toBe(true);
+      expect(hasActive).toBe(true);
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
-      deleteOjsUser(originalEmail);
-      deleteOjsUser(newEmail);
-      clearTestSyncData();
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
+      cleanupOjsUsers(originalEmail, newEmail);
     }
   });
 
@@ -361,8 +339,7 @@ test.describe('Rapid status changes', () => {
     const productId = getSubscriptionProductId();
 
     try {
-      wpUserId = createUser(login, originalEmail);
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, originalEmail, productId));
 
       // Change email BEFORE queue processes
       changeUserEmail(wpUserId, newEmail);
@@ -373,16 +350,13 @@ test.describe('Rapid status changes', () => {
       // The sync handler re-reads the user at processing time, so it should
       // use the current (new) email for the OJS user lookup / creation.
       // Either: OJS user created with new email, or original email then updated.
-      const ojsUserNewEmail = findOjsUser(newEmail);
+      const { userId: ojsUserNewEmail, hasActive } = findAndVerifyOjsUser(newEmail);
       // At minimum, the user should be findable by the new email after all syncs
       expect(ojsUserNewEmail).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserNewEmail!)).toBe(true);
+      expect(hasActive).toBe(true);
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
-      deleteOjsUser(originalEmail);
-      deleteOjsUser(newEmail);
-      clearTestSyncData();
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
+      cleanupOjsUsers(originalEmail, newEmail);
     }
   });
 });
@@ -405,14 +379,12 @@ test.describe('User data edge cases', () => {
       // Create user with empty first name but valid last name.
       // WP sets display_name to login when first_name is empty.
       // Sync code: $first_name = $user->first_name ?: $user->display_name
-      wpUserId = createUser(login, email, { firstName: '', lastName: 'Tester' });
-
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, email, productId, 'active', { firstName: '', lastName: 'Tester' }));
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
 
       // Verify OJS givenName is set (display_name fallback, not empty)
       const givenName = ojsQuery(
@@ -420,10 +392,8 @@ test.describe('User data edge cases', () => {
       ).trim();
       expect(givenName.length).toBeGreaterThan(0);
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -467,10 +437,8 @@ test.describe('User data edge cases', () => {
       ).trim();
       expect(familyName).toContain('Müller-Weiß');
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -488,19 +456,15 @@ test.describe('User data edge cases', () => {
     const productId = getSubscriptionProductId();
 
     try {
-      wpUserId = createUser(login, email, { firstName: 'Long', lastName: 'Email' });
-
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, email, productId, 'active', { firstName: 'Long', lastName: 'Email' }));
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 });
@@ -520,13 +484,12 @@ test.describe('Reconciliation catches drift', () => {
     const productId = getSubscriptionProductId();
 
     try {
-      wpUserId = createUser(login, email);
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, email, productId));
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
 
       // Delete the OJS subscription directly (simulate drift)
       deleteOjsSubscription(ojsUserId!);
@@ -542,10 +505,8 @@ test.describe('Reconciliation catches drift', () => {
       // Subscription should be recreated
       expect(hasActiveSubscription(ojsUserId!)).toBe(true);
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -557,13 +518,12 @@ test.describe('Reconciliation catches drift', () => {
     const productId = getSubscriptionProductId();
 
     try {
-      wpUserId = createUser(login, email);
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, email, productId));
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
 
       // Expire via WCS but with our sync hooks removed (simulates drift —
       // the WCS status changed but the OJS sync didn't fire).
@@ -584,10 +544,8 @@ test.describe('Reconciliation catches drift', () => {
       // OJS subscription should now be expired (status 16)
       expect(getSubscriptionStatus(ojsUserId!)).toBe(16);
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 });

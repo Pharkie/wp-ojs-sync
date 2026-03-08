@@ -9,6 +9,8 @@ import {
   clearTestSyncData,
   wpCli,
   wpEval,
+  createUserWithSubscription,
+  cleanupWpUser,
 } from '../helpers/wp';
 import {
   findOjsUser,
@@ -86,8 +88,7 @@ echo json_encode($result);
       expect(rehashed).not.toBe(wpHash); // Hash changed
       expect(rehashed).toMatch(/^\$2y\$12\$/); // Now cost 12
     } finally {
-      try { deleteSubscription(subId!); } catch {}
-      try { deleteUser(wpUserId!); } catch {}
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
     }
   });
@@ -100,8 +101,7 @@ echo json_encode($result);
 
     try {
       const productId = getSubscriptionProductId();
-      wpUserId = createUser(login, email);
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, email, productId));
 
       // First sync — creates OJS user.
       wpCli(`ojs-sync sync --member=${email}`);
@@ -118,8 +118,7 @@ echo json_encode($result);
       const hashAfter = getOjsPasswordHash(ojsUserId!);
       expect(hashAfter).toBe(hashBefore);
     } finally {
-      try { deleteSubscription(subId!); } catch {}
-      try { deleteUser(wpUserId!); } catch {}
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
     }
   });

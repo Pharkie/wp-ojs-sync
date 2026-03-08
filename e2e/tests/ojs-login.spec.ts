@@ -6,6 +6,8 @@ import {
   deleteSubscription,
   getSubscriptionProductId,
   clearTestSyncData,
+  createUserWithSubscription,
+  cleanupWpUser,
 } from '../helpers/wp';
 import {
   findOjsUser,
@@ -25,16 +27,13 @@ let subId: number;
 test.describe('Synced user logs in to OJS', () => {
   test.beforeAll(() => {
     const productId = getSubscriptionProductId();
-    wpUserId = createUser(LOGIN, EMAIL);
-    subId = createSubscription(wpUserId, productId, 'active');
+    ({ wpUserId, subId } = createUserWithSubscription(LOGIN, EMAIL, productId));
     waitForSync();
   });
 
   test.afterAll(() => {
-    try { deleteSubscription(subId); } catch {}
-    try { deleteUser(wpUserId); } catch {}
+    cleanupWpUser({ subIds: [subId], wpUserId });
     deleteOjsUser(EMAIL);
-    clearTestSyncData();
   });
 
   test('set password and log in to OJS', async ({ page }) => {

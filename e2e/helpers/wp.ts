@@ -113,14 +113,94 @@ export function updateSubscriptionStatus(
 
 /**
  * Get the first subscription product ID by SKU.
+ * Result is cached per-process since the product ID never changes during a test run.
  */
+const productIdCache = new Map<string, number>();
 export function getSubscriptionProductId(
   sku = 'wpojs-uk-no-listing',
 ): number {
+  const cached = productIdCache.get(sku);
+  if (cached) return cached;
   const out = wpEval(`echo wc_get_product_id_by_sku("${sku}");`);
   const id = parseInt(out, 10);
   if (!id) throw new Error(`Product not found for SKU: ${sku}`);
+  productIdCache.set(sku, id);
   return id;
+}
+
+/**
+ * Create a WP user + WCS subscription in a single docker exec call.
+ * Returns { wpUserId, subId }.
+ */
+export function createUserWithSubscription(
+  login: string,
+  email: string,
+  productId: number,
+  status: 'active' | 'expired' = 'active',
+  opts: { firstName?: string; lastName?: string; role?: string } = {},
+): { wpUserId: number; subId: number } {
+  const { firstName = 'E2E', lastName = 'Test', role = 'subscriber' } = opts;
+  const php = `
+    $uid = wp_insert_user([
+      'user_login' => '${login}',
+      'user_email' => '${email}',
+      'user_pass' => wp_generate_password(),
+      'first_name' => '${firstName}',
+      'last_name' => '${lastName}',
+      'role' => '${role}',
+    ]);
+    if (is_wp_error($uid)) { echo 'ERROR:' . $uid->get_error_message(); exit(1); }
+    $sub = wcs_create_subscription([
+      'customer_id' => $uid,
+      'status' => '${status}',
+      'billing_period' => 'year',
+      'billing_interval' => 1,
+      'start_date' => gmdate('Y-m-d H:i:s'),
+    ]);
+    if (is_wp_error($sub)) { echo 'ERROR:' . $sub->get_error_message(); exit(1); }
+    $product = wc_get_product(${productId});
+    $sub->add_product($product, 1);
+    echo $uid . ',' . $sub->get_id();
+  `;
+  const out = wpEval(php);
+  if (out.startsWith('ERROR:')) {
+    throw new Error(`createUserWithSubscription failed: ${out}`);
+  }
+  const [uid, sid] = out.split(',').map(s => parseInt(s, 10));
+  return { wpUserId: uid, subId: sid };
+}
+
+/**
+ * Batch WP cleanup: delete subscription(s), delete user, clear test sync data.
+ * All operations in a single docker exec call.
+ */
+export function cleanupWpUser(opts: {
+  subIds?: number[];
+  wpUserId?: number;
+}): void {
+  const { subIds = [], wpUserId } = opts;
+  const parts: string[] = [];
+  for (const id of subIds) {
+    parts.push(`wp_delete_post(${id}, true);`);
+  }
+  if (wpUserId) {
+    // wp_delete_user requires including the file
+    parts.push(`require_once(ABSPATH . 'wp-admin/includes/user.php');`);
+    parts.push(`wp_delete_user(${wpUserId});`);
+  }
+  // Clear test sync data inline
+  parts.push(`
+    global $wpdb;
+    $log = $wpdb->prefix . 'wpojs_sync_log';
+    $wpdb->query("DELETE FROM {$log} WHERE email LIKE 'e2e_%'");
+    $wpdb->query("DELETE FROM {$log} WHERE email = ''");
+    $wpdb->query("DELETE FROM {$log} WHERE email LIKE '%test.example.com'");
+    $wpdb->query("DELETE FROM {$log} WHERE email LIKE '%test.invalid'");
+    $as = $wpdb->prefix . 'actionscheduler_actions';
+    $wpdb->query("DELETE FROM {$as} WHERE hook LIKE 'wpojs_%' AND status IN ('failed','pending','complete')");
+    $wpdb->query("DELETE FROM {$as} WHERE hook = 'wcs_report_update_cache' AND status = 'pending'");
+  `);
+  wpEval(parts.join('\n'));
 }
 
 /**

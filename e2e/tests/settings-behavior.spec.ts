@@ -17,6 +17,8 @@ import {
   getAdminPassword,
   runReconciliation,
   pruneQueueExcept,
+  createUserWithSubscription,
+  cleanupWpUser,
 } from '../helpers/wp';
 import {
   findOjsUser,
@@ -24,6 +26,7 @@ import {
   deleteOjsUser,
   waitForSync,
   ojsQuery,
+  findAndVerifyOjsUser,
 } from '../helpers/ojs';
 
 const TS = Date.now();
@@ -44,10 +47,18 @@ test.describe('Settings affect sync behavior', () => {
   let createdTypeId: string | null = null;
 
   test.beforeAll(() => {
-    originalTypeMapping = wpEval(`echo json_encode(get_option('wpojs_type_mapping', []));`);
-    originalManualRoles = wpEval(`echo json_encode(get_option('wpojs_manual_roles', []));`);
-    originalJournalName = wpEval(`echo get_option('wpojs_journal_name', '');`);
-    originalOjsUrl = getOjsSetting();
+    // Fetch all settings in a single docker exec call.
+    const settings = wpEval(`
+      echo json_encode(get_option('wpojs_type_mapping', [])) . "\\n";
+      echo json_encode(get_option('wpojs_manual_roles', [])) . "\\n";
+      echo get_option('wpojs_journal_name', '') . "\\n";
+      echo get_option('wpojs_url', '');
+    `);
+    const lines = settings.split('\n');
+    originalTypeMapping = lines[0];
+    originalManualRoles = lines[1];
+    originalJournalName = lines[2];
+    originalOjsUrl = lines[3];
 
     // Create a 2nd OJS subscription type for the type mapping test.
     ojsQuery(`
@@ -66,18 +77,21 @@ test.describe('Settings affect sync behavior', () => {
   });
 
   test.afterAll(() => {
-    // Restore all settings.
-    wpEval(`update_option('wpojs_type_mapping', json_decode('${originalTypeMapping.replace(/'/g, "\\'")}', true));`);
-    wpEval(`update_option('wpojs_manual_roles', json_decode('${originalManualRoles.replace(/'/g, "\\'")}', true));`);
-    wpEval(`update_option('wpojs_journal_name', '${originalJournalName}');`);
-    setOjsSetting(originalOjsUrl);
-    // Delete transient so restored URL takes effect on next page load.
-    wpEval(`delete_transient('wpojs_ojs_type_names');`);
+    // Restore all settings in a single docker exec call.
+    wpEval(`
+      update_option('wpojs_type_mapping', json_decode('${originalTypeMapping.replace(/'/g, "\\'")}', true));
+      update_option('wpojs_manual_roles', json_decode('${originalManualRoles.replace(/'/g, "\\'")}', true));
+      update_option('wpojs_journal_name', '${originalJournalName}');
+      update_option('wpojs_url', '${originalOjsUrl}');
+      delete_transient('wpojs_ojs_type_names');
+    `);
 
     // Clean up the 2nd OJS subscription type.
     if (createdTypeId) {
-      ojsQuery(`DELETE FROM subscription_type_settings WHERE type_id = ${createdTypeId}`);
-      ojsQuery(`DELETE FROM subscription_types WHERE type_id = ${createdTypeId}`);
+      ojsQuery(
+        `DELETE FROM subscription_type_settings WHERE type_id = ${createdTypeId};` +
+        `DELETE FROM subscription_types WHERE type_id = ${createdTypeId};`,
+      );
     }
 
     clearTestSyncData();
@@ -98,13 +112,12 @@ test.describe('Settings affect sync behavior', () => {
         update_option('wpojs_type_mapping', $mapping);
       `);
 
-      wpUserId = createUser(login, email);
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, email, productId));
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
 
       // Verify the subscription uses the new type_id.
       const typeId = ojsQuery(
@@ -114,10 +127,8 @@ test.describe('Settings affect sync behavior', () => {
     } finally {
       // Restore original mapping.
       wpEval(`update_option('wpojs_type_mapping', json_decode('${originalTypeMapping.replace(/'/g, "\\'")}', true));`);
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -148,9 +159,8 @@ test.describe('Settings affect sync behavior', () => {
     } finally {
       // Restore manual roles.
       wpEval(`update_option('wpojs_manual_roles', json_decode('${originalManualRoles.replace(/'/g, "\\'")}', true));`);
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -188,9 +198,8 @@ test.describe('Settings affect sync behavior', () => {
       expect(hasActiveSubscription(ojsUserId!)).toBe(false);
     } finally {
       wpEval(`update_option('wpojs_manual_roles', json_decode('${originalManualRoles.replace(/'/g, "\\'")}', true));`);
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -220,10 +229,8 @@ test.describe('Settings affect sync behavior', () => {
       await expect(card).toContainText('E2E Test Journal');
     } finally {
       wpEval(`update_option('wpojs_journal_name', '${originalJournalName}');`);
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
