@@ -6,6 +6,8 @@ import {
   deleteSubscription,
   getSubscriptionProductId,
   clearTestSyncData,
+  createUserWithSubscription,
+  cleanupWpUser,
 } from '../helpers/wp';
 import {
   findOjsUser,
@@ -30,17 +32,14 @@ test.describe('OJS API request logging', () => {
     productId = getSubscriptionProductId();
     clearOjsApiLog();
 
-    wpUserId = createUser(LOGIN, EMAIL);
-    subId = createSubscription(wpUserId, productId, 'active');
+    ({ wpUserId, subId } = createUserWithSubscription(LOGIN, EMAIL, productId));
     waitForSync();
   });
 
   test.afterAll(() => {
-    try { deleteSubscription(subId); } catch {}
-    try { deleteUser(wpUserId); } catch {}
+    cleanupWpUser({ subIds: [subId], wpUserId });
     deleteOjsUser(EMAIL);
     clearOjsApiLog();
-    clearTestSyncData();
   });
 
   test('API requests logged after sync', () => {

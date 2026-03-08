@@ -7,6 +7,8 @@ import {
   getSubscriptionProductId,
   changeUserEmail,
   clearTestSyncData,
+  createUserWithSubscription,
+  cleanupWpUser,
 } from '../helpers/wp';
 import {
   findOjsUser,
@@ -14,6 +16,7 @@ import {
   getOjsUserEmail,
   deleteOjsUser,
   waitForSync,
+  cleanupOjsUsers,
 } from '../helpers/ojs';
 
 const TS = Date.now();
@@ -28,17 +31,13 @@ let productId: number;
 test.describe('Email change sync', () => {
   test.beforeAll(() => {
     productId = getSubscriptionProductId();
-    wpUserId = createUser(LOGIN, ORIGINAL_EMAIL);
-    subId = createSubscription(wpUserId, productId, 'active');
+    ({ wpUserId, subId } = createUserWithSubscription(LOGIN, ORIGINAL_EMAIL, productId));
     waitForSync();
   });
 
   test.afterAll(() => {
-    try { deleteSubscription(subId); } catch { /* may already be gone */ }
-    try { deleteUser(wpUserId); } catch { /* may already be gone */ }
-    deleteOjsUser(ORIGINAL_EMAIL);
-    deleteOjsUser(NEW_EMAIL);
-    clearTestSyncData();
+    cleanupWpUser({ subIds: [subId], wpUserId });
+    cleanupOjsUsers(ORIGINAL_EMAIL, NEW_EMAIL);
   });
 
   test('WP email change → OJS user email updated', () => {

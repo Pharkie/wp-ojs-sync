@@ -6,6 +6,8 @@ import {
   deleteSubscription,
   getSubscriptionProductId,
   clearTestSyncData,
+  createUserWithSubscription,
+  cleanupWpUser,
 } from '../helpers/wp';
 import {
   findOjsUser,
@@ -29,8 +31,7 @@ let ojsUserId: number | null;
 test.describe('User deletion / GDPR erasure', () => {
   test.beforeAll(() => {
     productId = getSubscriptionProductId();
-    wpUserId = createUser(LOGIN, EMAIL);
-    subId = createSubscription(wpUserId, productId, 'active');
+    ({ wpUserId, subId } = createUserWithSubscription(LOGIN, EMAIL, productId));
     waitForSync();
     ojsUserId = findOjsUser(EMAIL);
   });
@@ -38,7 +39,7 @@ test.describe('User deletion / GDPR erasure', () => {
   test.afterAll(() => {
     // Delete by ID — email may have been anonymised by the test
     if (ojsUserId !== null) deleteOjsUserById(ojsUserId);
-    clearTestSyncData();
+    cleanupWpUser({ subIds: [subId] });
   });
 
   test('delete WP user → OJS user anonymised and disabled', () => {

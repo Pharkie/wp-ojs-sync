@@ -7,10 +7,13 @@ import {
   getSubscriptionProductId,
   clearTestSyncData,
   wpCli,
+  createUserWithSubscription,
+  cleanupWpUser,
 } from '../helpers/wp';
 import {
   findOjsUser,
   hasActiveSubscription,
+  findAndVerifyOjsUser,
   deleteOjsUser,
   waitForSync,
 } from '../helpers/ojs';
@@ -40,22 +43,19 @@ test.describe('WP-CLI commands', () => {
     const productId = getSubscriptionProductId();
 
     try {
-      wpUserId = createUser(login, email);
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, email, productId));
       // Don't waitForSync — let the CLI command do the sync.
 
       const output = wpCli(`ojs-sync sync --member=${email}`);
       expect(output).toContain('Success');
 
       // Verify user was synced to OJS.
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -67,8 +67,7 @@ test.describe('WP-CLI commands', () => {
     const productId = getSubscriptionProductId();
 
     try {
-      wpUserId = createUser(login, email);
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(login, email, productId));
 
       const output = wpCli(`ojs-sync sync --member=${email} --dry-run`);
       expect(output.toLowerCase()).toContain('would sync');
@@ -77,10 +76,8 @@ test.describe('WP-CLI commands', () => {
       const ojsUserId = findOjsUser(email);
       expect(ojsUserId).toBeNull();
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 

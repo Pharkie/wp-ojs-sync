@@ -8,6 +8,7 @@ import {
   setUserPassword,
   wpLogin,
   clearTestSyncData,
+  cleanupWpUser,
 } from '../helpers/wp';
 import { deleteOjsUser, waitForSync } from '../helpers/ojs';
 
@@ -34,10 +35,8 @@ test.describe('WP My Account journal access widget', () => {
     });
 
     test.afterAll(() => {
-      try { deleteSubscription(subId); } catch {}
-      try { deleteUser(wpUserId); } catch {}
+      cleanupWpUser({ subIds: [subId], wpUserId });
       deleteOjsUser(EMAIL);
-      clearTestSyncData();
     });
 
     test('shows active journal access card', async ({ page }) => {
@@ -65,7 +64,7 @@ test.describe('WP My Account journal access widget', () => {
     });
 
     test.afterAll(() => {
-      try { deleteUser(wpUserId); } catch {}
+      cleanupWpUser({ wpUserId });
       deleteOjsUser(EMAIL);
     });
 

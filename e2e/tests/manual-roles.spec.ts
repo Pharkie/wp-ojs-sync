@@ -11,6 +11,7 @@ import {
   removeUserRole,
   runReconciliation,
   pruneQueueExcept,
+  cleanupWpUser,
 } from '../helpers/wp';
 import {
   findOjsUser,
@@ -18,6 +19,7 @@ import {
   deleteOjsUser,
   waitForSync,
   ojsQuery,
+  findAndVerifyOjsUser,
 } from '../helpers/ojs';
 
 const TS = Date.now();
@@ -52,13 +54,12 @@ test.describe('Manual role-based access', () => {
       `);
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
     } finally {
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -86,9 +87,8 @@ test.describe('Manual role-based access', () => {
       // NULL in MySQL CLI comes back as empty string
       expect(dateEnd === '' || dateEnd === 'NULL').toBe(true);
     } finally {
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -114,9 +114,9 @@ test.describe('Manual role-based access', () => {
 
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
 
       // Manual role is non-expiring and overrides WCS date_end to null.
       const dateEnd = ojsQuery(
@@ -124,10 +124,8 @@ test.describe('Manual role-based access', () => {
       ).trim();
       expect(dateEnd === '' || dateEnd === 'NULL').toBe(true);
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -144,9 +142,9 @@ test.describe('Manual role-based access', () => {
       subId = createSubscription(wpUserId, productId, 'active');
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
 
       // Expire the WCS subscription — the hooks check is_active_member()
       // which returns true because of the manual role, so expire is skipped.
@@ -158,10 +156,8 @@ test.describe('Manual role-based access', () => {
       // OJS subscription should still be active (manual role keeps it alive).
       expect(hasActiveSubscription(ojsUserId!)).toBe(true);
     } finally {
-      try { deleteSubscription(subId!); } catch { /* ok */ }
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ subIds: [subId!], wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 
@@ -180,9 +176,9 @@ test.describe('Manual role-based access', () => {
       `);
       waitForSync();
 
-      const ojsUserId = findOjsUser(email);
+      const { userId: ojsUserId, hasActive } = findAndVerifyOjsUser(email);
       expect(ojsUserId).not.toBeNull();
-      expect(hasActiveSubscription(ojsUserId!)).toBe(true);
+      expect(hasActive).toBe(true);
 
       // Remove the manual role — user is no longer an active member.
       removeUserRole(wpUserId, MANUAL_ROLE);
@@ -195,9 +191,8 @@ test.describe('Manual role-based access', () => {
       // OJS subscription should be expired (status 16).
       expect(hasActiveSubscription(ojsUserId!)).toBe(false);
     } finally {
-      try { deleteUser(wpUserId!); } catch { /* ok */ }
+      cleanupWpUser({ wpUserId: wpUserId! });
       deleteOjsUser(email);
-      clearTestSyncData();
     }
   });
 });

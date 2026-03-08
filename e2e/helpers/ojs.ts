@@ -97,22 +97,28 @@ Illuminate\\Support\\Facades\\DB::table('users')->where('user_id', ${userId})->u
 }
 
 /**
- * Delete an OJS user by ID — cascading cleanup.
+ * Delete an OJS user by ID — cascading cleanup (single DB call).
  */
 export function deleteOjsUserById(userId: number): void {
-  ojsQuery(`DELETE FROM subscriptions WHERE user_id = ${userId}`);
-  ojsQuery(`DELETE FROM user_settings WHERE user_id = ${userId}`);
-  ojsQuery(`DELETE FROM user_user_groups WHERE user_id = ${userId}`);
-  ojsQuery(`DELETE FROM users WHERE user_id = ${userId}`);
+  ojsQuery(
+    `DELETE FROM subscriptions WHERE user_id = ${userId};` +
+    `DELETE FROM user_settings WHERE user_id = ${userId};` +
+    `DELETE FROM user_user_groups WHERE user_id = ${userId};` +
+    `DELETE FROM users WHERE user_id = ${userId};`,
+  );
 }
 
 /**
- * Delete an OJS user by email — cascading cleanup.
+ * Delete an OJS user by email — cascading cleanup (single DB call).
  */
 export function deleteOjsUser(email: string): void {
-  const userId = findOjsUser(email);
-  if (userId === null) return;
-  deleteOjsUserById(userId);
+  ojsQuery(
+    `SET @uid = (SELECT user_id FROM users WHERE email = '${email}' LIMIT 1);` +
+    `DELETE FROM subscriptions WHERE user_id = @uid;` +
+    `DELETE FROM user_settings WHERE user_id = @uid;` +
+    `DELETE FROM user_user_groups WHERE user_id = @uid;` +
+    `DELETE FROM users WHERE user_id = @uid;`,
+  );
 }
 
 /**
@@ -203,6 +209,41 @@ export function getMustChangePassword(userId: number): boolean {
     `SELECT must_change_password FROM users WHERE user_id = ${userId}`,
   );
   return parseInt(out, 10) === 1;
+}
+
+/**
+ * Find an OJS user and check subscription status in a single DB call.
+ * Returns { userId, hasActive } — userId is null if user not found.
+ */
+export function findAndVerifyOjsUser(email: string): {
+  userId: number | null;
+  hasActive: boolean;
+} {
+  // Returns two rows: user_id on line 1, active count on line 2
+  const out = ojsQuery(
+    `SELECT IFNULL((SELECT user_id FROM users WHERE email = '${email}' LIMIT 1), 'NULL');` +
+    `SELECT IFNULL((SELECT COUNT(*) FROM subscriptions s JOIN users u ON u.user_id = s.user_id WHERE u.email = '${email}' AND s.status = 1), 0);`,
+  );
+  const lines = out.trim().split('\n');
+  const rawId = lines[0]?.trim();
+  const userId = rawId === 'NULL' || !rawId ? null : parseInt(rawId, 10);
+  const activeCount = parseInt(lines[1]?.trim() || '0', 10);
+  return { userId: isNaN(userId as number) ? null : userId, hasActive: activeCount > 0 };
+}
+
+/**
+ * Delete multiple OJS users by email in a single DB call.
+ */
+export function cleanupOjsUsers(...emails: string[]): void {
+  if (emails.length === 0) return;
+  const stmts = emails.map((email, i) =>
+    `SET @uid${i} = (SELECT user_id FROM users WHERE email = '${email}' LIMIT 1);` +
+    `DELETE FROM subscriptions WHERE user_id = @uid${i};` +
+    `DELETE FROM user_settings WHERE user_id = @uid${i};` +
+    `DELETE FROM user_user_groups WHERE user_id = @uid${i};` +
+    `DELETE FROM users WHERE user_id = @uid${i};`,
+  ).join('');
+  ojsQuery(stmts);
 }
 
 /**

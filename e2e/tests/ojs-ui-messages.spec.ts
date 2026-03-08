@@ -7,6 +7,8 @@ import {
   updateSubscriptionStatus,
   getSubscriptionProductId,
   clearTestSyncData,
+  createUserWithSubscription,
+  cleanupWpUser,
 } from '../helpers/wp';
 import {
   findOjsUser,
@@ -50,9 +52,8 @@ test.describe('OJS UI messages', () => {
 
     test.beforeAll(() => {
       const productId = getSubscriptionProductId();
-      wpUserId = createUser(LOGIN, EMAIL);
-      // Create then expire — gives us an OJS user without active subscription.
-      subId = createSubscription(wpUserId, productId, 'active');
+      ({ wpUserId, subId } = createUserWithSubscription(LOGIN, EMAIL, productId));
+      // Sync then expire — gives us an OJS user without active subscription.
       waitForSync();
       updateSubscriptionStatus(subId, 'expired');
       waitForSync();
@@ -66,10 +67,8 @@ test.describe('OJS UI messages', () => {
     });
 
     test.afterAll(() => {
-      try { deleteSubscription(subId); } catch {}
-      try { deleteUser(wpUserId); } catch {}
+      cleanupWpUser({ subIds: [subId], wpUserId });
       deleteOjsUser(EMAIL);
-      clearTestSyncData();
     });
 
     test('article page shows paywall hint for logged-in non-subscriber', async ({
