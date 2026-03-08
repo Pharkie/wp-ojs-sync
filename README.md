@@ -29,7 +29,7 @@ Bulk sync creates OJS accounts with WP password hashes — members log in to OJS
 
 **Start here:** [WP plugin reference](docs/wp-plugin-reference.md) and [OJS plugin API reference](docs/ojs-sync-plugin-api.md) explain what each plugin does — hooks, sync actions, endpoints, auth. See also [WP-CLI reference](docs/wp-cli-reference.md) and [WP admin reference](docs/wp-admin-reference.md).
 
-**Setup** — [Docker setup](docker/README.md) · [Non-Docker setup](docs/non-docker-setup.md) · [Hosting requirements](docs/private/hosting-requirements.md) · [Support runbook](docs/support-runbook.md) · [TODO / roadmap](TODO.md)
+**Setup** — [Docker setup (local dev)](docker/README.md) · [VPS deployment](docs/vps-deployment.md) · [Non-Docker setup](docs/non-docker-setup.md) · [Hosting requirements](docs/private/hosting-requirements.md) · [Support runbook](docs/support-runbook.md) · [TODO / roadmap](TODO.md)
 
 **Design & internals** — [Implementation plan](docs/private/plan.md) · [Decision trail](docs/discovery.md) · [OJS plugin internals](docs/ojs-plugin-internals.md) · [OJS native internals](docs/ojs-internals.md) · [WP integration notes](docs/wp-integration.md) · [Plan review findings](docs/private/review-findings.md) · [Janeway backup path](docs/private/janeway-paywall-investigation.md)
 

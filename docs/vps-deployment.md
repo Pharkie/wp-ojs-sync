@@ -1,4 +1,4 @@
-# Deployment Guide
+# VPS Deployment Guide
 
 > **This guide covers deploying to a VPS using Docker.** For local dev setup, see [Docker setup](../docker/README.md). For installing the plugins on existing non-Docker servers, see [non-Docker setup](non-docker-setup.md).
 
