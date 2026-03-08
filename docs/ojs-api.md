@@ -1,12 +1,82 @@
 # OJS API & Internals Reference
 
-Last updated: 2026-02-16. Sourced from OJS GitHub, swagger specs, PKP forums.
+Last updated: 2026-03-08. Sourced from OJS GitHub, swagger specs, PKP forums, and the custom `wpojs-subscription-api` plugin.
 
-## REST API: What exists
+## Custom Plugin API (`wpojs-subscription-api`)
 
-The OJS REST API (documented in [swagger-source.json](https://github.com/pkp/ojs/blob/main/docs/dev/swagger-source.json)) covers 37 endpoint categories. **Subscriptions are not among them.**
+The custom OJS plugin exposes 13 REST endpoints under `/api/v1/wpojs/`. These are the endpoints the WP plugin calls. All protected endpoints require both IP allowlist and Bearer token auth (see [Authentication](#authentication) below).
+
+Base URL: `{OJS_BASE_URL}/index.php/{journal_path}/api/v1/wpojs`
+
+### System endpoints
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/ping` | None | Reachability check. Returns `{"status":"ok"}`. |
+| `GET` | `/preflight` | Yes | Compatibility check. Verifies OJS internals (Repo methods, DAOs, tables, subscription types, load protection). Returns `{"compatible":true/false, "checks":[...]}`. |
+| `GET` | `/subscription-types` | Yes | Lists subscription types for the journal. Returns `{"types":[{"id":1,"name":"..."},...]}`.|
 
 ### User endpoints
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/users?email={email}` | Yes | Find user by email. Returns `{"found":true, "userId":N, "email":"...", "username":"...", "disabled":bool}` or `{"found":false}`. Also accepts `?userId={id}`. |
+| `POST` | `/users/find-or-create` | Yes | Idempotent. Finds existing user by email or creates a new one. Assigns Reader role. Body: `{email, firstName, lastName, passwordHash?}`. If `passwordHash` is provided, stores the WP hash directly (custom hasher verifies at login). Returns `{"userId":N, "created":bool}`. |
+| `PUT` | `/users/{userId}/email` | Yes | Update user email. Body: `{newEmail}`. Returns 409 if email already in use. |
+| `PUT` | `/users/{userId}/password` | Yes | Update user password hash. Body: `{passwordHash}`. Used for ongoing password sync from WP. |
+| `DELETE` | `/users/{userId}` | Yes | GDPR erasure. Anonymises all PII (email → `deleted_N@anonymised.invalid`, name → "Deleted User"), disables account, expires subscription, removes settings and access keys. Does not delete the OJS user record (preserves referential integrity). |
+
+### Subscription endpoints
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/subscriptions` | Yes | Idempotent upsert. Creates or updates subscription. Body: `{userId, typeId, dateStart, dateEnd?}`. `dateEnd: null` = non-expiring. Returns `{"subscriptionId":N, "created":bool}`. Validates type belongs to journal. |
+| `PUT` | `/subscriptions/expire-by-user/{userId}` | Yes | Expire subscription by OJS user ID. Sets status to 16 (Other). |
+| `PUT` | `/subscriptions/{subscriptionId}/expire` | Yes | Expire subscription by subscription ID. Sets status to 16 (Other). |
+| `GET` | `/subscriptions?userId={userId}` | Yes | Get subscription for user. Returns subscription details including `status` (1=active, 16=expired/other). |
+| `POST` | `/subscriptions/status-batch` | Yes | Batch status lookup. Body: `{emails:["a@b.com",...]}`. Returns status for multiple users in one call (used by reconciliation). |
+
+### Authentication
+
+All protected endpoints enforce dual-layer auth:
+
+1. **IP allowlist** — Client IP must be in `allowed_ips` (OJS `config.inc.php` `[wpojs]` section). Supports exact match (IPv4/IPv6) and CIDR notation (IPv4 only).
+2. **Bearer token** — `Authorization: Bearer {secret}` header. Compared via `hash_equals()` against `api_key_secret` in `[wpojs]` config section (falls back to `[security]`).
+
+### Load protection
+
+OJS self-monitors response times and returns `429 Too Many Requests` with `Retry-After` header when under pressure:
+- avg < 500ms → healthy, allow
+- avg 500–2000ms → stressed, `Retry-After: 2`
+- avg > 2000ms → overloaded, `Retry-After: 5`
+- < 5 recent samples → cold start, allow
+
+The WP plugin reads `Retry-After` and backs off automatically (adaptive throttling).
+
+### Error responses
+
+All errors return JSON: `{"error": "description"}` with appropriate HTTP status:
+- `400` — invalid/missing parameters
+- `401` — invalid or missing API key
+- `403` — IP not in allowlist
+- `404` — user/subscription not found
+- `409` — email conflict (update email)
+- `429` — server under load (retry after delay)
+- `500` — internal error
+
+### Request logging
+
+All API requests are logged to `wpojs_api_log` table with endpoint, method, source IP, HTTP status, and response time (ms). Logs are auto-cleaned after 30 days.
+
+---
+
+## Native OJS REST API (out-of-the-box, pre-plugin)
+
+> **This section documents the stock OJS REST API that ships with OJS — not our plugin.** It's included as reference for understanding what OJS provides natively and why the custom plugin was necessary. The native API has no subscription endpoints, no user creation, and no password management — all of which are provided by our `wpojs-subscription-api` plugin above.
+
+The native OJS REST API (documented in [swagger-source.json](https://github.com/pkp/ojs/blob/main/docs/dev/swagger-source.json)) covers 37 endpoint categories. **Subscriptions are not among them.**
+
+### Native user endpoints
 
 | Method | Endpoint | Notes |
 |---|---|---|
@@ -14,15 +84,13 @@ The OJS REST API (documented in [swagger-source.json](https://github.com/pkp/ojs
 | `GET` | `/api/v1/users/{userId}` | Get single user |
 | `PUT` | `/api/v1/users/{userId}/endRole/{userGroupId}` | End a role assignment |
 
-**No confirmed POST or PUT for user creation/update** in the current swagger spec (main branch). Resolved: the custom plugin (`wpojs-subscription-api`) implements user/subscription CRUD via OJS's internal facades (`Repo::user()`, DAO classes). See the [implementation plan](./private/plan.md#ojs-endpoint-spec) for the full endpoint spec.
-
 Minimum role: Journal Manager, Editor, or Subeditor.
 
-### What else the API covers
+### What else the native API covers
 
-Submissions, issues, contexts, DOIs, email templates, announcements, stats, institutions, sections, categories, highlights, navigation menus, user groups. No subscriptions, no payments (beyond settings).
+Submissions, issues, contexts, DOIs, email templates, announcements, stats, institutions, sections, categories, highlights, navigation menus, user groups. No subscriptions, no user creation, no passwords.
 
-## REST API: Authentication
+## Native OJS Authentication (not used by our plugin)
 
 | Method | Details |
 |---|---|
