@@ -45,6 +45,45 @@ This handles everything: SSH key generation/upload, Hetzner server creation, fir
 | `--ssl` | off | Also open ports 80/443 for Caddy |
 | `--skip-server` | off | Skip server creation (already exists) |
 
+### Prerequisites
+
+`init-vps.sh` requires:
+- `hcloud` CLI + `HCLOUD_TOKEN` env var (Hetzner API access)
+- `gh` CLI authenticated with access to the repo (for deploy key registration)
+- SSH key at `~/.ssh/hetzner`
+
+### Who runs what — options
+
+`init-vps.sh` needs both Hetzner and GitHub access. In practice, not everyone has both. Three ways to handle this:
+
+**Option A: Dev runs everything (simplest — they already have repo access)**
+
+They set up the Hetzner account, run `gh auth login`, then `init-vps.sh` works end to end. They own the infrastructure.
+
+```bash
+# They run this once per server
+scripts/init-vps.sh --name=sea-prod --ssl
+
+# Then deploy
+scripts/deploy.sh --host=sea-prod --provision
+```
+
+**Option B: You run init, they run deploys**
+
+You have the Hetzner token and GitHub access. Run `init-vps.sh` end to end. Give them SSH access to the resulting server. They just use `deploy.sh` and `smoke-test.sh` going forward.
+
+**Option C: Split — they set up Hetzner, you register the deploy key**
+
+They create the Hetzner account, give you the API token. You run `init-vps.sh`. Or they run it without `gh` CLI — it will warn but continue. Then register the deploy key manually:
+
+```bash
+# Get the public key from the VPS
+ssh sea-prod "cat /root/.ssh/deploy_key.pub"
+
+# Add to GitHub via UI:
+# Repo → Settings → Deploy keys → Add deploy key → paste the public key
+```
+
 ### Manual step: .env file
 
 The only thing `init-vps.sh` doesn't do is create the `.env` — this has site-specific URLs and passwords that need human input.
