@@ -12,6 +12,7 @@ const isCI = !!process.env.CI;
 
 export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
+  globalTeardown: './e2e/global-teardown.ts',
   testDir: './e2e/tests',
   fullyParallel: false,
   workers: 1,

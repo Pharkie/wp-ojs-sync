@@ -1,6 +1,9 @@
 # Claude Code runtime data
 .claude-home/
 
+# Test lockfile
+.playwright-lock
+
 # Environment
 .env
 .env.staging
