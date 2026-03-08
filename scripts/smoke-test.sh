@@ -24,6 +24,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Read env values from remote .env
 WP_HOME=$($SSH_CMD "grep '^WP_HOME=' $REMOTE_DIR/.env | cut -d= -f2")
 OJS_BASE_URL=$($SSH_CMD "grep '^OJS_BASE_URL=' $REMOTE_DIR/.env | cut -d= -f2")
+OJS_JOURNAL_PATH=$($SSH_CMD "grep '^OJS_JOURNAL_PATH=' $REMOTE_DIR/.env | cut -d= -f2")
+OJS_JOURNAL_URL="${OJS_BASE_URL}/index.php/${OJS_JOURNAL_PATH}"
 
 PASSED=0
 FAILED=0
@@ -62,6 +64,30 @@ if [ "$WP_STATUS" = "200" ] || [ "$WP_STATUS" = "301" ] || [ "$WP_STATUS" = "302
   pass "WP responds (HTTP $WP_STATUS)"
 else
   fail "WP not responding (HTTP $WP_STATUS)"
+fi
+
+# --- 1b. WP Admin page (catches .env permission issues that WP-CLI misses) ---
+echo "1b. WordPress Admin"
+WP_ADMIN_STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$WP_HOME/wp/wp-admin/" 2>/dev/null) || WP_ADMIN_STATUS="000"
+WP_ADMIN_BODY=$(curl -s "$WP_HOME/wp/wp-admin/" 2>/dev/null | head -20)
+if echo "$WP_ADMIN_BODY" | grep -qi "Fatal error\|Exception\|unable to read"; then
+  fail "WP Admin has PHP fatal error"
+elif [ "$WP_ADMIN_STATUS" = "200" ] || [ "$WP_ADMIN_STATUS" = "302" ]; then
+  pass "WP Admin responds (HTTP $WP_ADMIN_STATUS)"
+else
+  fail "WP Admin not responding (HTTP $WP_ADMIN_STATUS)"
+fi
+
+# --- 1c. OJS Admin page ---
+echo "1c. OJS Admin"
+OJS_ADMIN_STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$OJS_JOURNAL_URL/management/settings/access" 2>/dev/null) || OJS_ADMIN_STATUS="000"
+OJS_ADMIN_BODY=$(curl -s "$OJS_JOURNAL_URL/management/settings/access" 2>/dev/null | head -30)
+if echo "$OJS_ADMIN_BODY" | grep -qi "Fatal error\|Exception\|404 Not Found"; then
+  fail "OJS Admin page error (HTTP $OJS_ADMIN_STATUS)"
+elif [ "$OJS_ADMIN_STATUS" = "200" ] || [ "$OJS_ADMIN_STATUS" = "302" ]; then
+  pass "OJS Admin responds (HTTP $OJS_ADMIN_STATUS)"
+else
+  fail "OJS Admin not responding (HTTP $OJS_ADMIN_STATUS)"
 fi
 
 # --- 2. OJS HTTP ---
