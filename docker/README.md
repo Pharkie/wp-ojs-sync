@@ -1,8 +1,8 @@
-# Docker Setup
+# Docker Stack Reference
 
-> **This is the recommended way to run the project** for development and staging. Everything runs in containers — no need to install PHP, MySQL, or OJS on your machine.
+> **This is how the project runs** — locally, on staging, and in production. Everything runs in containers via Docker Compose. The same stack works everywhere; only the `.env` file and compose overrides differ between environments.
 
-For non-Docker setup, see [`docs/non-docker-setup.md`](../docs/non-docker-setup.md).
+For deploying to a VPS, see [`docs/vps-deployment.md`](../docs/vps-deployment.md). For installing the plugins on existing non-Docker servers, see [`docs/non-docker-setup.md`](../docs/non-docker-setup.md).
 
 ## Architecture
 
