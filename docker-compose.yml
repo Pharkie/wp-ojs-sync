@@ -13,6 +13,7 @@ services:
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
       WORDPRESS_DB_NAME: wordpress
+      WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD:?WP_ADMIN_PASSWORD not set in .env}
       WPOJS_BASE_URL: ${WPOJS_BASE_URL:-http://ojs:80/index.php/journal}
     volumes:
       - ./wordpress:/var/www/html
@@ -61,7 +62,7 @@ services:
       OJS_BASE_URL: ${OJS_BASE_URL:-http://localhost:8081}
       OJS_TIMEZONE: ${OJS_TIMEZONE:-Europe/London}
       OJS_ADMIN_USER: ${OJS_ADMIN_USER:-admin}
-      OJS_ADMIN_PASSWORD: ${OJS_ADMIN_PASSWORD:-admin123}
+      OJS_ADMIN_PASSWORD: ${OJS_ADMIN_PASSWORD:?OJS_ADMIN_PASSWORD not set in .env}
       OJS_ADMIN_EMAIL: ${OJS_ADMIN_EMAIL:-admin@example.com}
       WPOJS_API_KEY_SECRET: ${WPOJS_API_KEY_SECRET:-dev-api-key-local}
       WPOJS_ALLOWED_IPS: ${WPOJS_ALLOWED_IPS:-172.0.0.0/8}

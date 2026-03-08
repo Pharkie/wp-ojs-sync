@@ -105,15 +105,18 @@ $DC exec -T wp bash /var/www/html/scripts/setup-wp.sh $SAMPLE_DATA
 # --- Summary ---
 echo ""
 echo "=== Setup complete ($ENV) ==="
-case "$ENV" in
-  dev)
-    echo "  WP:  http://localhost:8080  (admin / admin123)"
-    echo "  OJS: http://localhost:8081  (admin / admin123)"
-    ;;
-  staging|prod)
-    WP_URL=$($DC exec -T wp printenv WP_HOME 2>/dev/null) || WP_URL="(check .env WP_HOME)"
-    OJS_URL=$($DC exec -T ojs printenv OJS_BASE_URL 2>/dev/null) || OJS_URL="(check .env OJS_BASE_URL)"
-    echo "  WP:  $WP_URL"
-    echo "  OJS: $OJS_URL"
-    ;;
-esac
+WP_URL=$($DC exec -T wp printenv WP_HOME 2>/dev/null) || WP_URL="http://localhost:8080"
+OJS_URL=$($DC exec -T ojs printenv OJS_BASE_URL 2>/dev/null) || OJS_URL="http://localhost:8081"
+JOURNAL_PATH=$($DC exec -T ojs printenv OJS_JOURNAL_PATH 2>/dev/null) || JOURNAL_PATH="journal"
+WP_PASS=$($DC exec -T wp printenv WP_ADMIN_PASSWORD 2>/dev/null) || WP_PASS="(check .env)"
+OJS_PASS=$($DC exec -T ojs printenv OJS_ADMIN_PASSWORD 2>/dev/null) || OJS_PASS="(check .env)"
+echo ""
+echo "  WordPress:"
+echo "    URL:   $WP_URL"
+echo "    Admin: $WP_URL/wp/wp-admin/"
+echo "    Login: admin / $WP_PASS"
+echo ""
+echo "  OJS:"
+echo "    URL:   $OJS_URL"
+echo "    Admin: $OJS_URL/index.php/$JOURNAL_PATH/management/settings/access"
+echo "    Login: admin / $OJS_PASS"
