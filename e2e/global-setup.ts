@@ -1,5 +1,9 @@
 import { createConnection } from 'net';
 import { execSync, spawn } from 'child_process';
+import { existsSync, writeFileSync, unlinkSync, readFileSync } from 'fs';
+import { resolve } from 'path';
+
+const LOCKFILE = resolve(__dirname, '..', '.playwright-lock');
 
 /**
  * Playwright global setup: ensure the devcontainer can reach the
@@ -11,6 +15,23 @@ import { execSync, spawn } from 'child_process';
  * 2. Running socat to forward localhost ports to the service hostnames
  */
 export default async function globalSetup() {
+  // Prevent concurrent test runs — they corrupt shared Docker state.
+  if (existsSync(LOCKFILE)) {
+    const pid = readFileSync(LOCKFILE, 'utf-8').trim();
+    // Check if the process is still alive
+    try {
+      process.kill(Number(pid), 0);
+      throw new Error(
+        `\n\nAnother Playwright run is active (PID ${pid}).\n` +
+          'Concurrent runs corrupt shared Docker state.\n' +
+          `If this is stale, remove ${LOCKFILE}\n`,
+      );
+    } catch (e: any) {
+      if (e.code !== 'ESRCH') throw e;
+      // Process is dead — stale lockfile, clean it up
+    }
+  }
+  writeFileSync(LOCKFILE, String(process.pid));
   // Connect to compose network (idempotent).
   try {
     execSync(
