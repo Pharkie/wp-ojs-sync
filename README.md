@@ -28,7 +28,7 @@ Bulk sync creates OJS accounts with WP password hashes — members log in to OJS
 ## Documentation
 
 **Getting started** — pick your path:
-- [Deploy to a new server](docs/vps-deployment.md) — provision a VPS, deploy the full Docker stack, go live
+- [Deploy to a new server](docs/vps-deployment.md) — provision a VPS and deploy the full Docker stack
 - [Install on existing servers](docs/non-docker-setup.md) — add the plugins to WP + OJS servers you already run
 - [Run locally for development](docker/README.md) — spin up the full stack on your machine with Docker
 
