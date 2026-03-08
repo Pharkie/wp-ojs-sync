@@ -34,8 +34,8 @@ This means subscription management requires either a custom OJS plugin (recommen
 
 ## OJS subscription internals
 
-Full PHP DAO classes exist internally — see `ojs-api.md` for complete schema and code patterns. The classes have complete CRUD (`IndividualSubscriptionDAO.insertObject()`, `updateObject()`, `deleteById()`, `renewSubscription()`). Our custom OJS plugin wraps these as REST endpoints.
+Full PHP DAO classes exist internally — see `ojs-internals.md` for complete schema and code patterns. The classes have complete CRUD (`IndividualSubscriptionDAO.insertObject()`, `updateObject()`, `deleteById()`, `renewSubscription()`). Our custom OJS plugin wraps these as REST endpoints.
 
 ## OJS 3.5 plugin extensibility
 
-OJS 3.5 restored plugin-registered API endpoints via [pkp-lib #9434](https://github.com/pkp/pkp-lib/issues/9434). This is required for the custom OJS plugin. SEA is on 3.4.0-9, so **upgrade to 3.5 is a prerequisite**. See `ojs-api.md` for the 3.5 plugin API pattern and breaking changes.
+OJS 3.5 restored plugin-registered API endpoints via [pkp-lib #9434](https://github.com/pkp/pkp-lib/issues/9434). This is required for the custom OJS plugin. SEA is on 3.4.0-9, so **upgrade to 3.5 is a prerequisite**. See `ojs-internals.md` for the 3.5 plugin API pattern and breaking changes.
