@@ -27,15 +27,20 @@ Bulk sync creates OJS accounts with WP password hashes — members log in to OJS
 
 ## Documentation
 
-**Start here:** [WP plugin reference](docs/wp-plugin-reference.md) and [OJS plugin API reference](docs/ojs-sync-plugin-api.md) explain what each plugin does — hooks, sync actions, endpoints, auth. See also [WP-CLI reference](docs/wp-cli-reference.md) and [WP admin reference](docs/wp-admin-reference.md).
+**Getting started** — pick your path:
+- [Docker setup](docker/README.md) — run the full stack locally or on a server (recommended)
+- [VPS deployment](docs/vps-deployment.md) — provision a server and deploy to staging/production
+- [Non-Docker setup](docs/non-docker-setup.md) — install the plugins on existing WP + OJS servers
 
-**Setup** — [Docker stack reference](docker/README.md) · [VPS deployment](docs/vps-deployment.md) · [Non-Docker setup](docs/non-docker-setup.md) · [Hosting requirements](docs/private/hosting-requirements.md) · [Support runbook](docs/support-runbook.md) · [TODO / roadmap](TODO.md)
+**Using the plugins** — [WP admin guide](docs/wp-admin-reference.md) · [WP-CLI commands](docs/wp-cli-reference.md) · [Support runbook](docs/support-runbook.md)
 
-**Design & internals** — [Implementation plan](docs/private/plan.md) · [Decision trail](docs/discovery.md) · [OJS plugin internals](docs/ojs-plugin-internals.md) · [OJS native internals](docs/ojs-internals.md) · [WP integration notes](docs/wp-integration.md) · [Plan review findings](docs/private/review-findings.md) · [Janeway backup path](docs/private/janeway-paywall-investigation.md)
+**Reference** — [WP plugin internals](docs/wp-plugin-reference.md) · [OJS plugin API](docs/ojs-sync-plugin-api.md) · [OJS plugin internals](docs/ojs-plugin-internals.md) · [Hosting requirements](docs/private/hosting-requirements.md)
+
+**Design** — [Implementation plan](docs/private/plan.md) · [Decision trail](docs/discovery.md) · [OJS native internals](docs/ojs-internals.md) · [WP integration notes](docs/wp-integration.md) · [Plan review findings](docs/private/review-findings.md) · [Janeway backup path](docs/private/janeway-paywall-investigation.md) · [TODO / roadmap](TODO.md)
 
 ## Prerequisites
 
-> If you're just exploring this project, start with the [Docker setup](docker/README.md) — it runs the full stack locally with no external dependencies.
+> If you're just exploring, the [Docker setup](docker/README.md) runs the full stack locally with no external dependencies.
 
 - WordPress 5.6+, PHP 7.4+
 - WooCommerce + WooCommerce Subscriptions
