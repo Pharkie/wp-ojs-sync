@@ -1,8 +1,8 @@
 # WP OJS Sync
 
-> **OJS** ([Open Journal Systems](https://pkp.sfu.ca/software/ojs/)) is an open-source platform for managing and publishing academic journals.
+**The problem:** An organisation runs its membership and payments through [WordPress](https://wordpress.org/) (using WooCommerce Subscriptions), and publishes an academic journal on [OJS](https://pkp.sfu.ca/software/ojs/) (Open Journal Systems). Members should get journal access automatically when they pay, and lose it when they cancel — but these are two separate systems with no built-in connection. OJS has no subscription API, so there's no obvious way to bridge them.
 
-A pair of plugins (WordPress + OJS) that sync membership data from WordPress (via WooCommerce Subscriptions) to Open Journal Systems. Members get journal access automatically; non-members can still buy content via OJS's built-in paywall.
+**What this repo does:** A pair of plugins — the **WP plugin** and the **OJS plugin** — that keep the two systems in sync. At launch, a bulk sync creates OJS accounts for all existing members (with their WordPress password hashes, so they can log in immediately). After that, the WP plugin automatically pushes changes to OJS whenever a member signs up, renews, cancels, or expires. Non-members can still buy individual articles through OJS's built-in paywall.
 
 ## How it works
 
@@ -27,7 +27,7 @@ Bulk sync creates OJS accounts with WP password hashes — members log in to OJS
 
 ## Documentation
 
-**Start here:** [WP plugin reference](docs/wp-plugin-reference.md) and [Sync plugin API reference](docs/ojs-sync-plugin-api.md) explain what each plugin does — hooks, sync actions, endpoints, auth. See also [WP-CLI reference](docs/wp-cli-reference.md) and [WP admin reference](docs/wp-admin-reference.md).
+**Start here:** [WP plugin reference](docs/wp-plugin-reference.md) and [OJS plugin API reference](docs/ojs-sync-plugin-api.md) explain what each plugin does — hooks, sync actions, endpoints, auth. See also [WP-CLI reference](docs/wp-cli-reference.md) and [WP admin reference](docs/wp-admin-reference.md).
 
 **Setup** — [Docker setup](docker/README.md) · [Non-Docker setup](docs/non-docker-setup.md) · [Hosting requirements](docs/private/hosting-requirements.md) · [Support runbook](docs/support-runbook.md) · [TODO / roadmap](TODO.md)
 

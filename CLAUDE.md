@@ -9,7 +9,7 @@ WordPress ↔ OJS integration. WP manages memberships via WooCommerce Subscripti
 - `docs/private/plan.md` — implementation plan: what we're building, how it works, endpoint specs, launch sequence, testing approach
 - `docs/discovery.md` — decision trail: what was tried, what was eliminated, and why
 - `docs/private/review-findings.md` — multi-perspective plan review and how findings were resolved
-- `docs/ojs-sync-plugin-api.md` — OJS sync plugin REST API reference (endpoints, auth, errors)
+- `docs/ojs-sync-plugin-api.md` — OJS plugin REST API reference (endpoints, auth, errors)
 - `docs/ojs-internals.md` — OJS native API, DB schema, PHP internals (research notes)
 - `docs/wp-integration.md` — WP membership stack (Ultimate Member + WooCommerce Subscriptions), hooks, code patterns
 - `docs/private/janeway-paywall-investigation.md` — concrete technical plan for Janeway backup path
