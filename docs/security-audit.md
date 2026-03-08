@@ -12,7 +12,7 @@
 | 2 | No explicit authorization on settings form | HIGH | OJS plugin | Fixed |
 | 3 | CIDR parsing overflow | MEDIUM | OJS plugin | Fixed |
 | 4 | CSRF not explicitly validated on settings form | MEDIUM | OJS plugin | Accepted (OJS framework handles) |
-| 5 | Rate limit parameters leaked in error response | LOW | OJS plugin | Fixed |
+| 5 | ~~Rate limit parameters leaked in error response~~ | LOW | OJS plugin | Superseded (load-based backpressure replaced count-based rate limit) |
 
 ## Audit categories
 
@@ -69,13 +69,11 @@
 
 **Recommendation:** If moving to a custom API route in future, add explicit `{csrf}` token to the form.
 
-### 5. Rate limit parameters leaked in error response (LOW)
+### 5. ~~Rate limit parameters leaked in error response~~ (LOW) — SUPERSEDED
 
-**File:** `plugins/wpojs-subscription-api/WpojsApiController.php:211-215`
+**Original issue:** The 429 error message included exact rate limit parameters (`300 requests per 60s`), giving attackers calibration data.
 
-**Description:** The 429 error message includes exact rate limit parameters: `"Rate limit exceeded (300 requests per 60s)"`. This gives attackers precise calibration data to time their requests just below the limit.
-
-**Fix applied:** Changed to generic message: `"Rate limit exceeded. Please retry later."`
+**Superseded:** Count-based rate limiting was replaced with load-based backpressure. OJS now self-monitors response times and returns 429 with `Retry-After` when under load. The error message is generic (`"Server under load. Please retry later."`) and only exposes `avg_ms` (current average response time) — not a security-sensitive value.
 
 ---
 
@@ -96,7 +94,7 @@ The WordPress plugin follows security best practices throughout. No findings.
 
 Mostly clean. The controller implements defence-in-depth well:
 
-- **Auth:** Every protected endpoint calls `checkAuth()` which enforces IP allowlist + API key + rate limit.
+- **Auth:** Every protected endpoint calls `checkAuth()` which enforces IP allowlist + API key + load-based backpressure.
 - **API key comparison:** Uses `hash_equals()` for timing-safe comparison.
 - **IP source:** Uses `REMOTE_ADDR` directly, not `X-Forwarded-For` (avoids spoofing).
 - **Input validation:** Email validated with `filter_var(FILTER_VALIDATE_EMAIL)`, IDs validated as positive integers, dates validated with `DateTime::createFromFormat()`.

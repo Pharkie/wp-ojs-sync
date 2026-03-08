@@ -75,13 +75,13 @@ The fix is adding the `[search]` section with the `index[application/pdf]` line 
 
 The official `pkpofficial/ojs` images are amd64-only. PKP's CI (`pkp/containers`) uses plain `docker build` with no `buildx` or `--platform` flags. No upstream issues have been filed requesting ARM64 support.
 
-On Apple Silicon Macs, Docker Desktop runs the image under Rosetta emulation at ~3–5x slower than native. This is mostly fine for browsing OJS, but bulk API operations (e.g. creating 684 users during sync) overwhelm the emulated container — requests time out with 500 errors even though the DB writes succeed. We added `--delay` and `--batch-size` flags to `wp ojs-sync sync` to throttle on slow environments.
+On Apple Silicon Macs, Docker Desktop runs the image under Rosetta emulation at ~3–5x slower than native. This is mostly fine for browsing OJS, but bulk API operations (e.g. creating 684 users during sync) overwhelm the emulated container — requests time out with 500 errors even though the DB writes succeed. Load-based backpressure on the OJS side now handles this automatically: OJS self-monitors response times and returns 429 with `Retry-After` when under pressure, and WP's adaptive throttling backs off accordingly.
 
 One community image (`teic/docker-pkp-ojs`) builds for both amd64 and arm64 and covers OJS 3.3–3.5, but has minimal adoption (~632 pulls). Building the official Dockerfile locally with `docker buildx --platform linux/arm64` should also work since OJS is pure PHP with no arch-specific binaries.
 
 - **Not reported upstream** — no ARM64 issues filed on `pkp/containers`.
 - **Community ARM64 image:** [teic/docker-pkp-ojs](https://hub.docker.com/r/teic/docker-pkp-ojs)
-- **Workaround:** Use `--delay=2000` when running bulk sync on Apple Silicon. See `docker/README.md`.
+- **Workaround:** OJS load-based backpressure handles this automatically. No manual `--delay` needed.
 
 ## Static analysis
 

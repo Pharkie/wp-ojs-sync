@@ -91,9 +91,10 @@ CREATE TABLE wpojs_api_log (
     method VARCHAR(10) NOT NULL,
     source_ip VARCHAR(45) NOT NULL,
     http_status SMALLINT NOT NULL,
+    duration_ms INT UNSIGNED NULL,
     created_at DATETIME NOT NULL,
     INDEX wpojs_api_log_created_at (created_at),
-    INDEX wpojs_api_log_ratelimit (source_ip, created_at)
+    INDEX wpojs_api_log_load (created_at, duration_ms)
 );
 ```
 
