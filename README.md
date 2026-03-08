@@ -48,17 +48,11 @@ Non-member visits paywalled content
 
 ## Documentation
 
-### Design and architecture
+### Plugin reference
 
-- [Implementation plan](docs/private/plan.md) — what we're building, how it works, endpoint specs, launch sequence, testing approach
-- [Decision trail](docs/discovery.md) — what was tried, what was eliminated, and why
-- [Plan review findings](docs/private/review-findings.md) — multi-perspective review and how findings were resolved
-
-### Technical reference
-
-- [OJS API reference](docs/ojs-api.md) — OJS REST API capabilities, DB schema, PHP internals
-- [WP integration](docs/wp-integration.md) — WP membership stack (Ultimate Member + WooCommerce Subscriptions), hooks, code patterns
-- [Janeway backup path](docs/private/janeway-paywall-investigation.md) — concrete technical plan if OJS 3.5 upgrade fails
+- [WP plugin reference](docs/wp-plugin-reference.md) — hooks, sync actions, CLI commands, settings, reconciliation, Action Scheduler
+- [OJS plugin reference](docs/ojs-plugin-reference.md) — auth, load protection, password hasher, GDPR erasure, subscription logic
+- [OJS API reference](docs/ojs-api.md) — all 13 custom endpoints, auth model, error codes, plus native OJS API reference
 
 ### Deployment and operations
 
@@ -68,9 +62,16 @@ Non-member visits paywalled content
 - [Support runbook](docs/support-runbook.md) — quick reference for support staff handling member access issues
 - [TODO / roadmap](TODO.md) — what's done, what's left before production
 
+### Design and architecture
+
+- [Implementation plan](docs/private/plan.md) — what we're building, how it works, endpoint specs, launch sequence, testing approach
+- [Decision trail](docs/discovery.md) — what was tried, what was eliminated, and why
+- [WP integration](docs/wp-integration.md) — WP membership stack (Ultimate Member + WooCommerce Subscriptions), hooks, code patterns
+- [Plan review findings](docs/private/review-findings.md) — multi-perspective review and how findings were resolved
+
 ### Future planning
 
-- [Membership platform comparison](docs/private/membership-platform.md) — WildApricot, CiviCRM, Beacon, Outseta evaluation
+- [Janeway backup path](docs/private/janeway-paywall-investigation.md) — concrete technical plan if OJS 3.5 upgrade fails
 
 ## AI disclosure
 
