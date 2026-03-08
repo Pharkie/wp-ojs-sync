@@ -63,9 +63,9 @@ This is the non-Docker deployment described in `docs/non-docker-setup.md`.
 ### 4. Verify and launch sync
 
 - [ ] `wp ojs-sync test-connection` — verify connectivity, auth, IP allowlist
-- [ ] `wp ojs-sync sync --dry-run --yes` — preview bulk sync
+- [ ] `wp ojs-sync sync --bulk --dry-run` — preview bulk sync
 - [ ] Review output — member count matches expectations
-- [ ] `wp ojs-sync sync --yes` — run bulk sync
+- [ ] `wp ojs-sync sync --bulk --yes` — run bulk sync
 - [ ] `wp ojs-sync status` — verify counts
 - [ ] `wp ojs-sync reconcile` — check for drift
 - [ ] Test new member flow (create subscription → verify OJS access)

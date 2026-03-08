@@ -185,8 +185,8 @@ Each queue action maps to a specific sequence of OJS API calls. The queue proces
 
 | Command | Description |
 |---|---|
-| `wp ojs-sync sync --dry-run` | Report what bulk sync would do without making changes |
-| `wp ojs-sync sync` | Run bulk sync: creates users + subscriptions with WP password hash (members can log in with existing WP password). Batched (50 users), adaptive throttling. Rejects unknown flags (e.g. `--user=` errors instead of silently running bulk). |
+| `wp ojs-sync sync --bulk --dry-run` | Report what bulk sync would do without making changes |
+| `wp ojs-sync sync --bulk --yes` | Run bulk sync: creates users + subscriptions with WP password hash (members can log in with existing WP password). Batched (50 users), adaptive throttling. Requires `--bulk` flag to prevent accidental full sync. Rejects unknown flags (e.g. `--user=` errors instead of silently running bulk). |
 | `wp ojs-sync sync --member=<id or email>` | Sync a single member (sends WP password hash) |
 | `wp ojs-sync reconcile` | Run reconciliation now (compare WCS ↔ OJS, retry drift) |
 | `wp ojs-sync status` | Show sync stats: total synced, pending, failed, last reconciliation |
@@ -260,7 +260,7 @@ Individual sync actions (activate, expire, email_change, delete_user) are proces
 5. **Create OJS subscription type(s)** — at least one Individual subscription type must exist in OJS before sync can work. Go to OJS Admin → Subscriptions → Subscription Types → Create. Note the `type_id` for use in WP mapping. The preflight check will warn if none exist.
 6. **Configure WP plugin mapping** — set OJS Base URL (with journal path), product mappings (WC Product → OJS Type), and optionally WordPress role-based access. All six WC products (IDs 1892, 1924, 1927, 23040, 23041, 23042) should be mapped.
 7. **Smoke test** — end-to-end with 10 test users: create subscription → OJS account created → subscription active → paywall grants access → expire subscription → paywall denies access. Also test non-member purchase flow.
-8. **Bulk sync ~700 existing members** — `wp ojs-sync sync --dry-run` then `wp ojs-sync sync`. Creates users + subscriptions on OJS with WP password hashes. Members can immediately log into OJS with their existing WP password. Batched (50 at a time), adaptive throttling. Verify: `wp ojs-sync status` shows correct synced count, spot-check a few users in OJS admin, test OJS login with a WP password.
+8. **Bulk sync ~700 existing members** — `wp ojs-sync sync --bulk --dry-run` then `wp ojs-sync sync --bulk --yes`. Creates users + subscriptions on OJS with WP password hashes. Members can immediately log into OJS with their existing WP password. Batched (50 at a time), adaptive throttling. Verify: `wp ojs-sync status` shows correct synced count, spot-check a few users in OJS admin, test OJS login with a WP password.
 9. **OJS template changes** — DONE. Login hint ("Member? Log in with your membership email and password."), paywall hint for logged-in non-subscribers ("Contact support"), customisable member footer message (default: "Your journal access may be linked to your membership elsewhere"). Implemented via plugin hooks (`TemplateManager::display`, `Templates::Article::Footer::PageFooter`, `Templates::Common::Footer::PageFooter`). Messages configurable via `.env` and OJS plugin settings page.
 10. **WP member dashboard** — DONE. "Access [Journal Name]" card on WooCommerce My Account page. Shows active/inactive status with expiry date.
 11. **Member announcement** — via the organisation's normal channel (newsletter/email), sent only after steps 8-10 are confirmed working. "Visit the journal and log in with your membership email and password."
@@ -295,7 +295,7 @@ If the OJS 3.5 upgrade hits serious problems, fallback options are documented in
 
 1. Bulk sync is idempotent — safe to re-run. `find-or-create` returns existing users, `create_subscription` upserts.
 2. Check results: `wp ojs-sync status` shows synced count. Sync log shows per-user success/fail.
-3. Retry failures: `wp ojs-sync sync` again (only processes unsynced members). Or target specific users: `wp ojs-sync sync --member=<email>`.
+3. Retry failures: `wp ojs-sync sync --bulk --yes` again (only processes unsynced members). Or target specific users: `wp ojs-sync sync --member=<email>`.
 
 ### Password / login issues
 
