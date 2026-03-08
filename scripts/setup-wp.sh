@@ -64,11 +64,15 @@ fi
 
 # --- Core install ---
 if ! wp core is-installed --allow-root 2>/dev/null; then
+  if [ -z "${WP_ADMIN_PASSWORD}" ]; then
+    echo "ERROR: WP_ADMIN_PASSWORD not set. Set it in .env — no default passwords allowed."
+    exit 1
+  fi
   wp core install \
     --url="${WP_HOME}" \
     --title="${WP_SITE_TITLE:-My Community}" \
     --admin_user=admin \
-    --admin_password="${WP_ADMIN_PASSWORD:-admin123}" \
+    --admin_password="${WP_ADMIN_PASSWORD}" \
     --admin_email=admin@example.com \
     --skip-email \
     --allow-root

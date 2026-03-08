@@ -24,6 +24,6 @@ If it fails, check:
 - Both setup scripts end with health checks — look for `[FAIL]` lines
 
 After success:
-- WP:  http://localhost:8080  (admin / admin123)
-- OJS: http://localhost:8081  (admin / admin123)
+- WP:  http://localhost:8080  (admin / $WP_ADMIN_PASSWORD from .env)
+- OJS: http://localhost:8081  (admin / $OJS_ADMIN_PASSWORD from .env)
 - All 36 e2e tests should pass

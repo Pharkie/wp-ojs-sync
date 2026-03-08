@@ -110,6 +110,8 @@ The `.env` file on the VPS controls all configuration. It is **not in git** — 
 |---|---|---|
 | `WP_HOME` | Full URL to WP (e.g. `http://1.2.3.4:8080`) | Must include port for IP-only access |
 | `OJS_BASE_URL` | Full URL to OJS (e.g. `http://1.2.3.4:8081`) | Must include port for IP-only access |
+| `WP_ADMIN_PASSWORD` | WordPress admin password | **Required — no default.** Setup fails if missing. |
+| `OJS_ADMIN_PASSWORD` | OJS admin password | **Required — no default.** Setup fails if missing. |
 | `WPOJS_API_KEY` | API key WP sends to OJS | **Must match** `WPOJS_API_KEY_SECRET` |
 | `WPOJS_API_KEY_SECRET` | API key OJS validates | **Must match** `WPOJS_API_KEY` |
 | `DB_PASSWORD` | WP database password (Bedrock reads this) | **Must match** `WP_DB_PASSWORD` |

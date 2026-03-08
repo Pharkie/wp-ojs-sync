@@ -33,7 +33,7 @@ for i in $(seq 1 60); do
     if docker compose exec ojs grep -q "installed = On" /var/www/html/config.inc.php 2>/dev/null; then
         echo "==> OJS reset + install complete."
         echo "    URL:      http://localhost:8081"
-        echo "    Admin:    admin / admin123"
+        echo "    Admin:    admin / \$OJS_ADMIN_PASSWORD from .env"
         echo "    Next:     docker compose exec ojs bash /scripts/setup-ojs.sh"
         exit 0
     fi

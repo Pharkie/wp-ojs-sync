@@ -62,7 +62,7 @@ docker compose exec ojs bash /scripts/setup-ojs.sh --with-sample-data
 
 | | WordPress | OJS |
 |--|-----------|-----|
-| Admin user | `admin` / `admin123` | `admin` / `admin123` |
+| Admin user | `admin` / `$WP_ADMIN_PASSWORD` | `admin` / `$OJS_ADMIN_PASSWORD` |
 | DB host | `wp-db` | `ojs-db` |
 | DB name | `wordpress` | `ojs` |
 | DB user | `wordpress` | `ojs` |
