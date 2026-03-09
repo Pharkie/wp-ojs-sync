@@ -28,6 +28,7 @@ OJS and WordPress both run PHP — they benefit from CPU and RAM more than disk.
 | 22 | SSH | Always |
 | 8080 | WordPress | IP-only / staging |
 | 8081 | OJS | IP-only / staging |
+| 8082 | Adminer (DB GUI) | localhost only — SSH tunnel required |
 | 80 | HTTP (Caddy) | Production with SSL |
 | 443 | HTTPS (Caddy) | Production with SSL |
 
@@ -198,11 +199,12 @@ Lightweight health checks — no Node or Playwright needed on the VPS. Runs from
 scripts/smoke-test.sh --host=your-server
 ```
 
-Checks (17 total):
+Checks (18 total):
 1. WP HTTP responds
 1b. WP Admin page loads (catches .env permission issues, PHP fatals)
 1c. OJS Admin page loads (catches missing journal, PHP fatals)
 2. OJS HTTP responds
+2b. Adminer responds (localhost:8082, checked via SSH)
 3. WP REST API responds
 4. OJS plugin ping
 5. OJS preflight (auth + compatibility)

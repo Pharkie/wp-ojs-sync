@@ -16,3 +16,7 @@ services:
       - "8081:80"
     environment:
       OJS_SMTP_ENABLED: ${OJS_SMTP_ENABLED:-On}
+
+  adminer:
+    ports:
+      - "127.0.0.1:8082:8080"

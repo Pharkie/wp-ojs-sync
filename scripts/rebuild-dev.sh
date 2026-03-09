@@ -96,7 +96,7 @@ fi
 # Start socat forwarders and verify they work. Playwright's global-setup also
 # does this, but it spawns socat with stdio:ignore so errors are invisible.
 # Doing it here lets us catch failures with full error output.
-for FORWARD in "8080:wp:80" "8081:ojs:80"; do
+for FORWARD in "8080:wp:80" "8081:ojs:80" "8082:adminer:8080"; do
   LOCAL_PORT="${FORWARD%%:*}"
   REMOTE="${FORWARD#*:}"
   REMOTE_HOST="${REMOTE%%:*}"
@@ -150,5 +150,8 @@ echo "  OJS:"
 echo "    URL:   http://localhost:8081"
 echo "    Admin: http://localhost:8081/index.php/journal/management/settings/access"
 echo "    Login: admin / $OJS_PASS"
+echo ""
+echo "  Adminer: http://localhost:8082"
+echo "    Server: wp-db (WordPress) or ojs-db (OJS)"
 echo ""
 echo "  Log: $LOG_FILE"

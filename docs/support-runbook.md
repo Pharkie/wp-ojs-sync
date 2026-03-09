@@ -107,6 +107,31 @@ This calls OJS directly (not through Action Scheduler) and reports the result im
 
 ---
 
+> **For IT / server admins only.** Support staff can skip this section.
+
+## Database access (Adminer)
+
+Adminer is a lightweight DB admin GUI on the staging/prod server. It's bound to localhost only — you reach it via SSH tunnel.
+
+**Connect:**
+
+```bash
+ssh -L 8082:127.0.0.1:8082 sea-staging
+```
+
+Then open `http://localhost:8082` in your browser.
+
+**Credentials:**
+
+| Database | Server | Username | Password | DB name |
+|----------|--------|----------|----------|---------|
+| WordPress | `wp-db` | `wordpress` | `WP_DB_PASSWORD` from `.env` on VPS | `wordpress` |
+| OJS | `ojs-db` | `ojs` | `OJS_DB_PASSWORD` from `.env` on VPS | `ojs` |
+
+Select **MySQL** as the system on the Adminer login page. Type the server name exactly as shown (these are Docker container hostnames).
+
+---
+
 ## Troubleshooting
 
 ### Test connection fails

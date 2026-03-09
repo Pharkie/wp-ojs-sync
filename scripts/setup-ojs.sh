@@ -168,35 +168,49 @@ JOURNAL_DESCRIPTION="${OJS_JOURNAL_DESCRIPTION:-}"
 JOURNAL_ABOUT="${OJS_JOURNAL_ABOUT:-}"
 JOURNAL_SUBSCRIPTION_INFO="${OJS_JOURNAL_SUBSCRIPTION_INFO:-}"
 
-META_RESULT=$(ojs_api PUT "/$JOURNAL_PATH/api/v1/contexts/$JOURNAL_ID_META" "{
-  \"name\": {\"en\": \"$(json_escape "$JOURNAL_NAME")\"},
-  \"acronym\": {\"en\": \"$(json_escape "$JOURNAL_ACRONYM")\"},
-  \"description\": {\"en\": \"$(json_escape "$JOURNAL_DESCRIPTION")\"},
-  \"about\": {\"en\": \"$(json_escape "$JOURNAL_ABOUT")\"},
-  \"contactName\": \"$(json_escape "$JOURNAL_CONTACT_NAME")\",
-  \"contactEmail\": \"$(json_escape "$JOURNAL_CONTACT_EMAIL")\",
-  \"contactAffiliation\": {\"en\": \"$(json_escape "$JOURNAL_PUBLISHER")\"},
-  \"supportName\": \"$(json_escape "$JOURNAL_CONTACT_NAME")\",
-  \"supportEmail\": \"$(json_escape "$JOURNAL_CONTACT_EMAIL")\",
-  \"country\": \"$(json_escape "$JOURNAL_COUNTRY")\",
-  \"printIssn\": \"$(json_escape "$JOURNAL_PRINT_ISSN")\",
-  \"onlineIssn\": \"$(json_escape "$JOURNAL_ONLINE_ISSN")\",
-  \"publisherInstitution\": \"$(json_escape "$JOURNAL_PUBLISHER")\",
-  \"publisherUrl\": \"$(json_escape "$JOURNAL_PUBLISHER_URL")\",
-  \"copyrightHolderType\": \"context\",
-  \"subscriptionName\": \"$(json_escape "$JOURNAL_NAME") Subscriptions\",
-  \"subscriptionEmail\": \"$(json_escape "$JOURNAL_CONTACT_EMAIL")\",
-  \"subscriptionAdditionalInformation\": {\"en\": \"$(json_escape "$JOURNAL_SUBSCRIPTION_INFO")\"}
-}")
+# Build metadata JSON — use jq to conditionally add optional fields (OJS rejects empty strings)
+META_JSON=$(jq -n \
+  --arg name "$JOURNAL_NAME" \
+  --arg acronym "$JOURNAL_ACRONYM" \
+  --arg desc "$JOURNAL_DESCRIPTION" \
+  --arg about "$JOURNAL_ABOUT" \
+  --arg contactName "$JOURNAL_CONTACT_NAME" \
+  --arg contactEmail "$JOURNAL_CONTACT_EMAIL" \
+  --arg publisher "$JOURNAL_PUBLISHER" \
+  --arg publisherUrl "$JOURNAL_PUBLISHER_URL" \
+  --arg country "$JOURNAL_COUNTRY" \
+  --arg printIssn "$JOURNAL_PRINT_ISSN" \
+  --arg onlineIssn "$JOURNAL_ONLINE_ISSN" \
+  --arg subInfo "$JOURNAL_SUBSCRIPTION_INFO" \
+  '{
+    name: {en: $name},
+    acronym: {en: $acronym},
+    description: {en: $desc},
+    about: {en: $about},
+    contactName: $contactName,
+    contactEmail: $contactEmail,
+    contactAffiliation: {en: $publisher},
+    supportName: $contactName,
+    supportEmail: $contactEmail,
+    publisherInstitution: $publisher,
+    publisherUrl: $publisherUrl,
+    copyrightHolderType: "context",
+    subscriptionName: ($name + " Subscriptions"),
+    subscriptionEmail: $contactEmail,
+    subscriptionAdditionalInformation: {en: $subInfo}
+  }
+  + if $country != "" then {country: $country} else {} end
+  + if $printIssn != "" then {printIssn: $printIssn} else {} end
+  + if $onlineIssn != "" then {onlineIssn: $onlineIssn} else {} end
+  ')
+META_RESULT=$(ojs_api PUT "/$JOURNAL_PATH/api/v1/contexts/$JOURNAL_ID_META" "$META_JSON")
 
-# Verify critical fields were actually saved
-for FIELD in country printIssn onlineIssn publisherInstitution; do
-  if ! echo "$META_RESULT" | grep -q "\"$FIELD\""; then
-    echo "[OJS] ERROR: Field '$FIELD' missing from API response — metadata PUT may have failed." >&2
-    echo "[OJS] Response (first 500 chars): $(echo "$META_RESULT" | head -c 500)" >&2
-    exit 1
-  fi
-done
+# Verify the PUT succeeded (check a required field is in the response)
+if ! echo "$META_RESULT" | grep -q '"publisherInstitution"'; then
+  echo "[OJS] ERROR: Metadata PUT may have failed — publisherInstitution missing from response." >&2
+  echo "[OJS] Response (first 500 chars): $(echo "$META_RESULT" | head -c 500)" >&2
+  exit 1
+fi
 
 echo "[OJS] Journal metadata configured."
 

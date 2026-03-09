@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 // Load select env vars from .env so tests use the same values as setup scripts.
 // Only loads vars that aren't already set in the environment.
 for (const line of readFileSync('.env', 'utf-8').split('\n')) {
-  const m = line.match(/^(WP_ADMIN_PASSWORD)=["']?(.+?)["']?$/);
+  const m = line.match(/^(WP_ADMIN_PASSWORD|DB_PASSWORD|OJS_DB_PASSWORD)=["']?(.+?)["']?$/);
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
 }
 

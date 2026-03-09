@@ -131,6 +131,19 @@ services:
     networks:
       - sea-net
 
+  adminer:
+    image: adminer:4-standalone
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: wp-db
+    ports:
+      - "8082:8080"
+    depends_on:
+      - wp-db
+      - ojs-db
+    networks:
+      - sea-net
+
 volumes:
   wp_uploads:
   wp_db_data:

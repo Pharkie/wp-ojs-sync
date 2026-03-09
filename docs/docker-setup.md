@@ -29,6 +29,7 @@ docker compose exec ojs bash /scripts/setup-ojs.sh --with-sample-data
 | OJS | http://localhost:8081 | http://ojs:80 |
 | OJS journal | http://localhost:8081/index.php/journal | http://ojs:80/index.php/journal |
 | OJS API (from WP) | — | http://ojs:80/index.php/journal/api/v1/wpojs/... |
+| Adminer (DB GUI) | http://localhost:8082 | http://adminer:8080 |
 
 ## Credentials
 
@@ -129,6 +130,7 @@ This handles everything in one shot:
 | WordPress | Custom `docker/wp/Dockerfile` (from `php:8.2-apache`) | WP 6.9.1 (Bedrock), PHP 8.2 | Composer-managed deps |
 | OJS | Custom `docker/ojs/Dockerfile` (from `pkpofficial/ojs:3_5_0-3`) | OJS 3.5.0.3, PHP 8.3 | Adds envsubst + mariadb client |
 | MariaDB (both) | `mariadb:10.11` | 10.11 | — |
+| Adminer | `adminer:4-standalone` | ~4.8 | DB admin GUI (~15MB RAM) |
 
 Do not use Docker tag `3_5_0-2` — it has a [known install bug](https://github.com/pkp/pkp-lib/issues/12144).
 
