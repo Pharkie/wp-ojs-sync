@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # GitHub CLI + Python pip + DNS tools + socat (for port forwarding to compose services)
 RUN apt-get update && apt-get install -y --no-install-recommends gh python3-pip dnsutils socat \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install --break-system-packages pyyaml
+    && pip install --break-system-packages pyyaml grip
 
 # Hetzner Cloud CLI (for managing staging/prod VPS)
 RUN curl -sL https://github.com/hetznercloud/cli/releases/latest/download/hcloud-linux-amd64.tar.gz \
