@@ -14,7 +14,6 @@
 #
 # Prerequisites:
 #   - SSH access configured (Host entry in ~/.ssh/config)
-#   - Deploy key on VPS with access to the GitHub repo
 #   - .env file on VPS (use --env-file on first deploy to copy it)
 set -eo pipefail
 
@@ -39,7 +38,7 @@ for arg in "$@"; do
 done
 
 REMOTE_DIR="/opt/wp-ojs-sync"
-REPO_URL="git@github.com:Pharkie/wp-ojs-sync.git"
+REPO_URL="https://github.com/Pharkie/wp-ojs-sync.git"
 COMPOSE_CMD="docker compose -f docker-compose.yml -f docker-compose.staging.yml"
 SSH_CMD="ssh -o ConnectTimeout=10 $SSH_HOST"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

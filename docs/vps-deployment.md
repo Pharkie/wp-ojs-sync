@@ -1,6 +1,6 @@
 # VPS Deployment Guide
 
-Two scripts handle everything: `init-vps.sh` creates the server (Hetzner), firewall, SSH config, and deploy key. `deploy.sh` clones the repo, builds images, starts the Docker stack, and runs setup. After that, day-to-day code updates are just `git pull` on the VPS — plugins are bind-mounted so PHP picks up changes immediately.
+Two scripts handle everything: `init-vps.sh` creates the server (Hetzner), firewall, and SSH config. `deploy.sh` clones the repo, builds images, starts the Docker stack, and runs setup. After that, day-to-day code updates are just `git pull` on the VPS — plugins are bind-mounted so PHP picks up changes immediately.
 
 For how the Docker stack works (containers, credentials, commands), see the [Docker setup guide](docker-setup.md). For installing plugins without Docker, see [non-Docker setup](non-docker-setup.md).
 
@@ -41,7 +41,7 @@ There are two phases: **init** (run once per server) and **deploy** (run every t
 
 | Script | Phase | What it does |
 |---|---|---|
-| `scripts/init-vps.sh` | Init | Creates server, firewall, SSH config, deploy key ([Hetzner](hetzner-setup.md)) |
+| `scripts/init-vps.sh` | Init | Creates server, firewall, SSH config ([Hetzner](hetzner-setup.md)) |
 | `scripts/provision-vps.sh` | Init | Installs Docker on VPS (called by deploy.sh `--provision`) |
 | `scripts/deploy.sh` | Deploy | Pulls code, builds images, starts stack, runs setup |
 | `scripts/setup.sh` | Deploy | Configures WP + OJS inside running containers |

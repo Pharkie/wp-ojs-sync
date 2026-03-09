@@ -8,6 +8,8 @@ Quick reference for support staff handling member access issues.
 
 ## Common scenarios
 
+<img align="right" width="45%" src="images/wp-sync-log.png" alt="Sync Log page with summary cards and filterable log table">
+
 ### "I can't access journal articles"
 
 1. **Check WP subscription status** — WooCommerce → Subscriptions → search by email. Is the subscription `active`?
@@ -24,7 +26,11 @@ The sync plugin detects WP email changes and updates OJS automatically. If it di
 1. Check the sync log for `email_change` entries.
 2. If the new email already existed on OJS (409 conflict), the sync will have failed. Manually update the OJS user's email in OJS Admin → Users & Roles → Edit User.
 
+<br clear="right">
+
 > **Most common issue.** Members don't realize they use their WordPress (membership site) password for the journal — not a separate OJS password.
+
+<img align="right" width="45%" src="images/wc-subscriptions-list.png" alt="WooCommerce Subscriptions list showing active member subscriptions">
 
 ### "I can't log in to the journal"
 
@@ -32,6 +38,8 @@ The sync plugin detects WP email changes and updates OJS automatically. If it di
 2. Verify the member has an OJS account: `wp ojs-sync sync --member=<email>` (idempotent — safe to re-run, won't duplicate).
 3. If they've changed their WP password since the last sync, re-sync to push the new hash: `wp ojs-sync sync --member=<email>`.
 4. The member can also use OJS's "Forgot Password" link as a fallback.
+
+<br clear="right">
 
 ---
 

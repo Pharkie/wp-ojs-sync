@@ -80,6 +80,8 @@ support_email = "support@example.org"
 
 **Config value quoting:** Always quote string values in `config.inc.php`. PHP's INI parser silently coerces unquoted numeric values to integers, which causes `hash_equals()` to throw a TypeError. This applies to `api_key_secret`, `allowed_ips`, and any other string values.
 
+<img align="right" width="45%" src="images/ojs-plugin-enable.png" alt="OJS Plugins page showing WP-OJS Subscription API plugin enabled">
+
 ### 4. Enable the plugin in OJS
 
 Go to OJS Admin Dashboard → Settings → Website → Plugins tab → Installed Plugins → Generic Plugins → find "WP-OJS Subscription API" → Enable.
@@ -103,6 +105,8 @@ CREATE TABLE wpojs_api_log (
     INDEX wpojs_api_log_load (created_at, duration_ms)
 );
 ```
+
+<br clear="right">
 
 > **The WP plugin can't sync without this.** Subscription types define what kind of access members get. You need at least one before bulk sync will work.
 
@@ -167,6 +171,8 @@ define('WPOJS_API_KEY', 'your-shared-secret-here');
 
 This must match the `api_key_secret` value in OJS's `config.inc.php`.
 
+<img align="right" width="45%" src="images/wp-test-connection.png" alt="WP OJS Sync settings page showing successful connection to OJS">
+
 ### 3. Activate and configure
 
 1. Activate the plugin in WP Admin → Plugins.
@@ -190,6 +196,8 @@ wp ojs-sync status
 ```
 
 Members can now log in to OJS with their WP email and password — no welcome emails or password setup needed.
+
+<br clear="right">
 
 ---
 

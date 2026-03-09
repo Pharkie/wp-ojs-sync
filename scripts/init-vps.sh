@@ -1,5 +1,5 @@
 #!/bin/bash
-# One-time VPS setup: create server, firewall, SSH config, deploy key.
+# One-time VPS setup: create server, firewall, SSH config.
 # Runs FROM the devcontainer. Requires hcloud CLI and HCLOUD_TOKEN.
 #
 # Usage:
@@ -22,8 +22,6 @@ SSH_KEY_PATH="$HOME/.ssh/hetzner"
 SSH_KEY_NAME="hetzner"
 OPEN_SSL_PORTS=""
 SKIP_SERVER=""
-GITHUB_REPO="Pharkie/wp-ojs-sync"
-
 # --- Parse arguments ---
 for arg in "$@"; do
   case "$arg" in
@@ -43,7 +41,7 @@ if [ -z "$SERVER_NAME" ]; then
 fi
 
 # --- Check prerequisites ---
-for cmd in hcloud gh ssh-keygen; do
+for cmd in hcloud ssh-keygen; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "ERROR: '$cmd' not found. Install it first."
     exit 1
@@ -191,50 +189,6 @@ if ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new "$SERVER_NAME" "
   echo "[ok] SSH connection verified."
 else
   echo "[warn] SSH connection failed — check config manually."
-fi
-echo ""
-
-# --- Step 5: GitHub deploy key ---
-echo "=== 5. GitHub deploy key ==="
-SSH_CMD="ssh -o ConnectTimeout=10 $SERVER_NAME"
-
-# Generate deploy key on VPS if it doesn't exist
-DEPLOY_KEY_EXISTS=$($SSH_CMD "test -f /root/.ssh/deploy_key && echo yes || echo no")
-if [ "$DEPLOY_KEY_EXISTS" = "yes" ]; then
-  echo "[ok] Deploy key already exists on VPS."
-else
-  $SSH_CMD "ssh-keygen -t ed25519 -f /root/.ssh/deploy_key -N '' -C '${SERVER_NAME}-deploy'"
-  echo "[ok] Deploy key generated on VPS."
-fi
-
-# Register with GitHub (replace if exists — server may have been recreated with new key)
-DEPLOY_PUB=$($SSH_CMD "cat /root/.ssh/deploy_key.pub")
-EXISTING_KEY_ID=$(gh repo deploy-key list --repo "$GITHUB_REPO" 2>/dev/null | grep "${SERVER_NAME}" | awk '{print $1}')
-if [ -n "$EXISTING_KEY_ID" ]; then
-  echo "$EXISTING_KEY_ID" | while read KEY_ID; do
-    echo "y" | gh repo deploy-key delete "$KEY_ID" --repo "$GITHUB_REPO" 2>/dev/null || true
-  done
-  echo "[ok] Removed old deploy key from GitHub."
-fi
-echo "$DEPLOY_PUB" | gh repo deploy-key add - --repo "$GITHUB_REPO" --title "$SERVER_NAME"
-echo "[ok] Deploy key registered on GitHub."
-
-# Configure SSH on VPS to use deploy key for GitHub
-$SSH_CMD "cat > /root/.ssh/config << SSHEOF
-Host github.com
-  IdentityFile /root/.ssh/deploy_key
-  IdentitiesOnly yes
-  StrictHostKeyChecking accept-new
-SSHEOF
-chmod 600 /root/.ssh/config"
-echo "[ok] VPS SSH config set for GitHub."
-
-# Verify
-GH_AUTH=$($SSH_CMD "ssh -T git@github.com 2>&1 || true")
-if echo "$GH_AUTH" | grep -q "successfully authenticated"; then
-  echo "[ok] GitHub authentication verified."
-else
-  echo "[warn] GitHub auth check returned: $GH_AUTH"
 fi
 echo ""
 

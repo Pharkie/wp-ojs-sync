@@ -2,6 +2,8 @@
 
 > **This is the admin UI guide** -- what you see in WordPress admin. For CLI commands, see [WP-CLI reference](wp-cli-reference.md). For how the plugin works internally, see [WP plugin reference](wp-plugin-reference.md).
 
+<img align="right" width="45%" src="images/wp-settings-page.png" alt="OJS Sync settings page in WordPress admin">
+
 ## Settings page
 
 Located at **OJS Sync > Settings** in WP admin. Requires `manage_options` capability.
@@ -42,6 +44,10 @@ The settings page also displays:
 
 > **This is your main monitoring tool.** Check the sync log regularly -- if things are working, you'll see a stream of green "success" entries. Red entries need attention.
 
+<br clear="right">
+
+<img align="right" width="45%" src="images/wp-sync-log.png" alt="OJS Sync Log page showing summary cards and log entries">
+
 ## Sync log
 
 Located at **OJS Sync > Sync Log** in WP admin.
@@ -73,6 +79,8 @@ Paginated at 20 entries per page.
 - **Single retry:** Each failed entry has a "Retry" link in the row actions (via AJAX). Schedules a new Action Scheduler action for that user.
 - **Bulk retry:** Checkbox selection + "Retry Selected" bulk action. Failed entries only.
 - **Limitations:** `delete_user` failures cannot be retried (the WP user is already gone -- must be resolved manually in OJS admin). `email_change` retries are converted to full `activate` actions since the original old/new email data isn't preserved in the log.
+
+<br clear="right">
 
 ### Failure notice
 
