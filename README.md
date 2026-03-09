@@ -6,13 +6,9 @@
 
 ## How it works
 
-<img align="right" width="45%" src="docs/images/wp-test-connection.png" alt="WP OJS Sync settings page showing connection status and product mappings">
-
 WordPress is the source of truth for membership. The WP plugin hooks into WooCommerce Subscription lifecycle events and pushes changes to OJS via a custom REST API. All sync is async (Action Scheduler), with daily reconciliation to catch drift.
 
 Bulk sync creates OJS accounts with WP password hashes — members log in to OJS with their existing WP password, no "set your password" step.
-
-<br clear="right">
 
 ```mermaid
 flowchart LR
@@ -31,8 +27,6 @@ flowchart LR
 
 ## Documentation
 
-<img align="right" width="35%" src="docs/images/ojs-login-page.png" alt="OJS login page with membership hint message">
-
 **Getting started** — pick your path:
 - [Run locally](docs/docker-setup.md) — Docker stack on your machine
 - [Deploy to a server](docs/vps-deployment.md) — provision a VPS, deploy the Docker stack
@@ -43,8 +37,6 @@ flowchart LR
 **Reference** — [WP plugin internals](docs/wp-plugin-reference.md) · [OJS plugin API](docs/ojs-sync-plugin-api.md) · [OJS plugin internals](docs/ojs-plugin-internals.md) · [Hosting requirements](docs/private/hosting-requirements.md)
 
 **Design** — [Implementation plan](docs/private/plan.md) · [Decision trail](docs/discovery.md) · [OJS native internals](docs/ojs-internals.md) · [WP integration notes](docs/wp-integration.md) · [Plan review findings](docs/private/review-findings.md) · [Janeway backup path](docs/private/janeway-paywall-investigation.md) · [TODO / roadmap](TODO.md)
-
-<br clear="right">
 
 ## Prerequisites
 
