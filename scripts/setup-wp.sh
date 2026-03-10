@@ -245,6 +245,19 @@ if [ "$SAMPLE_DATA" = true ]; then
     fi
     echo "[ok] $SUB_COUNT subscriptions seeded."
 
+    # Validate: check products and type mapping were saved
+    PRODUCT_COUNT=$(wp eval 'global $wpdb; echo $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type=\"product\" AND post_status=\"publish\"");' --allow-root 2>&1 | grep -v '_load_textdomain' | tr -d '[:space:]') || true
+    if [ -z "$PRODUCT_COUNT" ] || [ "$PRODUCT_COUNT" = "0" ]; then
+      echo "ERROR: No subscription products found after seeding (got: '${PRODUCT_COUNT}')."
+      exit 1
+    fi
+    MAPPING_COUNT=$(wp eval 'echo count(get_option("wpojs_type_mapping", []));' --allow-root 2>&1 | grep -v '_load_textdomain' | tr -d '[:space:]') || true
+    if [ -z "$MAPPING_COUNT" ] || [ "$MAPPING_COUNT" = "0" ]; then
+      echo "ERROR: wpojs_type_mapping not set after seeding."
+      exit 1
+    fi
+    echo "[ok] $PRODUCT_COUNT products, $MAPPING_COUNT type mappings configured."
+
     # Sync seeded subscriptions to HPOS (High-Performance Order Storage).
     # We disabled HPOS before seeding (raw SQL into wp_posts). Now re-enable
     # sync tracking so WC detects the un-synced posts, then sync them across.
