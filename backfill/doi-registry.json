@@ -1,0 +1,386 @@
+{
+  "_comment": "DOIs already registered with Crossref under prefix 10.65828. Auto-generated from Crossref API. Used by generate_xml.py to preserve existing DOIs during backfill import.",
+  "_source": "https://api.crossref.org/prefixes/10.65828/works",
+  "_generated": "2026-03-10",
+  "aliases": {
+    "_comment": "Manual overrides where TOC title differs from Crossref title. Key = TOC title, value = Crossref title.",
+    "Obituary: Andrea Sabbadini (1950-2025)": "An existential psychoanalyst and bridge-builder",
+    "Obituary: Naomi Stadlen (1942-2025)": "Making the invisible, visible"
+  },
+  "dois": [
+    {
+      "doi": "10.65828/bpj0wg41",
+      "title": "A Walk on the Wild Side",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Simon Du Plock"
+      ]
+    },
+    {
+      "doi": "10.65828/4dwxyf82",
+      "title": "Aggression – how we defend ourselves: An existential-phenomenological understanding",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Alfred Längle"
+      ]
+    },
+    {
+      "doi": "10.65828/xtnatz27",
+      "title": "Back to Me: Conversational narcissism and its amelioration in couples therapy",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Enrico Gnaulati"
+      ]
+    },
+    {
+      "doi": "10.65828/zhhvx819",
+      "title": "Breaching and Bridging: The journey from the tragicomedy of existence to the therapeutic encounter and back",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Anna Kourtis"
+      ]
+    },
+    {
+      "doi": "10.65828/x63n4a02",
+      "title": "Dialogues on Madness and Wisdom: In Conversation with R. D. Laing",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Phoenix Claire"
+      ]
+    },
+    {
+      "doi": "10.65828/syd36t46",
+      "title": "Dialogues on the Place of Creativity in Existential Therapy",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Ben Scanlan"
+      ]
+    },
+    {
+      "doi": "10.65828/916xn534",
+      "title": "Editorial",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Simon Du Plock",
+        "Martin Adams"
+      ]
+    },
+    {
+      "doi": "10.65828/19cvch57",
+      "title": "Encountering Our Daimonics: Existential dynamics within experiences trauma and humiliation",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Marc Boaz"
+      ]
+    },
+    {
+      "doi": "10.65828/paxdx121",
+      "title": "Existential Courage and the Fairy Tale of Little Red Riding Hood",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Evgenia Georganda"
+      ]
+    },
+    {
+      "doi": "10.65828/ypke9n41",
+      "title": "Existential Responses to Wildness: The joy of making",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Martin Adams"
+      ]
+    },
+    {
+      "doi": "10.65828/mysv5e12",
+      "title": "Existential Shattering",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Louis Hoffman",
+        "Jeff Singer"
+      ]
+    },
+    {
+      "doi": "10.65828/r6q11730",
+      "title": "Facing Down the Furies: Suicide, the Ancient Greeks and me",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Diana Pringle"
+      ]
+    },
+    {
+      "doi": "10.65828/nfxgj595",
+      "title": "Into the Wild Mind: Life-enhancing anxiety and the experiential democracy dialogue",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Kirk Schneider"
+      ]
+    },
+    {
+      "doi": "10.65828/79gwbs25",
+      "title": "Neglected Existential Thinkers: Lou Andreas-Salomé",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Digby Tantam"
+      ]
+    },
+    {
+      "doi": "10.65828/n08z7006",
+      "title": "On the Calculation of Volume Vol I &amp; II",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Richard Swann"
+      ]
+    },
+    {
+      "doi": "10.65828/ke9fgp03",
+      "title": "Stoats and Weasels",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Digby Tantam"
+      ]
+    },
+    {
+      "doi": "10.65828/6cbr4217",
+      "title": "The Anxiety of Strangers: A Heideggerian approach to leadership, therapy and transformation",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Steven Segal"
+      ]
+    },
+    {
+      "doi": "10.65828/m98vrd76",
+      "title": "The Zone of Interest",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Ondine Smulders"
+      ]
+    },
+    {
+      "doi": "10.65828/qzxkcn55",
+      "title": "Writing Myself Home: A phenomenological enquiry",
+      "volume": "36",
+      "issue": "2",
+      "authors": [
+        "Hermione Ruck Keene"
+      ]
+    },
+    {
+      "doi": "10.65828/zxeg4064",
+      "title": "37.1 Editorial",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Simon Du Plock",
+        "Martin Adams"
+      ]
+    },
+    {
+      "doi": "10.65828/e8bv1q70",
+      "title": "All Those Useless Passions",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Manu Bazzano"
+      ]
+    },
+    {
+      "doi": "10.65828/af3agp29",
+      "title": "An existential psychoanalyst and bridge-builder",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Emmy Van Deurzen"
+      ]
+    },
+    {
+      "doi": "10.65828/nqsd3c88",
+      "title": "Book reviews editorial",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Ondine Smulders"
+      ]
+    },
+    {
+      "doi": "10.65828/0dgkaj31",
+      "title": "Development of Existential Psychotherapy in Central Asia",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Angelina Demilkhanova"
+      ]
+    },
+    {
+      "doi": "10.65828/ntb9vb50",
+      "title": "Existential Analysis and Psychoanalysis",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Andrea Sabbadini"
+      ]
+    },
+    {
+      "doi": "10.65828/mb5qbs89",
+      "title": "Existential Therapy Across Cultures",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Simon Wharne"
+      ]
+    },
+    {
+      "doi": "10.65828/ksyz6052",
+      "title": "Fascist Yoga: Grifters, occultists, white supremacists and the New Order in wellness",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Manu Bazzano"
+      ]
+    },
+    {
+      "doi": "10.65828/v1ddc984",
+      "title": "From Transience to Liberation",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Burcu Tuncel"
+      ]
+    },
+    {
+      "doi": "10.65828/66zf8m91",
+      "title": "From the Abyss of Loneliness to the Bliss of Solitude: Clinical, social and psychoanalytic perspectives",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Diana Pringle"
+      ]
+    },
+    {
+      "doi": "10.65828/z6x22a32",
+      "title": "It is Truth that Heals",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Xuefu Wang"
+      ]
+    },
+    {
+      "doi": "10.65828/a09aeq36",
+      "title": "Love’s Labour",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Ben Scanlan"
+      ]
+    },
+    {
+      "doi": "10.65828/wwfxk064",
+      "title": "Making the invisible, visible",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Claire Arnold-Baker"
+      ]
+    },
+    {
+      "doi": "10.65828/zybtsk71",
+      "title": "Metamodernism and Psychedelics",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Michael R. Montgomery",
+        "Noah Cebuliak"
+      ]
+    },
+    {
+      "doi": "10.65828/gz2esg72",
+      "title": "On Lying",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Emily Howes"
+      ]
+    },
+    {
+      "doi": "10.65828/2db51a19",
+      "title": "Sharing Meaning and Nothingness",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Tavan Thomas"
+      ]
+    },
+    {
+      "doi": "10.65828/czkkdw11",
+      "title": "Simone de Beauvoir and The Ethics of Ambiguity",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Phil Taylor"
+      ]
+    },
+    {
+      "doi": "10.65828/4642pj68",
+      "title": "The Psychosis of Existential Training",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Sheba Boakye-Duah",
+        "Neresia Osbourne"
+      ]
+    },
+    {
+      "doi": "10.65828/ar067507",
+      "title": "The Relationship in Existential Supervision: Dialogues with Aviva K. Barnett and Dida Mitchell",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Ondine Smulders"
+      ]
+    },
+    {
+      "doi": "10.65828/0e5nw719",
+      "title": "Therapy for the Revolution",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Kim Loliya"
+      ]
+    },
+    {
+      "doi": "10.65828/81gbh294",
+      "title": "What Can Existential Therapists Offer in a Time of Climate Crisis?",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Emma Neville"
+      ]
+    },
+    {
+      "doi": "10.65828/nf6jhe53",
+      "title": "Why in the World Not? An introduction to daseinanalysis",
+      "volume": "37",
+      "issue": "1",
+      "authors": [
+        "Kyle C. Glover"
+      ]
+    }
+  ]
+}
