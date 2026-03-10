@@ -284,9 +284,19 @@ if [ "$SYNC_OK" = true ]; then
 
         # --- I8: Status change verification ---
         wp_cli "eval '\$sub = wcs_get_subscription($SUB_ID); \$sub->update_status(\"expired\");'" > /dev/null 2>&1 || true
-        wp_cli "action-scheduler run" > /dev/null 2>&1 || true
-        OJS_SUB_STATUS=$(remote "$COMPOSE exec -T wp curl -sf -H 'Authorization: Bearer $API_KEY' 'http://ojs:80/index.php/journal/api/v1/wpojs/subscriptions?userId=$OJS_USER_ID'") || OJS_SUB_STATUS=""
-        if echo "$OJS_SUB_STATUS" | grep -q '"status":16'; then
+        # Run Action Scheduler multiple times — previous steps may have queued
+        # other jobs (password sync) that need to drain before expire runs.
+        EXPIRE_OK=false
+        for _run in 1 2 3; do
+          wp_cli "action-scheduler run" > /dev/null 2>&1 || true
+          OJS_SUB_STATUS=$(remote "$COMPOSE exec -T wp curl -sf -H 'Authorization: Bearer $API_KEY' 'http://ojs:80/index.php/journal/api/v1/wpojs/subscriptions?userId=$OJS_USER_ID'") || OJS_SUB_STATUS=""
+          if echo "$OJS_SUB_STATUS" | grep -q '"status":16'; then
+            EXPIRE_OK=true
+            break
+          fi
+          sleep 1
+        done
+        if [ "$EXPIRE_OK" = true ]; then
           pass "OJS subscription expired after status change"
         else
           fail "OJS subscription status not updated to expired" "$OJS_SUB_STATUS"
