@@ -127,6 +127,13 @@ echo "  OJS:"
 echo "    URL:   $OJS_URL"
 echo "    Admin: $OJS_URL/index.php/$JOURNAL_PATH/management/settings/access"
 echo "    Login: admin / $OJS_PASS"
+echo ""
+echo "  Adminer (DB admin):"
+if [ "$ENV" = "dev" ]; then
+  echo "    URL:   http://localhost:8082"
+else
+  echo "    Access: ssh -L 8082:127.0.0.1:8082 <host>  →  http://localhost:8082"
+fi
 
 if [ -n "$SAMPLE_DATA" ]; then
   echo ""
