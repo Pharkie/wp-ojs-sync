@@ -48,6 +48,13 @@ for i in $(seq 1 60); do
 done
 echo "[OJS] Install complete (admin user ready, $VERSIONS version records)."
 
+# Clear OPcache — during install, PHP caches the bootstrap in a pre-install
+# state (versions table empty → getVersionString() returns null → 500 on all
+# requests). Graceful restart forces Apache to reload all PHP bytecode.
+echo "[OJS] Restarting Apache to clear OPcache..."
+apache2ctl graceful 2>/dev/null || true
+sleep 2
+
 # --- Enable admin API key for scripted access ---
 API_KEY_ENABLED=$($MARIADB -N -e "SELECT setting_value FROM user_settings WHERE user_id=1 AND setting_name='apiKeyEnabled'")
 if [ "$API_KEY_ENABLED" != "1" ]; then
