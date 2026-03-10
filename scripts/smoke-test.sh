@@ -299,15 +299,26 @@ if [ "$SYNC_OK" = true ]; then
 
   # --- I8: GDPR-verified cleanup ---
   wp_cli "user delete $WP_USER_ID --yes" > /dev/null 2>&1 || true
-  wp_cli "action-scheduler run" > /dev/null 2>&1 || true
-  # Verify OJS user is disabled or anonymised
-  if [ -n "$OJS_USER_ID" ]; then
-    OJS_DELETED_USER=$(remote "$COMPOSE exec -T wp curl -sf -H 'Authorization: Bearer $API_KEY' 'http://ojs:80/index.php/journal/api/v1/wpojs/users?userId=$OJS_USER_ID'") || OJS_DELETED_USER=""
-    if echo "$OJS_DELETED_USER" | grep -q '"disabled":true\|anonymised\.invalid'; then
-      pass "OJS user disabled/anonymised after WP deletion"
-    else
-      fail "OJS user not properly cleaned up after WP deletion" "$OJS_DELETED_USER"
+  # Action Scheduler may have other jobs queued ahead — run multiple times
+  for _run in 1 2 3; do
+    wp_cli "action-scheduler run" > /dev/null 2>&1 || true
+  done
+  # Verify OJS user is anonymised: original email should no longer resolve
+  # (the delete handler changes email to deleted_<id>@anonymised.invalid)
+  CLEANUP_OK=false
+  for _i in 1 2 3; do
+    OJS_DELETED_USER=$(remote "$COMPOSE exec -T wp curl -sf -H 'Authorization: Bearer $API_KEY' 'http://ojs:80/index.php/journal/api/v1/wpojs/users?email=$TEST_EMAIL'") || OJS_DELETED_USER=""
+    if echo "$OJS_DELETED_USER" | grep -q '"found":false'; then
+      CLEANUP_OK=true
+      break
     fi
+    sleep 2
+    wp_cli "action-scheduler run" > /dev/null 2>&1 || true
+  done
+  if [ "$CLEANUP_OK" = true ]; then
+    pass "OJS user anonymised after WP deletion"
+  else
+    fail "OJS user not properly cleaned up after WP deletion" "$OJS_DELETED_USER"
   fi
 fi
 

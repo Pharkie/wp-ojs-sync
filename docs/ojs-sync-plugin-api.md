@@ -24,7 +24,7 @@ Base URL: `{OJS_BASE_URL}/index.php/{journal_path}/api/v1/wpojs`
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `GET` | `/users?email={email}` | Yes | Find user by email. Returns `{"found":true, "userId":N, "email":"...", "username":"...", "disabled":bool}` or `{"found":false}`. Also accepts `?userId={id}`. |
+| `GET` | `/users?email={email}` | Yes | Find user by email. Returns `{"found":true, "userId":N, "email":"...", "username":"...", "disabled":bool}` or `{"found":false}`. |
 | `POST` | `/users/find-or-create` | Yes | Idempotent. Finds existing user by email or creates a new one. Assigns Reader role. Body: `{email, firstName, lastName, passwordHash?}`. Returns `{"userId":N, "created":bool}`. |
 | `PUT` | `/users/{userId}/email` | Yes | Update user email. Body: `{newEmail}`. Returns 409 if email already in use. |
 | `PUT` | `/users/{userId}/password` | Yes | Update user password hash. Body: `{passwordHash}`. |
