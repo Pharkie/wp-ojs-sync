@@ -57,12 +57,13 @@ scripts/deploy.sh [flags]
 
 | Flag | Effect |
 |---|---|
-| `--host=<name>` | SSH host alias (default: `sea-staging`) |
+| `--host=<name>` | Hetzner server name (default: `sea-staging`). Resolved to IP via `hcloud`. |
 | `--provision` | Install Docker on fresh VPS first |
 | `--skip-setup` | Don't run setup (just update code + restart) |
 | `--skip-build` | Don't rebuild Docker images |
 | `--ref=<branch>` | Deploy a specific git ref (default: `main`) |
 | `--clean` | Tear down volumes first (fresh databases) |
+| `--env-file=<path>` | Copy local .env file to VPS after clone |
 
 ---
 
@@ -110,22 +111,20 @@ scripts/init-vps.sh --name=your-server
 cp .env.example .env.staging
 # Edit: set URLs, passwords, salts, API keys
 
-# 3. Copy .env to server
-scp .env.staging your-server:/opt/wp-ojs-sync/.env
+# 3. Provision + deploy (single command — --env-file copies .env after clone)
+scripts/deploy.sh --host=your-server --provision --env-file=.env.staging
 
-# 4. Provision + deploy (installs Docker, clones repo, builds, starts, runs setup)
-scripts/deploy.sh --host=your-server --provision
+# 4. Verify (22 checks)
+scripts/smoke-test.sh --host=your-server
+```
 
-# 5. Copy non-git files (if applicable)
-#    Paid WP plugins (licensed, can't be in git):
-rsync -az -e ssh wordpress/paid-plugins/ your-server:/opt/wp-ojs-sync/wordpress/paid-plugins/
-#    OJS import XML (too large for git):
-scp "data export/ojs-import-clean.xml" "your-server:/opt/wp-ojs-sync/data export/"
+For a **full grave-and-repave** (wipe server and start fresh):
 
-# 6. Re-deploy with data files present
-scripts/deploy.sh --host=your-server --clean
-
-# 7. Verify
+```bash
+hcloud server delete your-server && hcloud firewall delete your-server-fw
+scripts/init-vps.sh --name=your-server
+scripts/deploy.sh --host=your-server --provision --clean --env-file=.env.staging
+# Wait ~7-10 min for setup + sample data import to complete
 scripts/smoke-test.sh --host=your-server
 ```
 
@@ -133,15 +132,20 @@ scripts/smoke-test.sh --host=your-server
 
 Both plugins are bind-mounted from the repo directory on disk, so `git pull` is all you need — PHP reads files directly, no rebuild required.
 
+SSH to the VPS uses hcloud to resolve the IP at runtime — no SSH config needed:
+
 ```bash
+# Helper: resolve SSH for a server name
+source scripts/lib/resolve-ssh.sh && resolve_ssh "sea-staging"
+
 # Push code to the VPS (the normal workflow)
-ssh your-server "cd /opt/wp-ojs-sync && git pull"
+$SSH_CMD "cd /opt/wp-ojs-sync && git pull"
 ```
 
 If PHP opcache is serving stale code (rare), restart the containers:
 
 ```bash
-ssh your-server "cd /opt/wp-ojs-sync && git pull && \
+$SSH_CMD "cd /opt/wp-ojs-sync && git pull && \
   docker compose -f docker-compose.yml -f docker-compose.staging.yml restart wp ojs"
 ```
 
@@ -199,7 +203,7 @@ Lightweight health checks — no Node or Playwright needed on the VPS. Runs from
 scripts/smoke-test.sh --host=your-server
 ```
 
-Checks (18 total):
+Checks (22 total):
 1. WP HTTP responds
 1b. WP Admin page loads (catches .env permission issues, PHP fatals)
 1c. OJS Admin page loads (catches missing journal, PHP fatals)
@@ -211,7 +215,8 @@ Checks (18 total):
 6. WP-CLI `test-connection`
 7. Required plugins active (5 plugins checked)
 8. OJS subscription types configured
-9. Full sync round-trip (create user, sync to OJS, verify subscription, cleanup)
+8b. Product-to-type mapping validated (all 6 products)
+9. Full sync round-trip (create user, sync, verify subscription, expire, anonymise on delete)
 10. Reconciliation completes
 
 ### Load tests

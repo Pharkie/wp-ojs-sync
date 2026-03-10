@@ -9,7 +9,7 @@ We use [Hetzner Cloud](https://www.hetzner.com/cloud/) for staging and productio
 ## Quick start with init-vps.sh
 
 ```bash
-# Requires hcloud CLI and HCLOUD_TOKEN env var
+# Requires hcloud CLI with an active context (hcloud context use <name>)
 scripts/init-vps.sh --name=my-server
 
 # With SSL ports (production)

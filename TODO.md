@@ -9,7 +9,7 @@
 - UI messages (OJS login hint, paywall hint, footer)
 - Non-Docker setup guide — `docs/non-docker-setup.md`
 - Dev environment clean rebuild verified — all 58 e2e tests passing
-- Staging VPS on Hetzner (personal account) — fully scripted, smoke tests (17/17) + load tests passing
+- Staging VPS on Hetzner (Michal's org account) — fully scripted, smoke tests (22/22) + load tests passing, bulk sync 684/684 clean
 - Deployment automation — `init-vps.sh`, `deploy.sh`, `provision-vps.sh`, `smoke-test.sh`, `load-test.sh`
 - Deployment docs — `docs/vps-deployment.md` (public), `docs/private/staging-prod-setup.md` (private)
 - Security hardening — no default passwords (fail-loud), env var validation in deploy.sh, .env permissions handling
@@ -21,7 +21,7 @@
 
 ## Blocked — waiting on access
 
-- [ ] **Hetzner Cloud account for SEA** — ID verification + payment card. Needed for production VPS.
+- [x] ~~**Hetzner Cloud account for SEA**~~ — Done. Using Michal's org account (`sea-michal`).
 - [ ] **Krystal WP SSH access** — pull SEAcomm/Helium theme files, check config
 - [ ] **Krystal OJS staging SSH access** — pull OJS theme
 
@@ -29,7 +29,7 @@
 
 Deploy sync plugin to existing Krystal WP. OJS runs on new SEA-owned Hetzner VPS.
 
-- [ ] Set up SEA Hetzner VPS (staging + production) — `scripts/init-vps.sh`
+- [x] ~~Set up SEA Hetzner VPS (staging)~~ — `scripts/init-vps.sh`, deployed and verified 2026-03-10
 - [ ] Set up transactional email (Resend) — domain verification, SPF/DKIM/DMARC, OJS SMTP config
 - [ ] Integrate SEAcomm/Helium themes into staging (requires Krystal access)
 - [ ] Integrate OJS theme from Krystal staging (requires Krystal access)
@@ -63,17 +63,17 @@ Second Hetzner VPS running WP + OJS. Runs quietly on IP while Krystal stays live
 - [ ] Monitor 24-48h
 - [ ] Cancel Krystal hosting
 
-## Staging test results (2026-03-02, external tester)
+## Staging test results (2026-03-10, sea-michal account)
 
 - [x] Connection test passes
-- [x] Bulk backfill — existing members synced to OJS
+- [x] Bulk sync — 684/684 members synced to OJS (50s, 0 failures)
 - [x] OJS API endpoint mounted and responding
-- [x] WP mapping configured: WC Product 23042 → OJS Type 1
-- [ ] **New member flow** — create WCS subscription, verify OJS user + access created automatically
-- [ ] **Cancellation/expiry** — cancel subscription, verify OJS access removed
-- [ ] **On-hold / failed payment** — test payment failure scenarios
-- [ ] **All products mapped** — configure all 6 WC products
-- [ ] **Password flow** — verify OJS login with WP password works after bulk sync
+- [x] All 6 products mapped to OJS subscription types
+- [x] Smoke tests 22/22 — includes full sync round-trip (create, subscribe, expire, anonymise)
+- [x] OJS login with WP password works after bulk sync
+- [ ] **New member flow** — create WCS subscription, verify OJS user + access created automatically (needs live testing)
+- [ ] **Cancellation/expiry** — cancel subscription, verify OJS access removed (needs live testing)
+- [ ] **On-hold / failed payment** — test payment failure scenarios (needs live testing)
 
 ## Playwright E2E browser tests (`e2e/`)
 
