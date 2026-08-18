@@ -27,6 +27,9 @@ import json
 import argparse
 import subprocess
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from lib.paths import load_toc  # noqa: E402
+
 # Mirrors pipe6_ojs_xml.ACCESS_OVERRIDES — toc.json "access" beats the section.
 ACCESS_OVERRIDES = {'open': '1', 'subscription': '0', 'paywalled': '0'}
 
@@ -299,8 +302,7 @@ def main():
     parser.add_argument('--journal-path', default='ea', help='OJS journal path (default: ea)')
     args = parser.parse_args()
 
-    with open(args.toc_json) as f:
-        toc_data = json.load(f)
+    toc_data = load_toc(args.toc_json)
 
     container = args.container
     if args.docker and not container:

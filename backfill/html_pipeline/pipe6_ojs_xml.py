@@ -34,6 +34,7 @@ except ImportError:
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 from backfill.lib.doi_validate import check_volume_dir  # noqa: E402
+from backfill.lib.paths import load_toc  # noqa: E402
 
 
 # Section config: ref, title, abbreviation, access_status, seq
@@ -893,8 +894,7 @@ def main():
                              'reaches Crossref and readers.')
     args = parser.parse_args()
 
-    with open(args.toc_json) as f:
-        toc_data = json.load(f)
+    toc_data = load_toc(args.toc_json)
 
     if args.no_pdfs:
         # Remove PDF paths so they won't be embedded

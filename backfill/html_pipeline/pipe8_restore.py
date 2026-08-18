@@ -37,6 +37,9 @@ import subprocess
 import sys
 from xml.etree import ElementTree as ET
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from lib.paths import load_toc  # noqa: E402
+
 BACKFILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUT_DIR = os.path.join(BACKFILL_DIR, 'private', 'output')
 
@@ -408,8 +411,7 @@ def main():
     reg_articles = []
     reg_issues = []
     for toc_path in sorted(glob.glob(os.path.join(OUTPUT_DIR, '*/toc.json'))):
-        with open(toc_path) as f:
-            toc = json.load(f)
+        toc = load_toc(toc_path)
         vol = str(toc['volume'])
         iss = str(toc['issue'])
 
