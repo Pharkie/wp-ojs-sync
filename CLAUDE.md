@@ -77,11 +77,15 @@ finished work stays prose — only the decision must be interactive.
 
 ## Backfill pipeline
 
-Imports journal back-issues (whole-issue PDFs) into OJS. See [`backfill/README.md`](backfill/README.md) for the pipeline overview, [`docs/backfill-reference.md`](docs/backfill-reference.md) for command reference, and [`docs/archive-checker-plugin.md`](docs/archive-checker-plugin.md) for the QA workflow.
+🛑 **The content half of this pipeline is no longer here.** On 2026-08-18 the stages that turn an issue PDF into per-article PDFs, HTML, JATS and citations moved to Harbour, `membership-platform/scripts/pipeline/`, and were deleted from this repo. What remains is **delivery into OJS only**: `pipe6`–`pipe13`. Generate an issue over there, then run these against the same output folder.
 
-Structure: `backfill/split_pipeline/` (PDF splitting, split1–split5), `backfill/html_pipeline/` (HTML/JATS/import, pipe1–pipe11), `backfill/lib/` (shared code), `backfill/validate_toc.py`.
+Imports journal back-issues into OJS. See [`docs/backfill-reference.md`](docs/backfill-reference.md) for command reference and [`docs/archive-checker-plugin.md`](docs/archive-checker-plugin.md) for the QA workflow. Generation: `membership-platform/scripts/pipeline/README.md`.
 
-**Publishing a NEW issue is a different path** — see [`docs/new-issue-runbook.md`](docs/new-issue-runbook.md). Born-digital issues use `pipe1d_layout_html.py` (layout analysis, no API calls) instead of `pipe1_haiku_html.py`; DOIs are minted after import by `pipe11_assign_dois.sh` and then written back into JATS by `tools/snapshot_ids.py`; `pipe8_restore.py` is skipped on the first import because there are no prior IDs to restore.
+Structure: `backfill/html_pipeline/` (OJS delivery, pipe6–pipe13), `backfill/lib/` (`crossref.py`, `doi_validate.py`, `paths.py`).
+
+**`lib/paths.py` is what lets these stages read a folder Harbour generated.** `toc.json` records `split_pdf` relative to the repository root that wrote it, so a Harbour-generated folder points at `./scripts/pipeline/private/...`, which resolves to nothing here. `load_toc()` resolves each split PDF beside its own toc.json. Every stage that reads a toc must load it that way — a bare `json.load` reintroduces the break, and `backfill/tests/test_paths_interop.py` fails if one does.
+
+**Publishing a NEW issue is a different path** — see [`docs/new-issue-runbook.md`](docs/new-issue-runbook.md). Its generation steps are now Harbour's; the OJS half is unchanged. DOIs are minted after import by `pipe11_assign_dois.sh` and then written back into JATS by `tools/snapshot_ids.py`; `pipe8_restore.py` is skipped on the first import because there are no prior IDs to restore.
 
 ### Gotchas
 
@@ -89,11 +93,12 @@ Structure: `backfill/split_pipeline/` (PDF splitting, split1–split5), `backfil
 - **toc.json `authors` field** is always a string (e.g. `"Emmy van Deurzen & Michael R. Montgomery"`). Do not convert to list — 8+ downstream scripts expect string.
 - **🛑 Check a volume reproduces before reprocessing it: `scripts/dev/check-idempotent.sh <vol.iss>`.** It regenerates from `raw.html`, diffs against git, and restores. A volume that does not reproduce has been fixed downstream at some point, so rerunning it silently undoes that fix and reinstates the original defect. This is not hypothetical: 12.1 turned five paragraphs of a book review into references that way (2026-08-10), and a corpus sweep found **47 of 70 volumes** in the same state — 53 articles carrying the *next* article's opening text, 96% of them book reviews sharing a page with the following review. `lib/postprocess.py` now cuts 40 of those 53 itself; the remaining **13 are known drift** (the printed header differs too much from the toc title) and are listed by the script. Live is correct for all of them — the risk is entirely in reprocessing.
 - **Published-article amendments go through the pipeline, never the OJS UI or hand-edits to generated files.** Edit `raw.html`, set `_manual_html` in toc.json, rerun pipe2→pipe6, reimport the issue (`--force` + pipe8/9b/9c). Hand-edits to JATS/galleys are silently lost on the next rerun, and UI edits desync the other galleys, the issue PDF (#37), and the successor system. See `docs/support-runbook.md`. **Metadata-only corrections (author name, title) have a fast path** that skips the reimport and the reindex storm: `pipe13_patch_metadata.py` (+ `--galleys` for the article's own files, `pipe9_issue_galleys.sh --replace` for the issue PDF, `pipe12 --redeposit` for Crossref) — see `docs/new-issue-runbook.md` §1c. Author-name fixes must flip `backfill/private/authors.json` first or the split normaliser reverts them.
-- **`_manual_html` in toc.json** = hand-corrected HTML galleys. `pipe1_haiku_html.py` skips these automatically.
 - **Haiku extraction can drop repeated/multilingual content.** Always verify HTML galleys against source PDFs for articles with non-English references.
 - **Docker in devcontainer requires `sudo`** for `pipe7_import.sh` and `pipe8_restore.py` (they call `docker` directly). Other pipeline steps (pipe1–pipe6) don't need Docker. For `--target live`, do NOT use `sudo` — it breaks SSH config resolution. Only `--target dev` needs `sudo`.
 - **pipe3 auto-reflows line-wrapped paragraphs.** The extractor sometimes emits one `<p>` per physical PDF line; `reflow_paragraphs.py` repairs this from the PDF's own wrap markers and **pipe3 now applies it to every JATS it writes** (added 2026-08-04 after the 93-article reflow of 2026-08-03 — applied to generated files only — was silently undone by the next regeneration). Never apply reflow as a one-off pass over outputs; anything not in the pipeline is lost on the next rerun. All its safety gates decline rather than guess.
-- **`pipe3_generate_jats.py` wipes citations AND DOIs** — ALWAYS run full pipeline (pipe2→pipe6), never skip `pipe4_extract_citations.py`. The inverse also holds: **never run `pipe4` on its own** against already-extracted JATS. It moves references out of the body, so a second pass finds an empty body and re-derives the back matter from the leftovers — on 37.2 that silently cost one article four of its ten references, and the issue total was unchanged because another article gained exactly four (issues log #40). Diff per-article counts, never the total. After pipe3+pipe4, run pipe4b to re-attach DOIs from `doi_matches.json` cache (~2 min, no API calls). Only use `--revalidate` when you need to re-score against Crossref (~45 min).
+- **Regeneration gotchas moved with the code.** `_manual_html`, "never run
+  `pipe4` on its own", the reflow rule and the DOI cache are documented where
+  those stages now live: `membership-platform/scripts/pipeline/README.md`.
 - **Three HTML stages per article:** `.raw.html` (Haiku extraction), `.post.html` (post-processed), `.galley.html` (from JATS). No file collisions.
 - **Three galleys per article in OJS:** PDF, HTML ("Full Text"), and JATS XML. All subject to the same paywall. JATS XML galley is for OAI-PMH harvesting, indexing, and preservation.
 - **Citation classification is heading-driven.** Items under "References" → citations. Items under "Notes" → notes. The heading is the authority — no per-item promotion between categories. Bio/contact headings ("About the Author", "Author Bio", "Contact", "Author Information") → bios. Each item gets exactly 1 classification, never 0 or 2. Contact info is always part of bio.
@@ -103,12 +108,10 @@ Structure: `backfill/split_pipeline/` (PDF splitting, split1–split5), `backfil
 
 ### QA iteration loop
 
-1. Fix the post-processing pipeline (systemic fix, not per-article)
-2. `python3 backfill/html_pipeline/pipe2_postprocess.py backfill/private/output/<vol.iss>/toc.json`
-3. `python3 backfill/html_pipeline/pipe3_generate_jats.py backfill/private/output/<vol.iss>/toc.json`
-4. `python3 backfill/html_pipeline/pipe4_extract_citations.py --extract --volume <vol.iss>`
-4b. `python3 backfill/html_pipeline/pipe4b_match_dois.py --volume <vol.iss> --email EMAIL` (re-attaches DOIs from cache, ~2 sec/vol — **do NOT use --revalidate** unless you need fresh Crossref scoring)
-5. `python3 backfill/html_pipeline/pipe5_galley_html.py backfill/private/output/<vol.iss>/toc.json`
+1. Steps 1–5 are Harbour's now — fix the pipeline and regenerate there
+   (`scripts/pipeline/README.md`; the run is pipe2 → pipe3 → pipe4 → pipe4b →
+   pipe5 against the same output folder). **Run pipe2–pipe5 as a block**: pipe3
+   rewrites the JATS from scratch and pipe4 expects exactly that state.
 6. `python3 backfill/html_pipeline/pipe6_ojs_xml.py <toc.json>` (writes import.xml next to toc.json)
 7. `sudo bash backfill/html_pipeline/pipe7_import.sh backfill/private/output/<vol.iss> --force` (~7 sec)
 8. `sudo python3 backfill/html_pipeline/pipe8_restore.py --target dev --issue <vol.iss>` (~0.6 sec)

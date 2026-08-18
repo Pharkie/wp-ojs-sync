@@ -1,4 +1,8 @@
-"""Tests for backfill/generate_xml.py — OJS Native XML generation and JATS generation."""
+"""Tests for pipe6_ojs_xml.py — OJS Native XML generation.
+
+The JATS half moved to Harbour with pipe3 on 2026-08-18; it is
+scripts/pipeline/tests/test_generate_jats.py there. What is left tests the
+OJS import XML, which has no consumer outside this repo."""
 
 import os
 import sys
@@ -15,51 +19,6 @@ from backfill.html_pipeline.pipe6_ojs_xml import (
     load_jats_galley,
     SECTIONS,
 )
-from backfill.html_pipeline.pipe3_generate_jats import (
-    generate_article_jats,
-    HTMLToJATSConverter,
-)
-
-
-class TestH3ToJats:
-    """h3 subheadings must produce nested <sec> in JATS body."""
-
-    def _convert(self, html):
-        converter = HTMLToJATSConverter()
-        converter.feed(html)
-        return converter.get_jats()
-
-    def test_h3_produces_nested_sec(self):
-        html = '<h2>Main</h2><p>Intro.</p><h3>Sub</h3><p>Detail.</p>'
-        jats = self._convert(html)
-        assert '<sec><title>Main</title>' in jats
-        assert '<sec><title>Sub</title>' in jats
-        # Nested sec should close before parent
-        main_pos = jats.index('Main')
-        sub_pos = jats.index('Sub')
-        assert main_pos < sub_pos
-
-    def test_h3_closed_before_next_h2(self):
-        html = '<h2>Section A</h2><h3>Sub A</h3><p>Text.</p><h2>Section B</h2><p>More.</p>'
-        jats = self._convert(html)
-        # Count sec closings — should have sub closed, then parent, then new section
-        assert jats.count('<sec>') == 3  # Section A, Sub A, Section B
-        assert jats.count('</sec>') == 3
-
-    def test_multiple_h3_in_section(self):
-        html = '<h2>Poems</h2><h3>Inspiration</h3><p>A.</p><h3>Audience response</h3><p>B.</p>'
-        jats = self._convert(html)
-        assert 'Inspiration' in jats
-        assert 'Audience response' in jats
-        # Each h3 should be its own sec
-        assert jats.count('<sec><title>Inspiration') == 1
-        assert jats.count('<sec><title>Audience response') == 1
-
-    def test_h3_without_parent_h2(self):
-        """h3 with no preceding h2 still produces a sec."""
-        html = '<h3>Standalone Sub</h3><p>Content.</p>'
-        jats = self._convert(html)
-        assert '<sec><title>Standalone Sub</title>' in jats
 
 
 class TestParseDate:
@@ -440,6 +399,7 @@ class TestDoiInXml:
 
 # ── JATS XML galley ──
 
+
 class TestJatsGalley:
     """Test that JATS XML is included as a third galley alongside PDF and HTML."""
 
@@ -579,97 +539,6 @@ class TestLoadJatsGalley:
 
 # ── JATS <product> generation (pipe3) ──
 
-class TestJatsProduct:
-    """Test that pipe3 generates <product> for book reviews."""
-
-    def _book_review_article(self, **overrides):
-        article = {
-            'title': 'Book Review: Anxiety',
-            'authors': 'Andrew Miller',
-            'section': 'Book Reviews',
-            'book_title': 'Anxiety: A philosophical guide',
-            'book_author': 'Samir Chopra',
-            'book_year': 2024,
-            'publisher': 'Princeton: Princeton University Press',
-            'journal_page_start': 201,
-            'journal_page_end': 203,
-        }
-        article.update(overrides)
-        return article
-
-    def _parse_jats(self, article, **kwargs):
-        jats_str = generate_article_jats(
-            article, volume=36, issue=1,
-            date_published='2025-01-01', html_path=None, doi=None,
-            **kwargs,
-        )
-        return ET.fromstring(jats_str)
-
-    def test_product_present_for_book_review(self):
-        root = self._parse_jats(self._book_review_article())
-        product = root.find('.//{*}product')
-        assert product is not None
-
-    def test_product_absent_for_regular_article(self):
-        article = {
-            'title': 'Test Article', 'authors': 'John Doe',
-            'section': 'Articles',
-            'journal_page_start': 1, 'journal_page_end': 10,
-        }
-        root = self._parse_jats(article)
-        product = root.find('.//{*}product')
-        assert product is None
-
-    def test_product_absent_without_book_title(self):
-        root = self._parse_jats(self._book_review_article(book_title=None))
-        product = root.find('.//{*}product')
-        assert product is None
-
-    def test_product_source(self):
-        root = self._parse_jats(self._book_review_article())
-        source = root.find('.//{*}product/{*}source')
-        assert source is not None
-        assert source.text == 'Anxiety: A philosophical guide'
-
-    def test_product_year(self):
-        root = self._parse_jats(self._book_review_article())
-        year = root.find('.//{*}product/{*}year')
-        assert year is not None
-        assert year.text == '2024'
-
-    def test_product_author(self):
-        root = self._parse_jats(self._book_review_article())
-        pg = root.find('.//{*}product/{*}person-group')
-        assert pg is not None
-        assert pg.get('person-group-type') == 'author'
-        surname = pg.find('.//{*}surname')
-        assert surname.text == 'Chopra'
-
-    def test_product_editor_annotation(self):
-        root = self._parse_jats(self._book_review_article(
-            book_author='Emmy van Deurzen & Susan Iacovou (eds.)',
-        ))
-        pg = root.find('.//{*}product/{*}person-group')
-        assert pg.get('person-group-type') == 'editor'
-        names = pg.findall('{*}name')
-        assert len(names) == 2
-
-    def test_product_publisher_split(self):
-        root = self._parse_jats(self._book_review_article())
-        pub_loc = root.find('.//{*}product/{*}publisher-loc')
-        pub_name = root.find('.//{*}product/{*}publisher-name')
-        assert pub_loc.text == 'Princeton'
-        assert pub_name.text == 'Princeton University Press'
-
-    def test_product_publisher_no_location(self):
-        root = self._parse_jats(self._book_review_article(
-            publisher='Open Press',
-        ))
-        pub_loc = root.find('.//{*}product/{*}publisher-loc')
-        pub_name = root.find('.//{*}product/{*}publisher-name')
-        assert pub_loc is None
-        assert pub_name.text == 'Open Press'
-
 
 class TestOrcid:
     """Per-article `orcids` map: {author name as written in "authors": URL}.
@@ -690,31 +559,6 @@ class TestOrcid:
         }
         article.update(overrides)
         return article
-
-    def test_jats_contrib_id(self):
-        jats_str = generate_article_jats(
-            self._article(), volume=37, issue=2,
-            date_published='2026-07-01', html_path=None, doi=None)
-        root = ET.fromstring(jats_str)
-        cid = root.find('.//{*}contrib-group/{*}contrib/{*}contrib-id')
-        assert cid is not None
-        assert cid.get('contrib-id-type') == 'orcid'
-        assert cid.text == ORCID_URL
-
-    def test_jats_no_contrib_id_without_map(self):
-        jats_str = generate_article_jats(
-            self._article(orcids={}), volume=37, issue=2,
-            date_published='2026-07-01', html_path=None, doi=None)
-        root = ET.fromstring(jats_str)
-        assert root.find('.//{*}contrib-group/{*}contrib/{*}contrib-id') is None
-
-    def test_jats_name_mismatch_emits_nothing(self):
-        """A key that matches no author must not attach to a different author."""
-        jats_str = generate_article_jats(
-            self._article(orcids={'Someone Else': ORCID_URL}), volume=37, issue=2,
-            date_published='2026-07-01', html_path=None, doi=None)
-        root = ET.fromstring(jats_str)
-        assert root.find('.//{*}contrib-group/{*}contrib/{*}contrib-id') is None
 
     def test_import_xml_orcid_element(self):
         toc = {
@@ -743,38 +587,3 @@ class TestOrcid:
 
 
 ORCID_URL = TestOrcid.ORCID
-
-
-class TestOrcidTocValidation:
-    """validate_toc: catch a misspelt name or a non-canonical ORCID form."""
-
-    def _toc(self, orcids):
-        return {
-            'volume': 37, 'date': 'July 2026',
-            'articles': [{
-                'title': 'T', 'authors': 'Jun Woo Kwon', 'section': 'Articles',
-                'pdf_page_start': 1, 'pdf_page_end': 2, 'orcids': orcids,
-            }],
-        }
-
-    def _validate(self, orcids):
-        import json as _json
-        from backfill.validate_toc import validate_toc
-        with tempfile.NamedTemporaryFile('w', suffix='.json', delete=False) as f:
-            _json.dump(self._toc(orcids), f)
-            path = f.name
-        try:
-            return validate_toc(Path(path))
-        finally:
-            os.unlink(path)
-
-    def test_valid_orcid_passes(self):
-        assert self._validate({'Jun Woo Kwon': ORCID_URL}) == []
-
-    def test_unknown_name_fails(self):
-        errors = self._validate({'Jon Woo Kwon': ORCID_URL})
-        assert any('not found in authors' in e for e in errors)
-
-    def test_bare_id_fails(self):
-        errors = self._validate({'Jun Woo Kwon': '0009-0006-0635-9649'})
-        assert any('canonical URL' in e for e in errors)

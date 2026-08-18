@@ -1,5 +1,10 @@
 # Contributing
 
+> 🛑 **The content-generation stages described here left this repo on 2026-08-18.**
+> They are `membership-platform/scripts/pipeline/` now — see its README. What
+> stays here is delivery into OJS (`pipe6`–`pipe13`). Everything below about the
+> OJS half is still accurate; the generation commands have moved.
+
 ## Code conventions
 
 - WordPress plugin standards (PHP)

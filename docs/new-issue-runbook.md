@@ -1,5 +1,10 @@
 # Publishing a new issue
 
+> 🛑 **The content-generation stages described here left this repo on 2026-08-18.**
+> They are `membership-platform/scripts/pipeline/` now — see its README. What
+> stays here is delivery into OJS (`pipe6`–`pipe13`). Everything below about the
+> OJS half is still accurate; the generation commands have moved.
+
 How to take the finished issue PDF from the production editor and get it live on
 OJS. For importing historical back-issues, see [Backfill Pipeline](backfill-pipeline.md)
 and [Backfill Reference](backfill-reference.md) — this runbook reuses the same
