@@ -33,6 +33,7 @@ OUTPUT_DIR = BACKFILL_DIR / 'private' / 'output'
 
 # Reuse pipe9b's SQL infrastructure
 sys.path.insert(0, str(BACKFILL_DIR))
+from lib.paths import load_toc  # noqa: E402
 from html_pipeline.pipe9b_citation_dois import (
     TARGETS, run_sql, check_connectivity, SqlError, _normalize, _escape_sql,
 )
@@ -57,8 +58,7 @@ def load_content_filtered_from_jats(vol_dirs):
         toc_path = vol_dir / 'toc.json'
         if not toc_path.exists():
             continue
-        with open(toc_path) as f:
-            toc = json.load(f)
+        toc = load_toc(toc_path)
 
         volume = str(toc.get('volume', ''))
         issue = str(toc.get('issue', ''))

@@ -57,6 +57,9 @@ import time
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from lib.paths import load_toc  # noqa: E402
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 DB_CMD = {
@@ -119,7 +122,7 @@ def jats_text(el):
 
 def load_jats(toc_path, only_index=None):
     """Read publisher-id, title, abstract and contribs from each JATS file."""
-    toc = json.load(open(toc_path))
+    toc = load_toc(toc_path)
     articles = []
     for i, art in enumerate(toc['articles'], 1):
         if only_index is not None and i != only_index:

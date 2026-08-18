@@ -1,5 +1,10 @@
 # Archive Checker Plugin
 
+> 🛑 **The content-generation stages described here left this repo on 2026-08-18.**
+> They are `membership-platform/scripts/pipeline/` now — see its README. What
+> stays here is delivery into OJS (`pipe6`–`pipe13`). Everything below about the
+> OJS half is still accurate; the generation commands have moved.
+
 Visual review tool for checking archive journal articles inside OJS. Responsive three-tier layout: desktop (sidebar + PDF + HTML side-by-side), tablet (stacked PDF/HTML with slide-out drawer), phone (single-pane with PDF/HTML tab switching).
 
 ## Purpose

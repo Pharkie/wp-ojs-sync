@@ -1,5 +1,10 @@
 # Citation classification rules
 
+> 🛑 **The content-generation stages described here left this repo on 2026-08-18.**
+> They are `membership-platform/scripts/pipeline/` now — see its README. What
+> stays here is delivery into OJS (`pipe6`–`pipe13`). Everything below about the
+> OJS half is still accurate; the generation commands have moved.
+
 How extracted items from article reference sections are classified into four categories. Each item goes into exactly one category, which determines where it appears in JATS and how it's rendered in OJS.
 
 ## Categories
