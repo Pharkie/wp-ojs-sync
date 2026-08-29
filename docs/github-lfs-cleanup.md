@@ -100,42 +100,63 @@ workflows there are live: `monitor-daily.yml`, `monitor-rerun.yml` and
 the secrets, the OJS/WP checks are silently not running and their Better Stack
 heartbeats will go red. Do this in one sitting, and expect the heartbeat alerts.
 
-### The commands
+### Where it stands — steps 1 and 2 are DONE
+
+Adam chose this route on 2026-08-29, and everything that can be done without
+destroying anything has been:
+
+- **The rewritten repository is ready** at
+  `~/dev/SEA/sea-ojs-private-lfs-cleanup/rewritten-repo` — 156 backup pointers
+  removed, no commit mentioning `backups/`, all 1,579 journal PDF objects
+  fetched (620 MB) and `git lfs fsck` clean, `origin` already set.
+- **`.github/workflows/backup.yml` has been deleted in that rewrite.** It was the
+  thing that caused all this and R2 replaced it. That removes the last use of
+  `SSH_PRIVATE_KEY`, so **the recreated repo needs six secrets, not nine** —
+  `CADDY_WP_AUTH_PASS` and `KNOWN_HOSTS` turned out to be referenced by no
+  workflow at all.
+- **The replacement monitoring key exists and is proven.**
+  `~/.ssh/hetzner-monitor` (fingerprint `SHA256:ind5ops4B9022vkPLRhbPVQjh/AFZptkGpaDK6QV91I`)
+  is installed in both `/root/.ssh/authorized_keys` and
+  `/home/deploy/.ssh/authorized_keys` with the same
+  `command="/usr/local/bin/monitor-shell.sh",restrict` as the old one, and was
+  tested end to end: an allowed command works as both users, a real
+  `cd /opt/harbour/app && …` shape works, an interactive session is rejected and
+  so is an off-list command. **It works while the old key still works**, which is
+  the only order in which that is worth knowing.
+- **`restore-secrets.sh --check`** in the same directory resolves all six values
+  from their real homes without touching GitHub. It was run on 2026-08-29 and all
+  six came back. Re-run it immediately before the delete.
+
+### What is left
 
 ```bash
-# 1. Pointer-only clone, then strip backups/ — and fetch the PDF objects AFTER
-#    the strip, so only the 0.62 GB we intend to keep is downloaded.
-#
-# 🛑 DO NOT `git lfs fetch --all` BEFORE THE STRIP. The free tier gives 10 GB of
-#    BANDWIDTH a month as well as 10 GB of storage, so pulling the 11.68 GB of
-#    history would blow the bandwidth quota and block the very push in step 4.
-#    It also means the historical dumps are GONE, not archived — which is the
-#    decision being taken here, and it should be taken deliberately.
+cd ~/dev/SEA/sea-ojs-private-lfs-cleanup
 
-# 2. Strip backups/ from every commit, then pull down what remains.
-GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/Pharkie/sea-ojs-private.git clean
-cd clean
-git filter-repo --path backups --invert-paths          # pipx install git-filter-repo
-sed -i '/^backups\//d' .gitattributes
-git add .gitattributes && git commit -m "Drop the LFS backup tracking; off-site is R2 now"
-git remote add origin https://github.com/Pharkie/sea-ojs-private.git
-git lfs ls-files --all | wc -l                          # expect 1579, all backfill PDFs
-git lfs fetch --all                                     # ~0.62 GB now the dumps are gone
-git lfs fsck --pointers                                 # must say OK before step 3
+# 0. Prove, one more time, that nothing is missing. If this is not clean, STOP.
+./restore-secrets.sh --check
 
-# 3. Delete the repository. THIS IS THE IRREVERSIBLE STEP.
+# 1. Delete the repository. THIS IS THE IRREVERSIBLE STEP, and from here until
+#    step 3 the OJS monitoring is not running.
 gh repo delete Pharkie/sea-ojs-private --yes
 
-# 4. Recreate and push.
+# 2. Recreate and push the rewritten history.
 gh repo create Pharkie/sea-ojs-private --private
-git remote set-url origin https://github.com/Pharkie/sea-ojs-private.git
-git push --all && git push --tags
+cd rewritten-repo && git push --all && git push --tags && cd ..
 
-# 5. Re-add the nine secrets, then confirm the monitors run.
-gh secret set SSH_PRIVATE_KEY -R Pharkie/sea-ojs-private < ~/.ssh/hetzner-backup
-# … and the other eight …
+# 3. Put the six secrets back, then prove the monitors run again.
+./restore-secrets.sh
 gh workflow run monitor-daily.yml -R Pharkie/sea-ojs-private
+sleep 45 && gh run list -R Pharkie/sea-ojs-private --limit 3
+
+# 4. Once the monitors are green, retire the old key from the box.
+ssh sea-live "sed -i '/github-actions-monitor$/d' /root/.ssh/authorized_keys \
+                                                 /home/deploy/.ssh/authorized_keys"
 ```
+
+Step 4 matters: until it is run, the box still trusts a private key that was
+last seen inside a deleted GitHub secret. Leave it in place until the new one has
+demonstrably worked, then remove it — the `$` anchor is deliberate, so it matches
+`github-actions-monitor` and not `github-actions-monitor-v2`.
 
 Storage does not drop instantly — reports of a 17 GB repo taking about fifteen
 minutes. Check the account's billing page rather than assuming it failed.
@@ -158,16 +179,9 @@ $5/month per 50 GB. Removes the problem without removing the data, and pays
 indefinitely to store database dumps that R2 now holds anyway. Worth naming only
 so that "do nothing" is a considered choice rather than a default.
 
-**Steps 1 and 2 have already been run** (2026-08-29) and the result is sitting in
-this session's scratchpad: 156 backup pointers removed, all 1,579 backfill PDF
-objects fetched and `git lfs fsck` clean. It is a scratch directory, so treat it
-as saving an hour rather than as a thing to depend on — the commands above
-reproduce it from scratch in about five minutes.
+## Decision
 
-## Recommendation
-
-**B, then A if Support declines.** The urgency ended when the workflow was
-disabled: nothing is growing, and the only cost of waiting is the allowance
-sitting full. That makes the option that keeps the monitoring up the better
-trade, even though it is slower — and if it fails, A is still there and the
-rescue clone from step 1 makes it safe.
+**A — delete and recreate.** Chosen by Adam on 2026-08-29, after being told that
+`SSH_MONITOR_KEY` could not be recovered and that the historical dumps would be
+discarded rather than archived. B and C stay written down because if the delete
+goes wrong halfway, they are what is left.
