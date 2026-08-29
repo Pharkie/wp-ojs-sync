@@ -52,7 +52,8 @@ committed each night's dump through Git LFS. The workflow pruned to 30 daily —
 but **pruning a file does not free its LFS object**. 156 objects, 11.06 GB,
 against a 10 GB account quota, and GitHub's documented way to reclaim it is to
 delete the repository, because a history rewrite never touches the object store.
-Any backup scheme whose "delete" does not free bytes will do this again.
+Any backup scheme whose "delete" does not free bytes will do this again. The
+remediation for the 11 GB already there is in [`github-lfs-cleanup.md`](github-lfs-cleanup.md).
 
 Configuration lives in the VPS's root-only `/opt/pharkie-ojs-plugins/.env`:
 
