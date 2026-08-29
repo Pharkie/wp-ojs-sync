@@ -43,7 +43,11 @@ KEEP_WEEKLY_DAYS=84
 # past the limit and delete the lot — the run that finally works would be the
 # run that empties the store. Below this many objects the expiry step is skipped
 # and says so, on the principle that too many backups is not an incident.
-EXPIRE_FLOOR=7
+#
+# 14, not 7, because a night here writes THREE dumps into daily/ — ojs, wp and
+# umami — so 7 is barely two nights of margin. Pick this from what a night
+# actually produces rather than copying the number from another script.
+EXPIRE_FLOOR=14
 
 DRY_RUN=""
 for arg in "$@"; do
@@ -57,7 +61,14 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 # --- Configuration ------------------------------------------------------------
 # Sourced from the same .env as backup-ojs-db.sh. That file is root-only and not
 # in git; the names are documented in docs/setup-guide.md.
-ENV_FILE="$PROJECT_DIR/.env"
+#
+# 🛑 THIS FILE WINS OVER THE CALLER'S ENVIRONMENT — `set -a; source` overwrites
+# anything already exported. That is right for cron, which has no environment at
+# all, but it means you cannot rehearse this by exporting BACKUP_R2_ENABLED=true
+# in your shell: the file's `false` silently wins and the run becomes a no-op
+# that still exits 0. Point OJS_BACKUP_ENV_FILE at a scratch file instead.
+# Production never sets it.
+ENV_FILE="${OJS_BACKUP_ENV_FILE:-$PROJECT_DIR/.env}"
 if [ -f "$ENV_FILE" ]; then
   set -a; source "$ENV_FILE"; set +a
 fi
@@ -107,7 +118,10 @@ if [ -z "$RCLONE" ] || [ ! -x "$RCLONE" ]; then
   exit 1
 fi
 
-RCLONE_VER=$("$RCLONE" version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+# `|| true` for the same reason as everywhere else in this script: without it, an
+# rclone that cannot even print its version kills the run here, silently, instead
+# of reaching the explanatory error below.
+RCLONE_VER=$("$RCLONE" version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1 || true)
 RC_MAJOR=${RCLONE_VER%%.*}; RC_MINOR=${RCLONE_VER##*.}
 if [ -z "$RCLONE_VER" ] \
    || [ "${RC_MAJOR:-0}" -lt "$RCLONE_MIN_MAJOR" ] \
@@ -134,6 +148,13 @@ export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$BACKUP_R2_SECRET_ACCESS_KEY"
 export RCLONE_CONFIG_R2_ENDPOINT="$ENDPOINT"
 export RCLONE_CONFIG_R2_REGION="auto"
 export RCLONE_CONFIG_R2_ACL="private"
+# 🛑 PIN THIS OFF. `set -a; source .env` exports every name in that file, and
+# rclone's s3 backend picks up AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY from the
+# environment when env_auth is on. It is off by default today, so this changes
+# nothing — but the moment SES go-live puts AWS credentials in that .env, a
+# default that drifted would silently sign R2 requests with the wrong key and
+# fail as AccessDenied. Cheaper to state than to diagnose.
+export RCLONE_CONFIG_R2_ENV_AUTH="false"
 # 🛑 NO `no_check_bucket` HERE, TEMPTING THOUGH IT LOOKS. The token cannot
 # create a bucket, so skipping the check reads like the right thing to do — but
 # on this box it was the thing that produced `NotImplemented` (501) on the first
@@ -184,17 +205,40 @@ fi
 # has nothing to do, which is also what it does when the include pattern stops
 # matching — a rename of the dump would silently upload nothing for ever and
 # report success. So assert the newest local dump by name on the far side.
+#
+# 🛑 AND NOT THROUGH A PIPE INTO `grep -q`, WHICH INVERTS THIS CHECK. `grep -q`
+# exits the instant it matches and closes the pipe; rclone then dies of SIGPIPE
+# with status 141, and `pipefail` makes 141 the PIPELINE's status — so the
+# condition reads FALSE exactly when the file IS found. The script would then
+# announce "off-site is NOT working" about a file sitting right there, exit 1,
+# and skip the expiry (because `copied` stays 0), so the store grows without
+# bound behind a red heartbeat. Measured 2026-08-29: it fires from as few as
+# five listed objects, and whether it fires at all depends on rclone finishing
+# its write before grep quits — silent while a prefix is small, permanent once
+# it is not. Found by elastic-wiles-412855 porting this to Harbour.
+#
+# So: no pipe, and nothing that can short-circuit. Read the listing into a
+# variable and match it in the shell.
 if [ -z "$DRY_RUN" ]; then
-  newest=$(ls -t "$BACKUP_DIR"/daily/ojs-*.sql.gz.enc 2>/dev/null | head -1)
+  # `|| true` is load-bearing on BOTH lines. Under `set -e` with `pipefail` an
+  # assignment whose pipeline fails kills the script on the spot — so with no
+  # local dump, `ls` exits 2 and the "WARNING: no local dump" branch below could
+  # never be reached. The run died between the last copy and any verification,
+  # leaving a red heartbeat above a log that says nothing about why.
+  newest=$(ls -t "$BACKUP_DIR"/daily/ojs-*.sql.gz.enc 2>/dev/null | head -1 || true)
   if [ -n "$newest" ]; then
     name=$(basename "$newest")
-    if "$RCLONE" lsf "$REMOTE/daily/" 2>/dev/null | grep -qxF "$name"; then
-      log "  verified in R2: daily/$name"
-      copied=1
-    else
-      log "ERROR: $name is not in R2 after the copy — off-site is NOT working."
-      exit 1
-    fi
+    listing=$("$RCLONE" lsf "$REMOTE/daily/" 2>/dev/null || true)
+    case $'\n'"$listing"$'\n' in
+      *$'\n'"$name"$'\n'*)
+        log "  verified in R2: daily/$name"
+        copied=1
+        ;;
+      *)
+        log "ERROR: $name is not in R2 after the copy — off-site is NOT working."
+        exit 1
+        ;;
+    esac
   else
     log "WARNING: no local daily OJS dump to verify against"
   fi
@@ -204,15 +248,21 @@ fi
 # Only after a verified upload. A run that could not put tonight's dump in R2
 # has no business deleting the dumps that are already there.
 expire() {
-  local sub="$1" days="$2" count
-  count=$("$RCLONE" lsf "$REMOTE/$sub/" 2>/dev/null | wc -l | tr -d ' ')
+  local sub="$1" days="$2" count listing
+  # Same trap as the verification above: an unguarded assignment from a failing
+  # pipeline kills the whole script under `set -e` + `pipefail`. A momentary R2
+  # error here would have taken the run down without a word rather than skipping
+  # one expiry, so read it defensively and let the floor below decide.
+  listing=$("$RCLONE" lsf "$REMOTE/$sub/" 2>/dev/null || true)
+  count=$(printf '%s' "$listing" | grep -c . || true)
   if [ "${count:-0}" -le "$EXPIRE_FLOOR" ]; then
     log "  $sub/: $count objects, at or below the floor of $EXPIRE_FLOOR — not expiring"
     return 0
   fi
   # 🛑 --max-delete IS THE REAL GUARD, and the floor above is only the cheap
-  # half of it. In a steady state exactly one object ages out per night, so a run
-  # that wants to remove more than a handful has misunderstood something — a
+  # half of it. In a steady state three objects age out per night (ojs, wp and
+  # umami), so a run that wants to remove more than ten has misunderstood
+  # something — a
   # clock jump, a changed prefix, a restored-from-cold store whose mtimes are all
   # old. rclone aborts the delete rather than doing it, and the run goes red.
   local args=(delete "$REMOTE/$sub/" --min-age "${days}d" --retries 3 --max-delete 10)
