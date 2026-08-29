@@ -35,8 +35,53 @@ Layers are ordered **heavy → volatile** so small additions don't bust the expe
 - **`scripts/infra/deploy.sh`** — deploys code to a VPS via SSH: git pull, build images, start containers, run setup. Run every time you ship code. Flags: `--host`, `--provision`, `--skip-setup`, `--skip-build`, `--ref`, `--clean`, `--env-file`.
 - **`scripts/monitoring/smoke-test.sh`** — lightweight staging/prod health checks via SSH (curl + WP-CLI). Includes backup health checks.
 - **`scripts/monitoring/load-test.sh`** — performance tests using `hey` with server resource monitoring.
-- **`scripts/ojs/backup-ojs-db.sh`** — runs ON the VPS (via cron at 03:00 UTC). Dumps OJS DB + WP DB + OJS files volume → gzip → AES-256-CBC encrypt → rotate (DB: 7 daily + 4 weekly; files tarball: 1 daily + 2 weekly).
-- **`scripts/infra/pull-ojs-backup.sh`** — runs FROM devcontainer. Pull, list, decrypt backups. Also manages VPS cron (`--install-cron`, `--remove-cron`). Off-server storage via GitHub Actions → a private backup repo (daily schedule).
+- **`scripts/ojs/backup-ojs-db.sh`** — runs ON the VPS (via cron at 03:00 UTC). Dumps OJS DB + WP DB + Umami DB + OJS files volume → gzip → AES-256-CBC encrypt → rotate (DB: 7 daily + 4 weekly; files tarball: 1 daily + 2 weekly). Then calls the off-site step below.
+- **`scripts/ojs/upload-backup-r2.sh`** — copies the encrypted `*.sql.gz.enc` dumps to Cloudflare R2 and expires old ones. See **Off-site backups** below.
+- **`scripts/infra/pull-ojs-backup.sh`** — runs FROM devcontainer. Pull, list, decrypt backups. Also manages VPS cron (`--install-cron`, `--remove-cron`).
+
+## Off-site backups
+
+The dumps land on the VPS, and a VPS is one machine. The off-site copy goes to
+**Cloudflare R2**, already AES-256-CBC encrypted — R2 holds the ciphertext, the
+box holds the key (`/opt/backups/ojs/.backup-key`, plus the password-manager
+copy). Neither one alone restores anything.
+
+🛑 **This replaced a Git LFS push, and the reason is a trap worth naming.**
+Until 2026-08-29 a GitHub Actions workflow in `Pharkie/sea-ojs-private`
+committed each night's dump through Git LFS. The workflow pruned to 30 daily —
+but **pruning a file does not free its LFS object**. 156 objects, 11.06 GB,
+against a 10 GB account quota, and GitHub's documented way to reclaim it is to
+delete the repository, because a history rewrite never touches the object store.
+Any backup scheme whose "delete" does not free bytes will do this again.
+
+Configuration lives in the VPS's root-only `/opt/pharkie-ojs-plugins/.env`:
+
+| Variable | Notes |
+|---|---|
+| `BACKUP_R2_ENABLED` | `true` to switch it on. Anything else = skip, and say so in the log. |
+| `BACKUP_R2_ACCOUNT_ID` | Cloudflare account id. |
+| `BACKUP_R2_ACCESS_KEY_ID` / `BACKUP_R2_SECRET_ACCESS_KEY` | R2 **Object Read & Write** token for the backups bucket. |
+| `BACKUP_R2_BUCKET` | A bucket of its own — **never the app's live bucket**, whose contents Harbour mirrors down onto its uploads volume nightly. Backups landing there would be pulled onto the box and tarred into Harbour's own backup. |
+| `BACKUP_R2_JURISDICTION` | `eu` for an EU-jurisdiction bucket. Wrong value = an `AccessDenied` that reads like a bad key. |
+| `BACKUP_R2_PREFIX` | Defaults to `ojs`. |
+
+Retention in R2 is by age — 30 days daily, 84 days weekly — matching what the
+LFS store held, so changing the storage did not quietly change the recovery
+window. Two guards sit on the delete: it is skipped entirely below 7 objects,
+and `--max-delete 10` aborts a run that wants to remove more than a night's
+worth.
+
+🛑 **rclone must be 1.65 or newer, and NOT the one in apt.** Ubuntu 24.04 ships
+1.60.1, which cannot talk to R2 reliably: measured on the box, a 200 KB PUT
+failed with `AccessDenied` six times out of six, while a hand-signed SigV4 PUT of
+the same object with the same key succeeded three times out of three. Install the
+upstream binary to `/usr/local/bin` (verify it against the release's
+`SHA256SUMS`); the script checks the version and refuses to run on an older one.
+
+**Not off-sited:** the ~4.3 GB `ojs-files-*.tar.gz.enc` galley tarball. The LFS
+copy never carried it either. It is a cost decision rather than an oversight, and
+it means a total loss of the box falls back to OJS's own files on the journal
+host rather than to an off-site archive.
 
 ## Secrets management
 

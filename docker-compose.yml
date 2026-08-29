@@ -248,5 +248,13 @@ volumes:
   ojs_db_data:
 
 networks:
+  # EXTERNAL since 2026-08-16, and no longer this project's to create.
+  #
+  # This project used to own the network every container on the box attached to
+  # — Harbour, Outline and the shared Caddy included — so `docker compose down`
+  # here would have taken the whole box's networking with it, on the one day
+  # nobody could afford the surprise. `sea-net` is now created by hand and
+  # belongs to no compose project:  docker network create sea-net
   sea-net:
-    driver: bridge
+    external: true
+    name: sea-net

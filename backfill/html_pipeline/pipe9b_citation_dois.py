@@ -39,6 +39,9 @@ from xml.etree import ElementTree as ET
 BACKFILL_DIR = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = BACKFILL_DIR / 'private' / 'output'
 
+sys.path.insert(0, str(BACKFILL_DIR))
+from lib.paths import load_toc  # noqa: E402
+
 TARGETS = {
     'dev': {
         'cmd': [
@@ -121,8 +124,7 @@ def load_all_jats_ref_dois(vol_dirs):
         toc_path = vol_dir / 'toc.json'
         if not toc_path.exists():
             continue
-        with open(toc_path) as f:
-            toc = json.load(f)
+        toc = load_toc(toc_path)
 
         volume = str(toc.get('volume', ''))
         issue = str(toc.get('issue', ''))

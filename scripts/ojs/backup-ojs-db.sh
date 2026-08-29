@@ -298,6 +298,25 @@ if [ "$DAY_OF_WEEK" = "7" ]; then
   fi
 fi
 
+# --- Off-site the dumps to Cloudflare R2 --------------------------------------
+# Runs BEFORE rotation so that a dump can never be deleted locally in the same
+# run that failed to copy it away. Dormant until BACKUP_R2_ENABLED=true, so this
+# line is a no-op on a box that has not been configured yet.
+#
+# The failure is DEFERRED to the end rather than taken here, for the same reason
+# Harbour's backup.sh defers its own: bailing out now would skip the rotation
+# below, and a persistent off-site failure would then fill a 75 GB disk that
+# already runs five databases. Trading a loud failure for a slow disk-fill is a
+# bad trade. Everything after this point is cleanup, so it all still runs.
+R2_FATAL=0
+if [ -x "$PROJECT_DIR/scripts/ojs/upload-backup-r2.sh" ]; then
+  if ! "$PROJECT_DIR/scripts/ojs/upload-backup-r2.sh"; then
+    R2_FATAL=1
+  fi
+else
+  log "WARNING: upload-backup-r2.sh not found or not executable — no off-site copy"
+fi
+
 # --- Rotate old backups ---
 rotate() {
   local dir="$1" pattern="$2" keep="$3" label="$4"
@@ -322,5 +341,14 @@ rotate "$WEEKLY_DIR" "ojs-weekly-*.sql.gz.enc" "$KEEP_WEEKLY" "weekly OJS DB"
 rotate "$WEEKLY_DIR" "wp-weekly-*.sql.gz.enc" "$KEEP_WEEKLY" "weekly WP DB"
 rotate "$WEEKLY_DIR" "umami-weekly-*.sql.gz.enc" "$KEEP_WEEKLY" "weekly Umami DB"
 rotate "$WEEKLY_DIR" "ojs-files-weekly-*.tar.gz.enc" "$KEEP_WEEKLY_FILES" "weekly OJS files"
+
+# The deferred exit from the off-site block. Non-zero is the whole alarm: the
+# cron line pings the Better Stack heartbeat on this exit status and nothing
+# else reads the log.
+if [ "$R2_FATAL" -ne 0 ]; then
+  log "ERROR: backup FAILED — the dumps were written and verified on this box,"
+  log "       but nothing was copied off it. A box failure tonight loses them."
+  exit 1
+fi
 
 log "Backup complete."
