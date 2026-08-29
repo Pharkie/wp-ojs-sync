@@ -21,7 +21,7 @@
 # 🛑 THE 4.3 GB ojs-files-*.tar.gz.enc TARBALL IS DELIBERATELY NOT UPLOADED.
 # The LFS copy never carried it either. It is ~40x every DB dump combined and it
 # changes slowly, so off-siting it is a cost decision rather than an oversight —
-# recorded in docs/staging-prod-setup.md so that the gap is a known one.
+# recorded in docs/setup-guide.md so that the gap is a known one.
 #
 # Usage:
 #   scripts/ojs/upload-backup-r2.sh              # copy up, then expire
@@ -56,7 +56,7 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
 # --- Configuration ------------------------------------------------------------
 # Sourced from the same .env as backup-ojs-db.sh. That file is root-only and not
-# in git; the names are documented in docs/staging-prod-setup.md.
+# in git; the names are documented in docs/setup-guide.md.
 ENV_FILE="$PROJECT_DIR/.env"
 if [ -f "$ENV_FILE" ]; then
   set -a; source "$ENV_FILE"; set +a
@@ -69,7 +69,7 @@ fi
 # setting up. Unset means "skip, loudly". Set means "and a failure is real".
 if [ "${BACKUP_R2_ENABLED:-false}" != "true" ]; then
   log "R2 off-site is not enabled (BACKUP_R2_ENABLED != true) — skipping."
-  log "  Nothing is being copied off this box. See docs/staging-prod-setup.md."
+  log "  Nothing is being copied off this box. See docs/setup-guide.md."
   exit 0
 fi
 
