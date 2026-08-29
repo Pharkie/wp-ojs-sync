@@ -127,36 +127,69 @@ destroying anything has been:
   from their real homes without touching GitHub. It was run on 2026-08-29 and all
   six came back. Re-run it immediately before the delete.
 
-### What is left
+### What is left — ONE command, and it is Adam's
+
+🛑 **The original ordering in this doc was wrong and Adam corrected it.** It said
+delete, then recreate, then push. His objection: *"create the new one, make sure
+it's all working before we delete the old one."* He is right, and it has already
+paid for itself twice on the real run:
+
+1. **The LFS push to a second repo might have been refused** with the account
+   over quota. It was not — 1,579 objects, 638 MB, clean — but under the old
+   ordering that unknown would have been discovered with the original already
+   deleted and no way back.
+2. **The first monitoring run on the replacement FAILED**, and the cause was a
+   wrong value in `restore-secrets.sh`: `LIVE_WP_HOME` had been mapped to the
+   box's `WP_HOME`, which is the `wp-staging` mirror behind basic auth. Two WP
+   tests returned 401 while fifteen passed. The right value is the **live
+   community WordPress on Krystal**, which the spec documents in its own header
+   — the box is not the live WP. Under the old ordering that would have been a
+   broken secret in a recreated repo with no original left to diff against.
+
+So the rule this leaves behind: **when the replacement can be built alongside,
+build it alongside.** The name is the only thing that forces an ordering, and a
+rename at the end is cheaper than a restore from the middle.
+
+**Already done** (2026-08-29), all non-destructive:
+
+- `Pharkie/sea-ojs-private-v2` created, rewritten history pushed with all 1,579
+  journal PDF objects.
+- Six secrets installed by `restore-secrets.sh` (`TARGET_REPO=…-v2`).
+- `monitor-daily` dispatched and **green**. The first dispatch was run with the
+  heartbeat secrets deliberately removed, so a failing test could not page the
+  Society: `ping_heartbeat` returns early on an empty URL and
+  `register_heartbeat` only appends a non-empty one — both checked in the source
+  rather than assumed.
+- Parity checked: **7,458 paths identical** once `backups/` and `backup.yml` are
+  excluded, same two tags, same single branch, three workflows, six secrets.
+
+**The remaining step is Adam's to run.** Permanently destroying a repository is
+not an action a session should take on anyone's say-so, including its own:
 
 ```bash
-cd ~/dev/SEA/sea-ojs-private-lfs-cleanup
-
-# 0. Prove, one more time, that nothing is missing. If this is not clean, STOP.
-./restore-secrets.sh --check
-
-# 1. Delete the repository. THIS IS THE IRREVERSIBLE STEP, and from here until
-#    step 3 the OJS monitoring is not running.
 gh repo delete Pharkie/sea-ojs-private --yes
-
-# 2. Recreate and push the rewritten history.
-gh repo create Pharkie/sea-ojs-private --private
-cd rewritten-repo && git push --all && git push --tags && cd ..
-
-# 3. Put the six secrets back, then prove the monitors run again.
-./restore-secrets.sh
-gh workflow run monitor-daily.yml -R Pharkie/sea-ojs-private
-sleep 45 && gh run list -R Pharkie/sea-ojs-private --limit 3
-
-# 4. Once the monitors are green, retire the old key from the box.
-ssh sea-live "sed -i '/github-actions-monitor$/d' /root/.ssh/authorized_keys \
-                                                 /home/deploy/.ssh/authorized_keys"
 ```
 
-Step 4 matters: until it is run, the box still trusts a private key that was
-last seen inside a deleted GitHub secret. Leave it in place until the new one has
-demonstrably worked, then remove it — the `$` anchor is deliberate, so it matches
-`github-actions-monitor` and not `github-actions-monitor-v2`.
+Everything either side of it is scripted. Immediately afterwards:
+
+```bash
+gh repo rename sea-ojs-private -R Pharkie/sea-ojs-private-v2 --yes   # name restored
+gh workflow run monitor-daily.yml -R Pharkie/sea-ojs-private          # prove it survived
+```
+
+Then, once that run is green and NOT before, retire the superseded key — until
+this runs, the box still trusts a private key last seen inside a deleted secret.
+The `$` anchor matters: it matches `github-actions-monitor` and not
+`github-actions-monitor-v2`.
+
+```bash
+ssh sea-live "sed -i '/github-actions-monitor$/d' /root/.ssh/authorized_keys \
+                                                  /home/deploy/.ssh/authorized_keys"
+```
+
+Two secrets are deliberately not carried over: `SSH_PRIVATE_KEY` (its only user,
+`backup.yml`, is deleted) and `CADDY_WP_AUTH_PASS` and `KNOWN_HOSTS`, which no
+workflow referenced.
 
 Storage does not drop instantly — reports of a 17 GB repo taking about fifteen
 minutes. Check the account's billing page rather than assuming it failed.
