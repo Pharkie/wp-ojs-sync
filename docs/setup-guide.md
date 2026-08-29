@@ -63,6 +63,22 @@ umami, plus 4 weeks each of their weekly promotions. Harbour's own dumps land in
 the same bucket under `harbour/`, and each side's expiry is scoped to its own
 prefix so neither can delete the other's objects.
 
+🛑 **`/opt/pharkie-ojs-plugins/.env` MUST STAY `640 root:deploy`. DO NOT
+`chmod 600` IT.** It looks like a file that should be owner-only — it holds every
+database password on the box — but the monitoring reads values out of it over
+SSH as the `deploy` user, and the group-read bit is what allows that. Removing it
+on 2026-08-29 while installing the R2 credentials took **17 of 24 deep checks
+from PASS to FAIL** and raised two Better Stack incidents that emailed the
+Society, because every affected check reports the symptom as `HTTP 000` — the
+estate looks completely down. The real cause appears only inside one failure
+string: `[FAIL] WP not responding (HTTP 000 via grep:
+/opt/pharkie-ojs-plugins/.env: Permission denied)`.
+
+The box's own hourly cron is NOT affected — it runs locally as root and kept
+passing 30/30 throughout, so the box log and the GitHub monitor disagreed, which
+is itself the signature of this fault. **Read the existing mode before changing
+it**, the same way you would read an existing value before overwriting one.
+
 Configuration lives in the VPS's root-only `/opt/pharkie-ojs-plugins/.env`:
 
 | Variable | Notes |
