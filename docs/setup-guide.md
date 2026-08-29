@@ -55,6 +55,14 @@ delete the repository, because a history rewrite never touches the object store.
 Any backup scheme whose "delete" does not free bytes will do this again. The
 remediation for the 11 GB already there is in [`github-lfs-cleanup.md`](github-lfs-cleanup.md).
 
+**LIVE since 2026-08-29.** Bucket `sea-backups`, EU jurisdiction, prefix `ojs/`,
+with its own Object Read & Write token (Harbour's is scoped to `harbour` alone
+and cannot reach it). First real run verified from the R2 side rather than from
+the script's own log: 33 encrypted dumps, 842 MiB — 7 days each of ojs, wp and
+umami, plus 4 weeks each of their weekly promotions. Harbour's own dumps land in
+the same bucket under `harbour/`, and each side's expiry is scoped to its own
+prefix so neither can delete the other's objects.
+
 Configuration lives in the VPS's root-only `/opt/pharkie-ojs-plugins/.env`:
 
 | Variable | Notes |
