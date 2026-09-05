@@ -79,6 +79,13 @@ public_files_dir = public
 ; and silently died with SMTP 421.
 default = smtp
 default_envelope_sender = ${OJS_MAIL_FROM}
+; Resend (smtp.resend.com) rejects any From address outside a verified domain
+; (550 "The gmail.com domain is not verified"), and OJS sends invitations,
+; editor notes and author messages From the acting user. Rewrite From to the
+; journal address and keep the real sender in Reply-To (DMARC-compliant).
+force_default_envelope_sender = On
+force_dmarc_compliant_from = On
+dmarc_compliant_from_displayname = '%n via %s'
 smtp_server = ${OJS_SMTP_HOST}
 smtp_port = ${OJS_SMTP_PORT}
 smtp_auth = ${OJS_SMTP_AUTH}
