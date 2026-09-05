@@ -134,10 +134,20 @@ detect_compose() {
   local compose_files
   compose_files=$(ssh_retry $SSH_CMD "docker inspect --format='{{index .Config.Labels \"com.docker.compose.project.config_files\"}}' \$(docker ps -q --filter 'label=com.docker.compose.project=pharkie-ojs-plugins' | head -1) 2>/dev/null") || compose_files=""
   if [ -n "$compose_files" ]; then
-    COMPOSE="docker compose"
+    # The label records the files the containers were *created* with. Overlays
+    # can leave the repo while the containers keep running (caddy and umami
+    # moved to Harbour on 2026-08-16), and one missing -f file makes every
+    # compose command fail with "stat ...: no such file", which the checks
+    # then report as "SSH or Docker may be down". Pass only files that exist.
+    local names="" f existing
     IFS=',' read -ra FILES <<< "$compose_files"
     for f in "${FILES[@]}"; do
-      COMPOSE="$COMPOSE -f $(basename "$f")"
+      names="$names $(basename "$f")"
+    done
+    existing=$(ssh_retry $SSH_CMD "cd $REMOTE_DIR && for f in $names; do [ -f \"\$f\" ] && echo \"\$f\"; done; true") || existing=""
+    COMPOSE="docker compose"
+    for f in $existing; do
+      COMPOSE="$COMPOSE -f $f"
     done
   else
     # Auto-detect failed — use bare docker compose (uses docker-compose.yml only).
